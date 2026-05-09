@@ -126,20 +126,20 @@ export default function HomePage() {
         <Container>
           <SectionHeader title="Почему важно не откладывать" subtitle="Рынок новостроек Луганска меняется быстро — каждая неделя ожидания стоит денег." />
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="card why-now-card why-now-card--orange reveal p-6">
-              <p className="text-3xl font-bold text-orange-500">📈</p>
-              <h3 className="mt-3 text-xl font-bold tracking-tight">Цены растут каждый месяц</h3>
-              <p className="mt-2 text-[color:var(--muted)]">Средний рост стоимости новостроек — 3–5% в месяц. Квартира за 4 млн сейчас через 3 месяца стоит 4,5 млн.</p>
+            <div className="why-now-card reveal">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8B6914" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+              <h3 className="why-now-card__title">Цены растут каждый месяц</h3>
+              <p className="why-now-card__text">Средний рост стоимости новостроек — 3–5% в месяц. Квартира за 4 млн сейчас через 3 месяца стоит 4,5 млн.</p>
             </div>
-            <div className="card why-now-card why-now-card--red reveal p-6">
-              <p className="text-3xl font-bold text-red-500">🏠</p>
-              <h3 className="mt-3 text-xl font-bold tracking-tight">Квартир остаётся всё меньше</h3>
-              <p className="mt-2 text-[color:var(--muted)]">Лучшие планировки разбирают первыми. Студии и однушки заканчиваются быстрее всего.</p>
+            <div className="why-now-card reveal">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8B6914" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              <h3 className="why-now-card__title">Квартир остаётся всё меньше</h3>
+              <p className="why-now-card__text">Лучшие планировки разбирают первыми. Студии и однушки заканчиваются быстрее всего.</p>
             </div>
-            <div className="card why-now-card why-now-card--amber reveal p-6">
-              <p className="text-3xl font-bold text-amber-500">⏰</p>
-              <h3 className="mt-3 text-xl font-bold tracking-tight">Льготная ипотека ограничена</h3>
-              <p className="mt-2 text-[color:var(--muted)]">Ипотека под 2% — государственная программа с лимитом мест. Условия могут измениться.</p>
+            <div className="why-now-card reveal">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8B6914" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <h3 className="why-now-card__title">Льготная ипотека ограничена</h3>
+              <p className="why-now-card__text">Ипотека под 2% — государственная программа с лимитом мест. Условия могут измениться.</p>
             </div>
           </div>
           <div className="mt-8 text-center">

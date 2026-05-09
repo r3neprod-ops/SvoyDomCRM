@@ -89,20 +89,6 @@ export default function ComplexCarouselCard({ complex }) {
         /* Normal Mode: Auto-carousel slider */
         <>
           <div className="relative h-48 overflow-hidden rounded-2xl">
-            {/* Price badge */}
-            {complex.priceFrom && (
-              <div className="absolute left-3 top-3 z-10">
-                <span className="complex-price-badge">{complex.priceFrom}</span>
-              </div>
-            )}
-            {/* Completion date badge */}
-            {complex.completionDate && (
-              <div className="absolute right-3 top-3 z-10">
-                <span className="inline-block rounded-lg bg-black/50 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
-                  {complex.completionDate}
-                </span>
-              </div>
-            )}
             {/* Render all image slots in DOM, but hide inactive ones with opacity */}
             {complex.photos.map((photoKey, index) => (
               <div

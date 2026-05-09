@@ -269,8 +269,11 @@ body {
 
 /* ── Why Now section cards ── */
 .why-now-card {
-  border-left: 4px solid transparent;
-  transition: transform 300ms ease, box-shadow 300ms ease, border-color 300ms ease;
+  background: #ffffff;
+  border: 1px solid #e8e0d5;
+  border-radius: 12px;
+  padding: 28px;
+  transition: transform 300ms ease, box-shadow 300ms ease;
 }
 
 .why-now-card:hover {
@@ -278,9 +281,19 @@ body {
   box-shadow: var(--shadowHover);
 }
 
-.why-now-card--orange { border-left-color: #f97316; }
-.why-now-card--red    { border-left-color: #ef4444; }
-.why-now-card--amber  { border-left-color: #f59e0b; }
+.why-now-card__title {
+  margin-top: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.why-now-card__text {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #666666;
+  line-height: 1.6;
+}
 
 /* ── Complex card price badge ── */
 .complex-price-badge {
