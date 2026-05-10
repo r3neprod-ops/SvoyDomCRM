@@ -6,12 +6,11 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Container from '@/components/ui/Container';
 
-const QUIZ_STEPS = 5;
-const TOTAL_STEPS = 6;
+const QUIZ_STEPS = 4;
+const TOTAL_STEPS = 5;
 
 const stepTitles = [
   'Бюджет',
-  'Район',
   'Количество комнат',
   'Способ оплаты',
   'Срок покупки',
@@ -25,14 +24,6 @@ const budgetOptions = [
   { label: '8–10 млн ₽', value: '8_10' },
   { label: '10+ млн ₽', value: '10_plus' },
   { label: 'Свой вариант', value: 'custom' },
-];
-
-const districtOptions = [
-  { label: 'Центральный', value: 'center' },
-  { label: 'Октябрьский', value: 'oktyabrsky' },
-  { label: 'Жовтневый', value: 'zhovtnevyi' },
-  { label: 'Артёмовск', value: 'artemovsk' },
-  { label: 'Не важно', value: 'any' },
 ];
 
 const roomOptions = [
@@ -127,10 +118,9 @@ export default function LeadFormSection() {
       if (leadAnswers.budgetPreset === 'custom') return Boolean(leadAnswers.budgetCustom.trim());
       return true;
     }
-    if (step === 2) return Boolean(leadAnswers.district);
-    if (step === 3) return Boolean(leadAnswers.rooms);
-    if (step === 4) return Boolean(leadAnswers.paymentType);
-    if (step === 5) return Boolean(leadAnswers.purchaseTimeline);
+    if (step === 2) return Boolean(leadAnswers.rooms);
+    if (step === 3) return Boolean(leadAnswers.paymentType);
+    if (step === 4) return Boolean(leadAnswers.purchaseTimeline);
     return true;
   };
 
@@ -271,22 +261,6 @@ export default function LeadFormSection() {
     if (step === 2) {
       return (
         <div className="space-y-3">
-          <p className="text-sm font-medium">Предпочтительный район?</p>
-          <InlineChoice
-            options={districtOptions.map((o) => o.label)}
-            value={districtOptions.find((o) => o.value === leadAnswers.district)?.label || ''}
-            onSelect={(label) => {
-              const opt = districtOptions.find((o) => o.label === label);
-              if (opt) setValue('district', opt.value);
-            }}
-          />
-        </div>
-      );
-    }
-
-    if (step === 3) {
-      return (
-        <div className="space-y-3">
           <p className="text-sm font-medium">Сколько комнат?</p>
           <InlineChoice
             options={roomOptions.map((o) => o.label)}
@@ -300,7 +274,7 @@ export default function LeadFormSection() {
       );
     }
 
-    if (step === 4) {
+    if (step === 3) {
       return (
         <div className="space-y-3">
           <p className="text-sm font-medium">Способ оплаты?</p>
@@ -316,7 +290,7 @@ export default function LeadFormSection() {
       );
     }
 
-    if (step === 5) {
+    if (step === 4) {
       return (
         <div className="space-y-3">
           <p className="text-sm font-medium">Когда планируете покупку?</p>
@@ -415,7 +389,7 @@ export default function LeadFormSection() {
 
           <Card className="embedded-lead-card reveal p-7 transition-colors duration-200 md:p-10">
             <p className="mb-2 text-xs uppercase tracking-[0.2em] text-[rgba(17,24,39,0.55)]">Быстрый подбор</p>
-            <p className="mt-3 max-w-2xl text-[rgba(17,24,39,0.70)]">5 вопросов — и мы пришлём варианты с ценами и планировками.</p>
+            <p className="mt-3 max-w-2xl text-[rgba(17,24,39,0.70)]">4 вопроса — и мы пришлём варианты с ценами и планировками.</p>
 
             <div className="mb-2 mt-6 flex items-center justify-between text-xs text-[color:var(--muted)]">
               <span>{embeddedDone ? 'Готово' : stepLabel(embeddedStep)}</span>
