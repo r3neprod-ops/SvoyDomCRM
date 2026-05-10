@@ -27,7 +27,7 @@ export default function HomePage() {
 
       <div className="relative">
         <Image
-          src="https://cdn.builder.io/api/v1/image/assets%2F5940eccd50a845709f0c0fa0a222cdc1%2F6e6b28460afc4aa4a8fb711213fa8d32?width=1600&quality=68&format=webp"
+          src="/images/hero.webp"
           alt=""
           fill
           priority

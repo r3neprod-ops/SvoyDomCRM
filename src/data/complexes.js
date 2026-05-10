@@ -9,9 +9,9 @@ const complexes = [
     tags: ['рядом с парком', 'инфраструктура'],
     photos: ['renovaciya-1', 'renovaciya-2', 'renovaciya-3'],
     backgroundImages: [
-      'url(https://cdn.builder.io/api/v1/image/assets%2F5940eccd50a845709f0c0fa0a222cdc1%2F0e4111aa96984bd9bd979f391ebd84e5)',
-      'url(https://cdn.builder.io/api/v1/image/assets%2F5940eccd50a845709f0c0fa0a222cdc1%2Ff5a34dd3a87a4409af6490ca3fec9ad6)',
-      'url(https://cdn.builder.io/api/v1/image/assets%2F5940eccd50a845709f0c0fa0a222cdc1%2Fd5a682615f3e48778becc1c98d0d81e5)',
+      'url(/images/trilstnik-1.webp)',
+      'url(/images/trilstnik-2.webp)',
+      'url(/images/trilstnik-3.webp)',
     ],
   },
   {
@@ -24,9 +24,9 @@ const complexes = [
     tags: ['семейный формат', 'удобная логистика'],
     photos: ['aura-1', 'aura-2', 'aura-3'],
     backgroundImages: [
-      'url(https://cdn.builder.io/api/v1/image/assets%2F5940eccd50a845709f0c0fa0a222cdc1%2F7c4abadbc0834267bfd7c26f687fb07b)',
-      'url(https://cdn.builder.io/api/v1/image/assets%2F5940eccd50a845709f0c0fa0a222cdc1%2Fba0c16f443a8418380f1915fb69d301f)',
-      'url(https://cdn.builder.io/api/v1/image/assets%2F5940eccd50a845709f0c0fa0a222cdc1%2Fc5c2f4bf54c34192bc477d98d82ba431)',
+      'url(/images/aura-1.webp)',
+      'url(/images/aura-2.webp)',
+      'url(/images/aura-3.webp)',
     ],
   },
   {
@@ -38,7 +38,7 @@ const complexes = [
     keyAdvantage: 'Закрытый двор без машин',
     tags: ['закрытый двор', 'сервисы рядом'],
     photos: ['druzhba-1', 'druzhba-2', 'druzhba-3'],
-    backgroundImage: 'url(https://cdn.builder.io/api/v1/image/assets%2F5940eccd50a845709f0c0fa0a222cdc1%2F98e6359f75504270b44a6c236836ae76)',
+    backgroundImage: 'url(/images/druzhba-1.webp)',
   },
 ];
 
