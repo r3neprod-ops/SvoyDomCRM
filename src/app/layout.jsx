@@ -37,6 +37,14 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-title" content="СвойДом" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
+        {/* Preload hero image for mobile — speeds up LCP on slow connections */}
+        <link
+          rel="preload"
+          as="image"
+          href="/_next/image?url=https%3A%2F%2Fcdn.builder.io%2Fapi%2Fv1%2Fimage%2Fassets%252F5940eccd50a845709f0c0fa0a222cdc1%252F6e6b28460afc4aa4a8fb711213fa8d32%3Fwidth%3D1600%26quality%3D68%26format%3Dwebp&w=828&q=60"
+          fetchPriority="high"
+          media="(max-width: 768px)"
+        />
       </head>
       <body>
         {children}

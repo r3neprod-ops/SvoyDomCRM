@@ -31,7 +31,9 @@ export default function HomePage() {
           alt=""
           fill
           priority
-          sizes="100vw"
+          fetchPriority="high"
+          sizes="(max-width: 768px) 100vw, 1600px"
+          quality={60}
           className="object-cover object-center"
         />
         <section id="hero" className="relative pt-28 pb-16 md:pt-36 md:pb-24">
