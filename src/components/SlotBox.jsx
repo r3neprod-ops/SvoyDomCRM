@@ -12,7 +12,7 @@ export default function SlotBox({
 }) {
   if (!debug) {
     const imageUrl = extractUrlFromBackground(backgroundImage);
-    const optimizedSrc = withBuilderImageParams(imageUrl, { width: 900, quality: 68 });
+    const optimizedSrc = withBuilderImageParams(imageUrl, { width: 640, quality: 60 });
     const style = {};
 
     // Use slot-box-with-image class when backgroundImage is provided

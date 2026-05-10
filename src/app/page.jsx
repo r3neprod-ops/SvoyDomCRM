@@ -17,7 +17,7 @@ const MAX_URL = 'https://max.ru/u/f9LHodD0cOIi4r-SL0pK2dhDjayjfz3potOe5T20iWeHHe
 
 const RevealOnScroll = dynamic(() => import('@/components/RevealOnScroll'), { ssr: false });
 const LeadFormSection = dynamic(() => import('@/components/sections/LeadFormSection'), { ssr: false });
-const ComplexCarouselCard = dynamic(() => import('@/components/complexes/ComplexCarouselCard'), { ssr: false });
+const ComplexCarouselCard = dynamic(() => import('@/components/complexes/ComplexCarouselCard'));
 
 export default function HomePage() {
   return (
