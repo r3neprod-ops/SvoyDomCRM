@@ -28,11 +28,7 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ ok: false, message: 'Нет данных для обновления' }, { status: 400 });
   }
 
-  const keys = Object.keys(updates);
-  const values = Object.values(updates);
-  const setClauses = keys.map((k, i) => `${k} = $${i + 1}`).join(', ');
-  values.push(id);
-  await sql.query(`UPDATE leads SET ${setClauses} WHERE id = $${values.length}`, values);
+  await sql`UPDATE leads SET ${sql(updates)} WHERE id = ${id}`;
   revalidateTag('leads');
 
   return NextResponse.json({ ok: true });

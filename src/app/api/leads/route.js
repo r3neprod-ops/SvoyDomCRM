@@ -6,32 +6,24 @@ import { getSql, ensureSchema } from '@/lib/admin/db';
 const fetchLeadsData = unstable_cache(
   async (userId, userRole, status) => {
     const sql = getSql();
-    const conditions = [];
-    const params = [];
 
-    if (userRole === 'employee') {
-      params.push(userId);
-      conditions.push(`l.assigned_to = $${params.length}`);
-    }
-    if (status) {
-      params.push(status);
-      conditions.push(`l.status = $${params.length}`);
-    }
+    const filters = [
+      userRole === 'employee' && sql`l.assigned_to = ${userId}`,
+      status && sql`l.status = ${status}`,
+    ].filter(Boolean);
 
-    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
-    const leads = await sql.query(
-      `SELECT l.id, l.name, l.phone, l.message, l.status, l.assigned_to, l.created_at,
-              u.name AS assigned_to_name,
-              COUNT(c.id)::int AS comment_count,
-              (SELECT text FROM comments WHERE lead_id = l.id ORDER BY created_at DESC LIMIT 1) AS last_comment_text
-       FROM leads l
-       LEFT JOIN users u ON l.assigned_to = u.id
-       LEFT JOIN comments c ON c.lead_id = l.id
-       ${where}
-       GROUP BY l.id, u.name
-       ORDER BY l.created_at DESC`,
-      params
-    );
+    const leads = await sql`
+      SELECT l.id, l.name, l.phone, l.message, l.status, l.assigned_to, l.created_at,
+             u.name AS assigned_to_name,
+             COUNT(c.id)::int AS comment_count,
+             (SELECT text FROM comments WHERE lead_id = l.id ORDER BY created_at DESC LIMIT 1) AS last_comment_text
+      FROM leads l
+      LEFT JOIN users u ON l.assigned_to = u.id
+      LEFT JOIN comments c ON c.lead_id = l.id
+      ${filters.length ? sql`WHERE ${filters.reduce((a, b) => sql`${a} AND ${b}`)}` : sql``}
+      GROUP BY l.id, u.name
+      ORDER BY l.created_at DESC
+    `;
 
     const employees = userRole === 'admin'
       ? await sql`

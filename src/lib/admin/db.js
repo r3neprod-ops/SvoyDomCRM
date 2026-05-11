@@ -1,13 +1,22 @@
-import { neon } from '@neondatabase/serverless';
+import postgres from 'postgres';
 import bcrypt from 'bcryptjs';
 
+let sql;
 let initialized = false;
 
 export function getSql() {
   if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL environment variable is not set');
   }
-  return neon(process.env.DATABASE_URL);
+  if (!sql) {
+    const dbUrl = process.env.DATABASE_URL;
+    sql = postgres(dbUrl, {
+      ssl: dbUrl.includes('sslmode=require') ? { rejectUnauthorized: false } : false,
+      max: 10,
+      idle_timeout: 20,
+    });
+  }
+  return sql;
 }
 
 export async function ensureSchema() {
