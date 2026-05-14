@@ -175,7 +175,7 @@ async function sendToBitrix24(payload) {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     const response = await fetch(finalUrl, {
       method: 'POST',
@@ -193,6 +193,9 @@ async function sendToBitrix24(payload) {
 }
 
 export async function POST(request) {
+  const startTime = Date.now();
+  console.log('[Lead] Request received at:', new Date().toISOString());
+
   try {
     const payload = await request.json();
 
@@ -204,6 +207,7 @@ export async function POST(request) {
       return Response.json({ ok: true });
     }
 
+    console.log('[Lead] Step: validation');
     const phoneValidation = validatePhone(payload.phone);
     if (!phoneValidation.ok) {
       return Response.json(phoneValidation.body, { status: phoneValidation.status });
@@ -227,11 +231,14 @@ export async function POST(request) {
       answers: asRecord(payload.answers),
     };
 
+    console.log('[Lead] Step: dedup');
     const dedupeKey = makeDedupKey(phoneValidation.phoneDigits, safePayload.answers);
     if (isDuplicateLead(dedupeKey)) {
+      console.log('[Lead] Duplicate detected, skipping bitrix:', dedupeKey);
       return Response.json({ ok: true, deduped: true });
     }
 
+    console.log('[Lead] Step: db');
     let leadId = null;
     try {
       const lead = await addLead(safePayload);
@@ -258,8 +265,10 @@ export async function POST(request) {
       );
     }
 
+    console.log('[Lead] Step: bitrix');
     await sendToBitrix24(safePayload);
 
+    console.log('[Lead] Completed in', Date.now() - startTime, 'ms');
     return Response.json({ success: true, leadId });
   } catch (error) {
     console.error('Lead API error:', error);
