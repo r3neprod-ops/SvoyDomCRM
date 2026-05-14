@@ -191,6 +191,46 @@ function validatePhone(rawPhone) {
   return { ok: true, phone, phoneDigits };
 }
 
+async function sendToBitrix24(payload) {
+  const webhookUrl = process.env.BITRIX24_WEBHOOK_URL;
+  console.log('[Bitrix] URL configured:', !!webhookUrl);
+  if (!webhookUrl) return;
+
+  const answers = asRecord(payload.answers);
+  const bitrixPayload = {
+    fields: {
+      TITLE: `Заявка: ${payload.name || '—'} ${payload.phone || '—'}`,
+      NAME: payload.name || '',
+      PHONE: [{ VALUE: payload.phone || '', VALUE_TYPE: 'WORK' }],
+      COMMENTS: [
+        answers.propertyType && `Тип объекта: ${mappedAnswer(answers.propertyType, PROPERTY_TYPE_LABELS)}`,
+        answers.apartmentType && `Вариант квартиры: ${mappedAnswer(answers.apartmentType, APARTMENT_TYPE_LABELS)}`,
+        (answers.budgetPreset || answers.budgetCustom) && `Бюджет: ${formatBudget(answers.budgetPreset) || humanizeFallback(answers.budgetCustom)}`,
+        answers.downPaymentType && `Взнос: ${mappedAnswer(answers.downPaymentType, DOWN_PAYMENT_LABELS)}`,
+        payload.pageUrl && `Страница: ${payload.pageUrl}`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      SOURCE_ID: 'WEB',
+    },
+    params: { REGISTER_SONET_EVENT: 'Y' },
+  };
+
+  console.log('[Bitrix] Sending payload:', JSON.stringify(bitrixPayload));
+
+  try {
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bitrixPayload),
+    });
+    console.log('[Bitrix] Response status:', response.status);
+    console.log('[Bitrix] Response body:', await response.text());
+  } catch (error) {
+    console.error('[Bitrix] Error:', error.message, error.stack);
+  }
+}
+
 export async function POST(request) {
   try {
     const payload = await request.json();
@@ -289,6 +329,8 @@ export async function POST(request) {
         { status: 500 }
       );
     }
+
+    await sendToBitrix24(safePayload);
 
     return Response.json({ ok: true, leadId });
   } catch (error) {
