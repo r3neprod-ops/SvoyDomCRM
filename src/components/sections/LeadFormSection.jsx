@@ -193,9 +193,14 @@ export default function LeadFormSection() {
         body: JSON.stringify(payload),
       });
 
-      const data = await response.json().catch(() => ({}));
+      let data = {};
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error('[LeadForm] failed to parse response JSON:', parseError);
+      }
 
-      if (response.ok && data?.ok === true) {
+      if (response.ok && (data?.success === true || data?.ok === true)) {
         if (typeof window !== 'undefined' && typeof window.ym === 'function') {
           window.ym(107023721, 'reachGoal', 'lead_submit');
         }
@@ -203,7 +208,7 @@ export default function LeadFormSection() {
       }
 
       const msg = data?.message || 'Не удалось отправить. Попробуйте ещё раз.';
-      console.error('[LeadForm] submit error:', msg, data);
+      console.error('[LeadForm] submit error — response.ok:', response.ok, '| data:', data);
       setSubmitErrorMessage(msg);
       return false;
     } catch (error) {
