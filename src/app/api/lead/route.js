@@ -3,19 +3,9 @@ import { addLead } from '@/lib/admin/store';
 import { sendPushToAll } from '@/lib/admin/push';
 import { autoAssignLead } from '@/lib/admin/autoAssign';
 import { getSql } from '@/lib/admin/db';
+
 const DEDUPE_WINDOW_MS = 30 * 1000;
-const TELEGRAM_CHAT_ID = '612622372';
 const recentLeadStore = new Map();
-
-const ADMIN_LEAD_BASE_URL = process.env.ADMIN_LEAD_BASE_URL || 'https://svoydom-lugansk.ru/admin/leads';
-
-
-function buildLeadAdminUrl(leadId) {
-  if (!leadId) return '';
-  const baseUrl = String(ADMIN_LEAD_BASE_URL || '').trim().replace(/\/$/, '');
-  if (!baseUrl) return '';
-  return `${baseUrl}/${encodeURIComponent(leadId)}`;
-}
 
 const PROPERTY_TYPE_LABELS = {
   apartment: 'Новостройка (квартира)',
@@ -34,19 +24,12 @@ const APARTMENT_TYPE_LABELS = {
   '3k_65_plus': '3+ комнат (65+ м²)',
   dont_know: 'Пока не знаю',
 };
+
 const DOWN_PAYMENT_LABELS = {
   matcap: 'Маткапитал',
   own: 'Свои средства',
   matcap_plus_own: 'Маткапитал + свои средства',
 };
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
 
 function humanizeFallback(value) {
   const text = String(value ?? '').trim();
@@ -117,38 +100,6 @@ function asRecord(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
 
-function buildTelegramText(payload, leadId) {
-  const lines = ['🆕 <b>Новая заявка</b>'];
-  const leadAdminUrl = buildLeadAdminUrl(leadId);
-
-  lines.push(`ID лида: <code>${escapeHtml(leadId || '—')}</code>`);
-  lines.push(`Имя: ${escapeHtml(payload.name || '—')}`);
-  lines.push(`Телефон: ${escapeHtml(payload.phone || '—')}`);
-
-  const answers = asRecord(payload.answers);
-  const formattedAnswers = [
-    ['Что вы хотите выбрать?', mappedAnswer(answers.propertyType, PROPERTY_TYPE_LABELS)],
-    ['Какой вариант вы рассматриваете?', mappedAnswer(answers.apartmentType, APARTMENT_TYPE_LABELS)],
-    ['На какой бюджет ориентируетесь?', formatBudget(answers.budgetPreset) || humanizeFallback(answers.budgetCustom)],
-    ['Первоначальный взнос:', mappedAnswer(answers.downPaymentType, DOWN_PAYMENT_LABELS)],
-  ].filter(([, answer]) => Boolean(answer));
-
-  if (formattedAnswers.length > 0) {
-    lines.push('');
-    lines.push('<b>Ответы:</b>');
-    for (const [question, answer] of formattedAnswers) {
-      lines.push(`<b>${escapeHtml(question)}</b> ${escapeHtml(answer)}`);
-    }
-  }
-  lines.push(`Согласие на ПДн: ${payload.privacyConsent ? 'Да' : 'Нет'}`);
-
-  if (payload.pageUrl) lines.push(`Страница: ${escapeHtml(payload.pageUrl)}`);
-  if (leadAdminUrl) lines.push(`Карточка лида: ${escapeHtml(leadAdminUrl)}`);
-  lines.push(`Время: ${escapeHtml(payload.createdAt || new Date().toISOString())}`);
-
-  return lines.join('\n');
-}
-
 function validatePhone(rawPhone) {
   const phone = String(rawPhone ?? '').trim();
   if (!phone) {
@@ -205,7 +156,8 @@ async function sendToBitrix24(payload) {
       COMMENTS: [
         answers.propertyType && `Тип объекта: ${mappedAnswer(answers.propertyType, PROPERTY_TYPE_LABELS)}`,
         answers.apartmentType && `Вариант квартиры: ${mappedAnswer(answers.apartmentType, APARTMENT_TYPE_LABELS)}`,
-        (answers.budgetPreset || answers.budgetCustom) && `Бюджет: ${formatBudget(answers.budgetPreset) || humanizeFallback(answers.budgetCustom)}`,
+        (answers.budgetPreset || answers.budgetCustom) &&
+          `Бюджет: ${formatBudget(answers.budgetPreset) || humanizeFallback(answers.budgetCustom)}`,
         answers.downPaymentType && `Взнос: ${mappedAnswer(answers.downPaymentType, DOWN_PAYMENT_LABELS)}`,
         payload.pageUrl && `Страница: ${payload.pageUrl}`,
       ]
@@ -216,18 +168,24 @@ async function sendToBitrix24(payload) {
     params: { REGISTER_SONET_EVENT: 'Y' },
   };
 
-  console.log('[Bitrix] Sending payload:', JSON.stringify(bitrixPayload));
+  console.log('[Bitrix] Payload:', JSON.stringify(bitrixPayload));
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(bitrixPayload),
+      signal: controller.signal,
     });
-    console.log('[Bitrix] Response status:', response.status);
-    console.log('[Bitrix] Response body:', await response.text());
+    clearTimeout(timeoutId);
+
+    console.log('[Bitrix] Status:', response.status);
+    console.log('[Bitrix] Response:', await response.text());
   } catch (error) {
-    console.error('[Bitrix] Error:', error.message, error.stack);
+    console.error('[Bitrix] Error:', error.message);
   }
 }
 
@@ -247,6 +205,7 @@ export async function POST(request) {
     if (!phoneValidation.ok) {
       return Response.json(phoneValidation.body, { status: phoneValidation.status });
     }
+
     if (payload.privacyConsent !== true) {
       return Response.json(
         {
@@ -256,11 +215,6 @@ export async function POST(request) {
         },
         { status: 400 }
       );
-    }
-
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    if (!botToken) {
-      return Response.json({ ok: false, code: 'MISSING_TELEGRAM_TOKEN', message: 'Missing TELEGRAM_BOT_TOKEN' }, { status: 500 });
     }
 
     const safePayload = {
@@ -274,7 +228,6 @@ export async function POST(request) {
     if (isDuplicateLead(dedupeKey)) {
       return Response.json({ ok: true, deduped: true });
     }
-
 
     let leadId = null;
     try {
@@ -296,43 +249,15 @@ export async function POST(request) {
       }).catch((err) => console.error('Push notification error:', err));
     } catch (dbError) {
       console.error('Lead DB save error:', dbError);
-    }
-
-    const telegramResponse = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        chat_id: TELEGRAM_CHAT_ID,
-        text: buildTelegramText(safePayload, leadId),
-        parse_mode: 'HTML',
-        disable_web_page_preview: true,
-      }),
-    });
-
-    if (!telegramResponse.ok) {
-      let telegramBody = null;
-      try {
-        telegramBody = await telegramResponse.json();
-      } catch {
-        telegramBody = { text: await telegramResponse.text() };
-      }
-      console.error('Telegram API error:', telegramBody);
       return Response.json(
-        {
-          ok: false,
-          code: 'TELEGRAM_ERROR',
-          message: 'Не удалось отправить. Попробуйте ещё раз.',
-          telegram: telegramBody,
-        },
+        { ok: false, code: 'DB_ERROR', message: 'Не удалось сохранить заявку. Попробуйте ещё раз.' },
         { status: 500 }
       );
     }
 
     await sendToBitrix24(safePayload);
 
-    return Response.json({ ok: true, leadId });
+    return Response.json({ success: true, leadId });
   } catch (error) {
     console.error('Lead API error:', error);
     return Response.json(
