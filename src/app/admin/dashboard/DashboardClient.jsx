@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TeamChatPanel from './TeamChatPanel';
 import BiometricSection from './BiometricSection';
+import { useTheme } from '@/app/ThemeProvider';
 
 const STATUS_LABELS = { new: 'Новый', in_progress: 'В работе', closed: 'Закрыт' };
 const STATUS_COLORS = {
@@ -105,6 +106,7 @@ function AvatarCircle({ profile, size = 'md' }) {
 export default function DashboardClient({ user }) {
   const router = useRouter();
   const isAdmin = user.role === 'admin';
+  const { theme, toggle: toggleTheme } = useTheme();
 
   const [activeTab, setActiveTab] = useState('leads');
   const [leads, setLeads] = useState([]);
@@ -680,6 +682,13 @@ export default function DashboardClient({ user }) {
       </nav>
 
       <div className="space-y-2 border-t border-slate-100 p-4">
+        <button
+          onClick={toggleTheme}
+          className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
+        >
+          <span>{theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}</span>
+          <span className="text-base">{theme === 'dark' ? '☀️' : '🌙'}</span>
+        </button>
         <button
           onClick={notifStatus === 'granted' ? undefined : enableNotifications}
           disabled={notifStatus === 'loading' || notifStatus === 'denied' || notifStatus === 'granted'}

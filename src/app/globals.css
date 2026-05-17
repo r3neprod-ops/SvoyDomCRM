@@ -269,6 +269,99 @@ body {
   line-height: 1.6;
 }
 
+/* ═══════════════════════════════════════════════════════════
+   DARK MODE
+   Переменные + оверрайды Tailwind-утилит.
+   Активируется классом .dark на <html>.
+   ═══════════════════════════════════════════════════════════ */
+
+/* Smooth theme switch — only while toggling */
+.theme-transitioning,
+.theme-transitioning * {
+  transition: background-color 300ms ease, color 300ms ease,
+              border-color 300ms ease, box-shadow 300ms ease !important;
+}
+
+/* base dark shell */
+.dark { color-scheme: dark; }
+.dark body { background-color: #111827; color: #f9fafb; }
+
+/* ── Backgrounds ─────────────────────────────────────────── */
+.dark .bg-white          { background-color: #1f2937 !important; }
+.dark .bg-slate-50       { background-color: #111827 !important; }
+.dark .bg-slate-100      { background-color: #374151 !important; }
+.dark .bg-slate-200      { background-color: #4b5563 !important; }
+
+/* Semi-transparent whites (chat header, backdrop) */
+.dark .bg-white\/90      { background-color: rgba(31,41,55,0.93) !important; }
+.dark .bg-white\/80      { background-color: rgba(31,41,55,0.85) !important; }
+.dark .bg-black\/20      { background-color: rgba(0,0,0,0.50) !important; }
+.dark .bg-black\/30      { background-color: rgba(0,0,0,0.60) !important; }
+.dark .bg-black\/40      { background-color: rgba(0,0,0,0.75) !important; }
+
+/* Chat arbitrary-color backgrounds */
+.dark .bg-\[\#f0f2f5\]  { background-color: #111827 !important; }
+.dark .bg-\[\#f0f4f7\]  { background-color: #1f2937 !important; }
+.dark .bg-\[\#effdde\]  { background-color: #374151 !important; }
+.dark .bg-\[\#dfe6eb\]  { background-color: #111827 !important; }
+
+/* ── Text ────────────────────────────────────────────────── */
+.dark .text-slate-900    { color: #f9fafb !important; }
+.dark .text-slate-800    { color: #f3f4f6 !important; }
+.dark .text-slate-700    { color: #e5e7eb !important; }
+.dark .text-slate-600    { color: #d1d5db !important; }
+.dark .text-slate-500    { color: #9ca3af !important; }
+.dark .text-slate-400    { color: #6b7280 !important; }
+
+/* Chat bubble timestamp / read-receipt on own messages */
+.dark .text-emerald-800\/60 { color: rgba(134,239,172,0.65) !important; }
+.dark .text-emerald-700\/70 { color: rgba(134,239,172,0.75) !important; }
+
+/* ── Borders ─────────────────────────────────────────────── */
+.dark .border-slate-100  { border-color: #374151 !important; }
+.dark .border-slate-200  { border-color: #374151 !important; }
+.dark .border-slate-300  { border-color: #4b5563 !important; }
+.dark .border-white\/40  { border-color: rgba(255,255,255,0.07) !important; }
+.dark .border-white\/50  { border-color: rgba(255,255,255,0.09) !important; }
+
+/* ── Hover states ────────────────────────────────────────── */
+.dark .hover\:bg-slate-50:hover   { background-color: #374151 !important; }
+.dark .hover\:bg-slate-100:hover  { background-color: #374151 !important; }
+.dark .hover\:bg-slate-700:hover  { background-color: #1f2937 !important; }
+
+/* ── Form inputs ─────────────────────────────────────────── */
+.dark input:not([type="file"]):not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+.dark textarea,
+.dark select {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+  border-color: #4b5563 !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder { color: #6b7280 !important; }
+
+/* ── Status / alert colours ──────────────────────────────── */
+.dark .bg-blue-100       { background-color: #1e3a5f !important; }
+.dark .text-blue-700     { color: #93c5fd !important; }
+.dark .bg-yellow-100     { background-color: #3d2600 !important; }
+.dark .text-yellow-700   { color: #fcd34d !important; }
+.dark .bg-green-100      { background-color: #14532d !important; }
+.dark .bg-green-50       { background-color: #052e16 !important; }
+.dark .text-green-700    { color: #86efac !important; }
+.dark .bg-red-50         { background-color: #3b0a0a !important; }
+.dark .text-red-600      { color: #f87171 !important; }
+.dark .bg-orange-50      { background-color: #3d1500 !important; }
+.dark .text-orange-700   { color: #fb923c !important; }
+.dark .border-green-200  { border-color: #166534 !important; }
+.dark .border-red-200    { border-color: #7f1d1d !important; }
+.dark .border-orange-200 { border-color: #7c2d12 !important; }
+
+/* ── Shadows ─────────────────────────────────────────────── */
+.dark .shadow-sm  { box-shadow: 0 1px 3px rgba(0,0,0,.55) !important; }
+.dark .shadow     { box-shadow: 0 4px 6px rgba(0,0,0,.55) !important; }
+.dark .shadow-xl  { box-shadow: 0 20px 25px rgba(0,0,0,.65) !important; }
+.dark .shadow-2xl { box-shadow: 0 25px 50px rgba(0,0,0,.75) !important; }
+
 /* ── Complex card price badge ── */
 .complex-price-badge {
   display: inline-block;

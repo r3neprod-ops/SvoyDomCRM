@@ -1,5 +1,9 @@
 import './globals.css';
 import ServiceWorkerRegistration from './ServiceWorkerRegistration';
+import { ThemeProvider } from './ThemeProvider';
+
+// Runs synchronously before React hydration to prevent theme flash
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('crm-theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();`;
 
 export const metadata = {
   title: 'СвойДом CRM',
@@ -31,10 +35,14 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ru">
+    <html lang="ru" suppressHydrationWarning>
       <body>
-        <ServiceWorkerRegistration />
-        {children}
+        {/* Anti-FOUC: apply saved theme before React paints */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        <ThemeProvider>
+          <ServiceWorkerRegistration />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

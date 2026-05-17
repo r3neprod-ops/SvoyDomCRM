@@ -720,10 +720,10 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
 
   /* ── Render ──────────────────────────────────────────────────────────────── */
   return (
-    <section className="flex flex-col overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-[#f0f2f5]">
+    <section className="flex flex-col overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-[#f0f2f5] dark:bg-gray-900 dark:border-gray-700">
 
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-white/50 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-sm">
+      <div className="flex items-center gap-3 border-b border-white/50 bg-white/90 dark:bg-gray-800/95 dark:border-gray-700 px-4 py-3 shadow-sm backdrop-blur-sm">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow"
           style={{ background: 'linear-gradient(135deg, #2196F3, #00BCD4)' }}>
           CRM
@@ -736,7 +736,7 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
 
       <div className="flex h-[65vh] min-h-[520px] flex-col">
         {/* Messages area */}
-        <div className="relative flex-1 overflow-hidden bg-[#f0f2f5]">
+        <div className="relative flex-1 overflow-hidden bg-[#f0f2f5] dark:bg-gray-900">
           <div
             ref={listRef}
             onScroll={handleScroll}
@@ -789,7 +789,7 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
         </div>
 
         {/* Input area */}
-        <div className="relative z-10 border-t border-white/40 bg-[#f0f4f7] px-3 py-3">
+        <div className="relative z-10 border-t border-white/40 bg-[#f0f4f7] dark:bg-gray-800 dark:border-gray-700 px-3 py-3">
           {error && (
             <p className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
           )}
