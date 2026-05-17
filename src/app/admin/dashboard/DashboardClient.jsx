@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TeamChatPanel from './TeamChatPanel';
+import BiometricSection from './BiometricSection';
 
 const STATUS_LABELS = { new: 'Новый', in_progress: 'В работе', closed: 'Закрыт' };
 const STATUS_COLORS = {
@@ -1104,6 +1105,9 @@ export default function DashboardClient({ user }) {
               </button>
             </form>
           </section>
+
+          {/* ── Biometric login section ── */}
+          <BiometricSection />
           </div>
         )}
 
