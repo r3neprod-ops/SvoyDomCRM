@@ -47,12 +47,18 @@ export async function GET(request) {
     WHERE user_id <> ${user.id}
       AND id > ${lastReadMessageId || 0}
   `;
+  const [{ read_by_others_up_to: readByOthersUpTo = 0 } = {}] = await sql`
+    SELECT COALESCE(MAX(last_read_message_id), 0)::int AS read_by_others_up_to
+    FROM chat_reads
+    WHERE user_id <> ${user.id}
+  `;
 
   return NextResponse.json({
     ok: true,
     messages: messages.map(mapMessage),
     unread_count: unreadCount,
     last_read_message_id: lastReadMessageId || 0,
+    read_by_others_up_to: readByOthersUpTo || 0,
   });
 }
 
