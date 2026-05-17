@@ -7,6 +7,48 @@ import { getSql } from '@/lib/admin/db';
 const DEDUPE_WINDOW_MS = 30 * 1000;
 const recentLeadStore = new Map();
 
+function getAllowedOrigins() {
+  return (process.env.ALLOWED_LEAD_ORIGIN || '')
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+}
+
+function getCors(request) {
+  const origin = request.headers.get('origin');
+  const headers = {
+    Vary: 'Origin',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+
+  if (!origin) return { allowed: true, headers: {} };
+
+  const normalizedOrigin = origin.replace(/\/+$/, '');
+  if (getAllowedOrigins().includes(normalizedOrigin)) {
+    return {
+      allowed: true,
+      headers: {
+        ...headers,
+        'Access-Control-Allow-Origin': origin,
+      },
+    };
+  }
+
+  return { allowed: false, headers };
+}
+
+function jsonWithCors(request, body, init = {}) {
+  const cors = getCors(request);
+  return Response.json(body, {
+    ...init,
+    headers: {
+      ...cors.headers,
+      ...(init.headers || {}),
+    },
+  });
+}
+
 const APARTMENT_TYPE_LABELS = {
   studio: 'Студия',
   '1room': '1-комнатная',
@@ -192,29 +234,47 @@ async function sendToBitrix24(payload) {
   }
 }
 
+export async function OPTIONS(request) {
+  const cors = getCors(request);
+  return new Response(null, {
+    status: cors.allowed ? 204 : 403,
+    headers: cors.headers,
+  });
+}
+
 export async function POST(request) {
   const startTime = Date.now();
   console.log('[Lead] Request received at:', new Date().toISOString());
+  const cors = getCors(request);
+
+  if (!cors.allowed) {
+    return jsonWithCors(
+      request,
+      { ok: false, code: 'FORBIDDEN_ORIGIN', message: 'Источник заявки не разрешён.' },
+      { status: 403 }
+    );
+  }
 
   try {
     const payload = await request.json();
 
     if (!payload || typeof payload !== 'object') {
-      return Response.json({ ok: false, code: 'BAD_REQUEST', message: 'Пустой запрос.' }, { status: 400 });
+      return jsonWithCors(request, { ok: false, code: 'BAD_REQUEST', message: 'Пустой запрос.' }, { status: 400 });
     }
 
     if (payload.company && String(payload.company).trim()) {
-      return Response.json({ ok: true });
+      return jsonWithCors(request, { ok: true });
     }
 
     console.log('[Lead] Step: validation');
     const phoneValidation = validatePhone(payload.phone);
     if (!phoneValidation.ok) {
-      return Response.json(phoneValidation.body, { status: phoneValidation.status });
+      return jsonWithCors(request, phoneValidation.body, { status: phoneValidation.status });
     }
 
     if (payload.privacyConsent !== true) {
-      return Response.json(
+      return jsonWithCors(
+        request,
         {
           ok: false,
           code: 'MISSING_PRIVACY_CONSENT',
@@ -235,7 +295,7 @@ export async function POST(request) {
     const dedupeKey = makeDedupKey(phoneValidation.phoneDigits, safePayload.answers);
     if (isDuplicateLead(dedupeKey)) {
       console.log('[Lead] Duplicate detected, skipping bitrix:', dedupeKey);
-      return Response.json({ ok: true, deduped: true });
+      return jsonWithCors(request, { ok: true, deduped: true });
     }
 
     console.log('[Lead] Step: db');
@@ -259,7 +319,8 @@ export async function POST(request) {
       }).catch((err) => console.error('Push notification error:', err));
     } catch (dbError) {
       console.error('Lead DB save error:', dbError);
-      return Response.json(
+      return jsonWithCors(
+        request,
         { ok: false, code: 'DB_ERROR', message: 'Не удалось сохранить заявку. Попробуйте ещё раз.' },
         { status: 500 }
       );
@@ -269,10 +330,11 @@ export async function POST(request) {
     await sendToBitrix24(safePayload);
 
     console.log('[Lead] Completed in', Date.now() - startTime, 'ms');
-    return Response.json({ success: true, leadId });
+    return jsonWithCors(request, { success: true, leadId });
   } catch (error) {
     console.error('Lead API error:', error);
-    return Response.json(
+    return jsonWithCors(
+      request,
       {
         ok: false,
         code: 'SERVER_ERROR',

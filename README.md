@@ -1,93 +1,41 @@
-# Svoy Dom Landing (Next.js + Tailwind)
+# SvoyDom CRM
 
-Премиальный одностраничный лендинг на **Next.js (App Router)** и **TailwindCSS**.
+Отдельный Next.js сайт для CRM. Лендинг отправляет заявки на этот проект через `POST /api/lead`, а CRM пишет и читает данные из той же PostgreSQL базы через `DATABASE_URL`.
 
 ## Быстрый старт
 
 ```bash
 npm install
+cp .env.example .env.local
 npm run dev
 ```
 
-Откройте [http://localhost:3000](http://localhost:3000).
+Откройте [http://localhost:3000/admin](http://localhost:3000/admin).
 
-## Скрипты
+## Переменные окружения
 
-- `npm run dev` — локальная разработка.
-- `npm run build` — production-сборка.
-- `npm run start` — запуск production-сборки.
-- `npm run lint` — lint проверка (Next.js ESLint).
+- `DATABASE_URL` — текущая PostgreSQL база CRM.
+- `JWT_SECRET` — длинный постоянный секрет для cookies авторизации.
+- `ALLOWED_LEAD_ORIGIN` — домен лендинга, которому разрешено отправлять заявки, например `https://svoydom-lugansk.ru`.
+- `BITRIX24_WEBHOOK_URL` — опционально, webhook Bitrix24 без `/crm.lead.add.json` на конце.
+- `VAPID_PUBLIC_KEY` и `VAPID_PRIVATE_KEY` — опционально, для push-уведомлений.
 
-## Деплой на Vercel
-
-1. Запушить репозиторий в GitHub.
-2. Импортировать проект в Vercel.
-3. Build command: `npm run build`.
-4. Output: стандартный для Next.js (без ручной настройки).
-
-## Где менять тему
-
-Палитра и градиенты находятся в:
-
-- `src/app/globals.css` в блоке `:root`.
-
-Там же настроены базовые токены теней, рамок, анимации reveal, focus-ring и smooth-scroll.
-
-## Builder: Редактирование фото жилых комплексов (Complex Cards)
-
-### Нормальный режим (по умолчанию)
-- Карточки ЖК показывают 3 фото в виде автоматического слайдера
-- Фото меняются каждые 3 секунды (стагированно по ID комплекса)
-- Слайдер паузится при наведении мыши
-
-### Режим редактирования для Builder
-Чтобы отредактировать все 3 фото **отдельно** в Builder:
-
-1. **Включи edit mode:**
-   ```bash
-   # В .env.local добавь:
-   NEXT_PUBLIC_BUILDER_EDIT=true
-   ```
-   или обнови переменную окружения в UI платформы.
-
-2. **Эффект:**
-   - Слайдер отключится ✓
-   - Все 3 фото появятся в виде отдельных блоков под заголовком карточки ✓
-   - Каждый блок можно кликнуть и отредактировать в Builder ✓
-   - Меню "Photo Slots" подскажет какой слот какой ✓
-
-3. **Обратно в нормальный режим:**
-   ```bash
-   # Удали NEXT_PUBLIC_BUILDER_EDIT из .env.local
-   # или установи значение:
-   NEXT_PUBLIC_BUILDER_EDIT=false
-   ```
-   - Слайдер автоматически включится ✓
-   - Все 3 фото будут скрыты (видно только активное) ✓
-   - Поведение вернётся к нормальному ✓
-
-### Структура слотов
-Каждая карточка имеет 3 слота для редактирования:
-- `complex-{id}-photo-1`
-- `complex-{id}-photo-2`
-- `complex-{id}-photo-3`
-
-Например, для комплекса "renovaciya":
-- `complex-renovaciya-photo-1.jpg`
-- `complex-renovaciya-photo-2.jpg`
-- `complex-renovaciya-photo-3.jpg`
-
-## Environment Variables (Vercel)
-
-Добавьте переменные в **Vercel → Settings → Environment Variables**:
-
-- `TELEGRAM_BOT_TOKEN`
-
-Локально можно скопировать `.env.example` в `.env.local`.
-
-### Проверка API лидов
+## Timeweb Node.js/VPS
 
 ```bash
-curl -X POST http://localhost:3000/api/lead -H "Content-Type: application/json" -d '{"name":"Тест","phone":"+79990001122","pageUrl":"http://localhost:3000"}'
+npm install
+npm run build
+npm run start
+```
+
+В панели Timeweb укажите команду сборки `npm run build`, команду запуска `npm run start` и порт из переменной `PORT`, если платформа его задаёт.
+
+## Проверка API лидов
+
+```bash
+curl -X POST https://crm.example.ru/api/lead \
+  -H "Content-Type: application/json" \
+  -H "Origin: https://svoydom-lugansk.ru" \
+  -d "{\"name\":\"Тест\",\"phone\":\"+79990001122\",\"privacyConsent\":true,\"pageUrl\":\"https://svoydom-lugansk.ru\",\"answers\":{}}"
 ```
 
