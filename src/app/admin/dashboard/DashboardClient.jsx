@@ -207,27 +207,52 @@ export default function DashboardClient({ user }) {
   }, [comments]);
 
   const enableNotifications = async () => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      console.warn('[Push] ServiceWorker or PushManager not supported');
+      return;
+    }
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || (navigator.standalone === true);
+    console.log('[Push] Starting subscription, standalone:', isStandalone);
     setNotifStatus('loading');
     try {
       const permission = await Notification.requestPermission();
+      console.log('[Push] Permission:', permission);
       if (permission !== 'granted') { setNotifStatus(permission); return; }
-      const registration = await navigator.serviceWorker.register('/sw.js');
+
+      // Always register first (idempotent if already registered)
+      await navigator.serviceWorker.register('/sw.js');
+      console.log('[Push] SW registered, waiting for ready state...');
+
+      // Wait for the SW to become active (with 10s timeout)
+      const registration = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('SW ready timeout')), 10_000)
+        ),
+      ]);
+      console.log('[Push] SW ready, state:', registration.active?.state);
+
       const keyRes = await fetch('/api/push/vapid-public-key');
       const { publicKey } = await keyRes.json();
+      console.log('[Push] Got VAPID key, subscribing...');
+
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicKey),
       });
+      console.log('[Push] Subscribed:', subscription.endpoint);
+
       await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subscription }),
       });
+      console.log('[Push] Saved subscription on server');
       setNotifStatus('granted');
     } catch (err) {
-      console.error('Push subscription error:', err);
-      setNotifStatus('default');
+      console.error('[Push] Subscription error:', err);
+      setNotifStatus('error');
     }
   };
 
@@ -605,11 +630,15 @@ export default function DashboardClient({ user }) {
     ? 'Уведомления заблокированы'
     : notifStatus === 'loading'
     ? 'Подключение...'
+    : notifStatus === 'error'
+    ? 'Ошибка, попробуйте снова'
     : 'Включить уведомления';
   const notificationClass = notifStatus === 'granted'
     ? 'border-green-200 bg-green-50 text-green-700'
     : notifStatus === 'denied'
     ? 'border-red-200 bg-red-50 text-red-600'
+    : notifStatus === 'error'
+    ? 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100'
     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100';
 
   const renderNavigation = () => (

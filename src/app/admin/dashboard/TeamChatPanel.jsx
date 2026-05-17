@@ -427,6 +427,7 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
   const [sending,   setSending]   = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error,     setError]     = useState('');
+  const [newMsgBadge, setNewMsgBadge] = useState(false);
 
   // Recording
   const [recMode,  setRecMode]  = useState('audio'); // 'audio' | 'video'
@@ -443,6 +444,9 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
   const taRef       = useRef(null);
   const fileRef     = useRef(null);
   const endRef      = useRef(null);
+  const listRef     = useRef(null);
+  const atBottomRef = useRef(true);
+  const lastMsgIdRef = useRef(0);
   const recorderRef = useRef(null);
   const chunksRef   = useRef([]);
   const streamRef   = useRef(null);
@@ -453,6 +457,20 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
   const cancelRef   = useRef(false);
   const pStartXRef  = useRef(0);
   const vidPrevRef  = useRef(null);
+
+  /* ── Scroll helpers ─────────────────────────────────────────────────────── */
+  const scrollToBottom = useCallback((behavior = 'smooth') => {
+    endRef.current?.scrollIntoView({ behavior });
+    atBottomRef.current = true;
+    setNewMsgBadge(false);
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+    if (atBottomRef.current) setNewMsgBadge(false);
+  }, []);
 
   /* ── Fetch ───────────────────────────────────────────────────────────────── */
   const fetchMessages = useCallback(async ({ silent = false } = {}) => {
@@ -496,7 +514,17 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
       .catch(console.error);
   }, []);
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => {
+    const lastId = messages.at(-1)?.id ?? 0;
+    if (lastId === lastMsgIdRef.current) return;
+    const isOwn = messages.at(-1)?.user_id === user?.id;
+    if (atBottomRef.current || isOwn) {
+      scrollToBottom(lastMsgIdRef.current === 0 ? 'instant' : 'smooth');
+    } else {
+      setNewMsgBadge(true);
+    }
+    lastMsgIdRef.current = lastId;
+  }, [messages, scrollToBottom, user?.id]);
 
   useEffect(() => () => {
     clearTimeout(stopTmRef.current);
@@ -533,7 +561,10 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
   };
 
   /* ── Send / Upload ───────────────────────────────────────────────────────── */
-  const append = (msg) => setMessages((p) => [...p, msg]);
+  const append = (msg) => {
+    atBottomRef.current = true;
+    setMessages((p) => [...p, msg]);
+  };
 
   const sendText = async () => {
     const v = text.trim();
@@ -714,7 +745,7 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
 
       <div className="flex h-[65vh] min-h-[520px] flex-col">
         {/* Messages area */}
-        <div className="relative flex-1 overflow-y-auto">
+        <div className="relative flex-1 overflow-hidden">
           {/* Background */}
           <div className="pointer-events-none absolute inset-0"
             style={{
@@ -724,7 +755,11 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
               backgroundSize: '80px 80px',
             }} />
 
-          <div className="relative z-10 pb-2">
+          <div
+            ref={listRef}
+            onScroll={handleScroll}
+            className="relative z-10 h-full overflow-y-auto pb-2"
+          >
             {loading ? (
               <div className="flex justify-center py-20">
                 <span className="rounded-full bg-black/20 px-4 py-1.5 text-sm text-white backdrop-blur-sm">
@@ -761,6 +796,14 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
             )}
             <div ref={endRef} />
           </div>
+          {newMsgBadge && (
+            <button
+              onClick={() => scrollToBottom('smooth')}
+              className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full bg-[#2196F3] px-4 py-1.5 text-sm font-medium text-white shadow-lg transition hover:bg-[#1976D2]"
+            >
+              ↓ Новые сообщения
+            </button>
+          )}
         </div>
 
         {/* Input area */}
