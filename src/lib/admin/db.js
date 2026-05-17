@@ -128,6 +128,60 @@ export async function ensureSchema() {
   `;
   await sql`CREATE INDEX IF NOT EXISTS webauthn_credentials_user_id_idx ON webauthn_credentials (user_id)`;
 
+  // Direct chat tables (Task 3)
+  await sql`
+    CREATE TABLE IF NOT EXISTS direct_chats (
+      id SERIAL PRIMARY KEY,
+      user1_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      user2_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(user1_id, user2_id),
+      CHECK(user1_id < user2_id)
+    )
+  `;
+  await sql`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS direct_chat_id INTEGER REFERENCES direct_chats(id) ON DELETE CASCADE`;
+  await sql`CREATE INDEX IF NOT EXISTS chat_messages_direct_chat_id_idx ON chat_messages (direct_chat_id)`;
+  await sql`
+    CREATE TABLE IF NOT EXISTS direct_chat_reads (
+      direct_chat_id INTEGER REFERENCES direct_chats(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      last_read_message_id INTEGER REFERENCES chat_messages(id) ON DELETE SET NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY(direct_chat_id, user_id)
+    )
+  `;
+
+  // Room tables (Task 4)
+  await sql`
+    CREATE TABLE IF NOT EXISTS chat_rooms (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS chat_room_members (
+      room_id INTEGER REFERENCES chat_rooms(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('admin', 'member')),
+      joined_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY(room_id, user_id)
+    )
+  `;
+  await sql`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS room_id INTEGER REFERENCES chat_rooms(id) ON DELETE CASCADE`;
+  await sql`CREATE INDEX IF NOT EXISTS chat_messages_room_id_idx ON chat_messages (room_id)`;
+  await sql`
+    CREATE TABLE IF NOT EXISTS room_reads (
+      room_id INTEGER REFERENCES chat_rooms(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      last_read_message_id INTEGER REFERENCES chat_messages(id) ON DELETE SET NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY(room_id, user_id)
+    )
+  `;
+
   // Ensure admin account always exists — but never overwrite an existing password.
   // This runs on every cold start; ON CONFLICT DO NOTHING guarantees idempotency.
   const [adminRow] = await sql`SELECT id FROM users WHERE username = 'admin' LIMIT 1`;

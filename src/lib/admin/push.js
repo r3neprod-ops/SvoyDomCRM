@@ -40,3 +40,63 @@ export async function sendPushToAll({ title, body, url = '/admin/dashboard', exc
     await sql`DELETE FROM push_subscriptions WHERE id = ANY(${expiredIds})`;
   }
 }
+
+export async function sendPushToUsers({ userIds, title, body, url = '/admin/dashboard' }) {
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY || !userIds?.length) return;
+  initWebPush();
+
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    SELECT id, endpoint, subscription
+    FROM push_subscriptions
+    WHERE user_id = ANY(${userIds})
+  `;
+  if (!rows.length) return;
+
+  const payload = JSON.stringify({ title, body, url });
+  const results = await Promise.allSettled(
+    rows.map((row) => webpush.sendNotification(row.subscription, payload))
+  );
+
+  const expiredIds = [];
+  results.forEach((result, i) => {
+    if (result.status === 'rejected' && [404, 410].includes(result.reason?.statusCode)) {
+      expiredIds.push(rows[i].id);
+    }
+  });
+
+  if (expiredIds.length > 0) {
+    await sql`DELETE FROM push_subscriptions WHERE id = ANY(${expiredIds})`;
+  }
+}
+
+export async function sendPushToUser({ userId, title, body, url = '/admin/dashboard' }) {
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return;
+  initWebPush();
+
+  await ensureSchema();
+  const sql = getSql();
+  const rows = await sql`
+    SELECT id, endpoint, subscription
+    FROM push_subscriptions
+    WHERE user_id = ${userId}
+  `;
+  if (!rows.length) return;
+
+  const payload = JSON.stringify({ title, body, url });
+  const results = await Promise.allSettled(
+    rows.map((row) => webpush.sendNotification(row.subscription, payload))
+  );
+
+  const expiredIds = [];
+  results.forEach((result, i) => {
+    if (result.status === 'rejected' && [404, 410].includes(result.reason?.statusCode)) {
+      expiredIds.push(rows[i].id);
+    }
+  });
+
+  if (expiredIds.length > 0) {
+    await sql`DELETE FROM push_subscriptions WHERE id = ANY(${expiredIds})`;
+  }
+}

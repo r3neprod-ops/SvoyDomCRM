@@ -5,7 +5,7 @@ import { ensureSchema, getSql } from '@/lib/admin/db';
 async function getUnreadState(sql, userId) {
   const [{ latest_message_id: latestMessageId = 0 } = {}] = await sql`
     SELECT COALESCE(MAX(id), 0)::int AS latest_message_id
-    FROM chat_messages
+    FROM chat_messages WHERE direct_chat_id IS NULL AND room_id IS NULL
   `;
   const [{ last_read_message_id: lastReadMessageId = 0 } = {}] = await sql`
     SELECT last_read_message_id
@@ -15,7 +15,8 @@ async function getUnreadState(sql, userId) {
   const [{ unread_count: unreadCount = 0 } = {}] = await sql`
     SELECT COUNT(*)::int AS unread_count
     FROM chat_messages
-    WHERE user_id <> ${userId}
+    WHERE direct_chat_id IS NULL AND room_id IS NULL
+      AND user_id <> ${userId}
       AND id > ${lastReadMessageId || 0}
   `;
 
@@ -45,7 +46,7 @@ export async function PATCH(request) {
   const requestedId = Number(body.last_read_message_id) || null;
   const [{ latest_message_id: latestMessageId = 0 } = {}] = await sql`
     SELECT COALESCE(MAX(id), 0)::int AS latest_message_id
-    FROM chat_messages
+    FROM chat_messages WHERE direct_chat_id IS NULL AND room_id IS NULL
   `;
   const lastReadMessageId = requestedId ? Math.min(requestedId, latestMessageId || requestedId) : latestMessageId;
 

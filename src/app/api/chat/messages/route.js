@@ -30,6 +30,7 @@ export async function GET(request) {
              u.status_text AS author_status_text, u.username AS author_username, u.role AS author_role
       FROM chat_messages cm
       LEFT JOIN users u ON u.id = cm.user_id
+      WHERE cm.direct_chat_id IS NULL AND cm.room_id IS NULL
       ORDER BY cm.created_at DESC
       LIMIT ${limit}
     ) latest
@@ -44,7 +45,8 @@ export async function GET(request) {
   const [{ unread_count: unreadCount = 0 } = {}] = await sql`
     SELECT COUNT(*)::int AS unread_count
     FROM chat_messages
-    WHERE user_id <> ${user.id}
+    WHERE direct_chat_id IS NULL AND room_id IS NULL
+      AND user_id <> ${user.id}
       AND id > ${lastReadMessageId || 0}
   `;
   const [{ read_by_others_up_to: readByOthersUpTo = 0 } = {}] = await sql`
