@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/admin/auth';
 import { ensureSchema, getSql } from '@/lib/admin/db';
 import { uploadChatMedia } from '@/lib/admin/s3';
+import { sendPushToAll } from '@/lib/admin/push';
 
 export const runtime = 'nodejs';
 
@@ -64,6 +65,13 @@ export async function POST(request) {
       VALUES (${user.id}, ${text}, ${mediaUrl}, ${requestedType}, ${file.type}, ${file.size})
       RETURNING id, text, media_url, media_type, media_mime, media_size, created_at
     `;
+
+    sendPushToAll({
+      title: `Новое сообщение от ${user.name || 'CRM'}`,
+      body: requestedType === 'video_note' ? 'Видео-круг в общем чате' : 'Фото в общем чате',
+      url: '/admin/dashboard',
+      excludeUserId: user.id,
+    }).catch((err) => console.error('Chat media push notification error:', err));
 
     return NextResponse.json({
       ok: true,

@@ -305,6 +305,7 @@ export async function POST(request) {
       sendPushToAll({
         title: 'Новый лид!',
         body: `Имя: ${safePayload.name || '—'}, Телефон: ${safePayload.phone || '—'}`,
+        url: '/admin/dashboard',
       }).catch((err) => console.error('Push notification error:', err));
     } catch (dbError) {
       console.error('Lead DB save error:', dbError);

@@ -9,17 +9,24 @@ function initWebPush() {
   );
 }
 
-export async function sendPushToAll({ title, body }) {
+export async function sendPushToAll({ title, body, url = '/admin/dashboard', excludeUserId = null }) {
   if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return;
   initWebPush();
 
   await ensureSchema();
   const sql = getSql();
-  const rows = await sql`SELECT id, endpoint, subscription FROM push_subscriptions`;
+  const rows = excludeUserId
+    ? await sql`
+        SELECT id, endpoint, subscription
+        FROM push_subscriptions
+        WHERE user_id IS NULL OR user_id <> ${excludeUserId}
+      `
+    : await sql`SELECT id, endpoint, subscription FROM push_subscriptions`;
   if (!rows.length) return;
 
+  const payload = JSON.stringify({ title, body, url });
   const results = await Promise.allSettled(
-    rows.map((row) => webpush.sendNotification(row.subscription, JSON.stringify({ title, body })))
+    rows.map((row) => webpush.sendNotification(row.subscription, payload))
   );
 
   const expiredIds = [];

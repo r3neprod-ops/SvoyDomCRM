@@ -79,6 +79,28 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }
 
+function getInitials(name) {
+  return String(name || '?')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+}
+
+function AvatarCircle({ profile, size = 'md' }) {
+  const classes = size === 'lg' ? 'h-14 w-14 text-base' : 'h-10 w-10 text-sm';
+  if (profile?.avatar_url) {
+    return <img src={profile.avatar_url} alt="" className={`${classes} rounded-full object-cover`} />;
+  }
+  return (
+    <div className={`${classes} flex items-center justify-center rounded-full bg-slate-900 font-semibold text-white`}>
+      {getInitials(profile?.name)}
+    </div>
+  );
+}
+
 export default function DashboardClient({ user }) {
   const router = useRouter();
   const isAdmin = user.role === 'admin';
@@ -91,6 +113,13 @@ export default function DashboardClient({ user }) {
   const [loading, setLoading] = useState(true);
   const [notifStatus, setNotifStatus] = useState('default');
   const [claimingLeadId, setClaimingLeadId] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [chatUnread, setChatUnread] = useState(0);
+  const [profile, setProfile] = useState({ ...user, phone: '', status_text: '', avatar_url: '' });
+  const [profileForm, setProfileForm] = useState({ phone: '', status_text: '', avatar: null });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const [profileSaved, setProfileSaved] = useState(false);
 
   // Comments modal
   const [commentModal, setCommentModal] = useState(null); // { leadId, leadName }
@@ -126,6 +155,27 @@ export default function DashboardClient({ user }) {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       setNotifStatus(Notification.permission);
     }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/profile')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.ok) {
+          setProfile(data.profile);
+          setProfileForm({
+            phone: data.profile.phone || '',
+            status_text: data.profile.status_text || '',
+            avatar: null,
+          });
+        }
+      })
+      .catch((err) => console.error('Profile fetch error:', err));
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -186,6 +236,23 @@ export default function DashboardClient({ user }) {
   }, [filter, router]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
+
+  const fetchChatUnread = useCallback(async () => {
+    try {
+      const res = await fetch('/api/chat/read');
+      if (res.status === 401) return;
+      const data = await res.json();
+      if (data.ok) setChatUnread(data.unread_count || 0);
+    } catch (err) {
+      console.error('Chat unread fetch error:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchChatUnread();
+    const interval = setInterval(fetchChatUnread, 10000);
+    return () => clearInterval(interval);
+  }, [fetchChatUnread]);
 
   const updateStatus = async (id, status) => {
     await fetch(`/api/leads/${id}`, {
@@ -260,6 +327,40 @@ export default function DashboardClient({ user }) {
   const logout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/admin/login');
+  };
+
+  const selectTab = (key) => {
+    setActiveTab(key);
+    setDrawerOpen(false);
+    if (key === 'chat') setChatUnread(0);
+  };
+
+  const saveProfile = async (event) => {
+    event.preventDefault();
+    setProfileSaving(true);
+    setProfileError('');
+    setProfileSaved(false);
+    try {
+      const formData = new FormData();
+      formData.append('phone', profileForm.phone);
+      formData.append('status_text', profileForm.status_text);
+      if (profileForm.avatar) formData.append('avatar', profileForm.avatar);
+
+      const res = await fetch('/api/profile', { method: 'PATCH', body: formData });
+      const data = await res.json();
+      if (!data.ok) {
+        setProfileError(data.message || 'Не удалось сохранить профиль');
+        return;
+      }
+      setProfile(data.profile);
+      setProfileForm((prev) => ({ ...prev, avatar: null }));
+      setProfileSaved(true);
+    } catch (err) {
+      console.error('Profile save error:', err);
+      setProfileError('Не удалось сохранить профиль');
+    } finally {
+      setProfileSaving(false);
+    }
   };
 
   // --- Comments ---
@@ -446,75 +547,120 @@ export default function DashboardClient({ user }) {
     : employeeLeadTab === 'common'
     ? 'Общих лидов нет.'
     : 'У вас пока нет лидов.';
+  const navItems = [
+    { key: 'leads', label: 'Лиды', icon: '📋' },
+    ...(isAdmin ? [
+      { key: 'employees', label: 'Сотрудники', icon: '👥' },
+      { key: 'distribution', label: 'Распределение', icon: '⚙️' },
+    ] : []),
+    { key: 'chat', label: 'Общий чат', icon: '💬', badge: chatUnread },
+    { key: 'profile', label: 'Профиль', icon: '👤' },
+  ];
+  const notificationLabel = notifStatus === 'granted'
+    ? 'Уведомления включены'
+    : notifStatus === 'denied'
+    ? 'Уведомления заблокированы'
+    : notifStatus === 'loading'
+    ? 'Подключение...'
+    : 'Включить уведомления';
+  const notificationClass = notifStatus === 'granted'
+    ? 'border-green-200 bg-green-50 text-green-700'
+    : notifStatus === 'denied'
+    ? 'border-red-200 bg-red-50 text-red-600'
+    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100';
+
+  const renderNavigation = () => (
+    <div className="flex h-full flex-col">
+      <button
+        onClick={() => selectTab('profile')}
+        className="flex items-center gap-3 border-b border-slate-100 px-5 py-5 text-left transition hover:bg-slate-50"
+      >
+        <AvatarCircle profile={profile} size="lg" />
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-slate-900">{profile.name}</p>
+          <p className="truncate text-xs text-slate-500">
+            {profile.status_text || (isAdmin ? 'Администратор' : 'Сотрудник')}
+          </p>
+        </div>
+      </button>
+
+      <nav className="flex-1 space-y-1 px-3 py-4">
+        {navItems.map((item) => (
+          <button
+            key={item.key}
+            onClick={() => selectTab(item.key)}
+            className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition ${
+              activeTab === item.key
+                ? 'bg-slate-900 text-white'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <span className="w-6 text-center text-base">{item.icon}</span>
+            <span className="flex-1">{item.label}</span>
+            {item.badge > 0 && (
+              <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold text-white">
+                {item.badge > 99 ? '99+' : item.badge}
+              </span>
+            )}
+          </button>
+        ))}
+      </nav>
+
+      <div className="space-y-2 border-t border-slate-100 p-4">
+        <button
+          onClick={notifStatus === 'granted' ? undefined : enableNotifications}
+          disabled={notifStatus === 'loading' || notifStatus === 'denied' || notifStatus === 'granted'}
+          className={`w-full rounded-xl border px-3 py-2 text-sm transition disabled:cursor-default ${notificationClass}`}
+        >
+          {notificationLabel}
+        </button>
+        <button
+          onClick={logout}
+          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
+        >
+          Выйти
+        </button>
+      </div>
+    </div>
+  );
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-6">
-      <div className="mx-auto max-w-7xl space-y-6">
+    <main className="min-h-screen bg-slate-50 text-slate-900">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-slate-200 bg-white shadow-sm md:block">
+        {renderNavigation()}
+      </aside>
 
-        {/* Header */}
-        <header className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold">CRM</h1>
-            <p className="mt-0.5 text-sm text-slate-500">
-              {isAdmin ? `Администратор · ${user.name}` : `Сотрудник · ${user.name}`}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {isAdmin && (
-              <button
-                onClick={notifStatus === 'granted' ? undefined : enableNotifications}
-                disabled={notifStatus === 'loading' || notifStatus === 'denied'}
-                className={`rounded-xl border px-4 py-2 text-sm transition ${
-                  notifStatus === 'granted'
-                    ? 'cursor-default border-green-200 bg-green-50 text-green-700'
-                    : notifStatus === 'denied'
-                    ? 'cursor-not-allowed border-red-200 bg-red-50 text-red-600'
-                    : notifStatus === 'loading'
-                    ? 'cursor-wait border-slate-200 bg-white text-slate-400'
-                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                {notifStatus === 'granted'
-                  ? 'Уведомления включены ✓'
-                  : notifStatus === 'denied'
-                  ? 'Уведомления заблокированы'
-                  : notifStatus === 'loading'
-                  ? 'Подключение...'
-                  : 'Включить уведомления'}
-              </button>
-            )}
-            <button
-              onClick={logout}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
-            >
-              Выйти
-            </button>
-          </div>
-        </header>
-
-        {/* Main tabs */}
-        <div className="flex gap-2 border-b border-slate-200 pb-0">
-          {[
-            { key: 'leads', label: 'Лиды' },
-            ...(isAdmin ? [
-              { key: 'employees', label: 'Сотрудники' },
-              { key: 'distribution', label: 'Распределение' },
-            ] : []),
-            { key: 'chat', label: 'Общий чат' },
-          ].map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`rounded-t-xl border border-b-0 px-5 py-2 text-sm font-medium transition ${
-                activeTab === key
-                  ? 'border-slate-200 bg-white text-slate-900'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+      {drawerOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <button
+            aria-label="Закрыть меню"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setDrawerOpen(false)}
+          />
+          <aside className="relative h-full w-80 max-w-[86vw] bg-white shadow-2xl">
+            {renderNavigation()}
+          </aside>
         </div>
+      )}
+
+      <section className="min-h-screen px-4 py-5 sm:px-6 md:pl-80 md:pr-8">
+        <div className="mx-auto max-w-7xl space-y-6">
+          <header className="flex items-center justify-between gap-3 md:hidden">
+            <button
+              onClick={() => setDrawerOpen(true)}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xl leading-none shadow-sm"
+              aria-label="Открыть меню"
+            >
+              ☰
+            </button>
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-xl font-semibold">CRM</h1>
+              <p className="truncate text-sm text-slate-500">{profile.name}</p>
+            </div>
+            <button onClick={() => selectTab('profile')} className="shrink-0">
+              <AvatarCircle profile={profile} />
+            </button>
+          </header>
 
         {/* ── Leads tab ── */}
         {activeTab === 'leads' && (
@@ -715,7 +861,75 @@ export default function DashboardClient({ user }) {
         )}
 
         {/* ── Team chat tab ── */}
-        {activeTab === 'chat' && <TeamChatPanel user={user} />}
+        {activeTab === 'chat' && <TeamChatPanel user={profile} onUnreadChange={setChatUnread} />}
+
+        {/* ── Profile tab ── */}
+        {activeTab === 'profile' && (
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h2 className="text-lg font-semibold">Профиль</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Личные данные видны в CRM и общем чате.
+              </p>
+            </div>
+            <form onSubmit={saveProfile} className="space-y-5 px-5 py-5">
+              <div className="flex flex-wrap items-center gap-4">
+                <AvatarCircle profile={profile} size="lg" />
+                <div>
+                  <p className="font-medium">{profile.name}</p>
+                  <p className="text-sm text-slate-500">@{profile.username}</p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Телефон</label>
+                  <input
+                    type="tel"
+                    value={profileForm.phone}
+                    onChange={(e) => setProfileForm((prev) => ({ ...prev, phone: e.target.value }))}
+                    placeholder="+7 999 000-00-00"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Аватар</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setProfileForm((prev) => ({ ...prev, avatar: e.target.files?.[0] || null }))}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:text-slate-700"
+                  />
+                  <p className="mt-1 text-xs text-slate-400">JPG/PNG/WebP до 5 МБ.</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Статус</label>
+                <textarea
+                  value={profileForm.status_text}
+                  onChange={(e) => setProfileForm((prev) => ({ ...prev, status_text: e.target.value }))}
+                  maxLength={160}
+                  rows={3}
+                  placeholder="Например: на показах до 18:00"
+                  className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                />
+                <p className="mt-1 text-xs text-slate-400">{profileForm.status_text.length}/160</p>
+              </div>
+
+              {profileError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{profileError}</p>}
+              {profileSaved && <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">Профиль сохранён.</p>}
+
+              <button
+                type="submit"
+                disabled={profileSaving}
+                className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white transition hover:bg-slate-700 disabled:opacity-50"
+              >
+                {profileSaving ? 'Сохранение...' : 'Сохранить профиль'}
+              </button>
+            </form>
+          </section>
+        )}
 
         {/* ── Distribution tab (admin only) ── */}
         {isAdmin && activeTab === 'distribution' && (
@@ -900,7 +1114,8 @@ export default function DashboardClient({ user }) {
           </div>
         )}
 
-      </div>
+        </div>
+      </section>
 
       {/* ── Create employee modal ── */}
       {showCreateModal && (

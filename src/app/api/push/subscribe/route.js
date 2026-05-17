@@ -20,9 +20,11 @@ export async function POST(request) {
   const sql = getSql();
 
   await sql`
-    INSERT INTO push_subscriptions (endpoint, subscription)
-    VALUES (${subscription.endpoint}, ${JSON.stringify(subscription)})
-    ON CONFLICT (endpoint) DO UPDATE SET subscription = EXCLUDED.subscription
+    INSERT INTO push_subscriptions (endpoint, subscription, user_id)
+    VALUES (${subscription.endpoint}, ${JSON.stringify(subscription)}, ${user.id})
+    ON CONFLICT (endpoint) DO UPDATE SET
+      subscription = EXCLUDED.subscription,
+      user_id = EXCLUDED.user_id
   `;
 
   return Response.json({ ok: true });

@@ -7,6 +7,16 @@ function formatChatTime(value) {
   return new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
 }
 
+function getInitials(name) {
+  return String(name || '?')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+}
+
 function pickRecorderMimeType() {
   if (typeof MediaRecorder === 'undefined') return '';
   const options = [
@@ -18,7 +28,7 @@ function pickRecorderMimeType() {
   return options.find((type) => MediaRecorder.isTypeSupported(type)) || '';
 }
 
-export default function TeamChatPanel({ user }) {
+export default function TeamChatPanel({ user, onUnreadChange }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
@@ -45,6 +55,16 @@ export default function TeamChatPanel({ user }) {
       const data = await res.json();
       if (data.ok) {
         setMessages(data.messages);
+        onUnreadChange?.(data.unread_count || 0);
+        const latestMessageId = data.messages.at(-1)?.id;
+        if (latestMessageId) {
+          await fetch('/api/chat/read', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ last_read_message_id: latestMessageId }),
+          });
+          onUnreadChange?.(0);
+        }
         setError('');
       }
     } catch (err) {
@@ -53,7 +73,7 @@ export default function TeamChatPanel({ user }) {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, []);
+  }, [onUnreadChange]);
 
   useEffect(() => {
     fetchMessages();
@@ -202,8 +222,26 @@ export default function TeamChatPanel({ user }) {
           ) : (
             messages.map((message) => (
               <article key={message.id} className="rounded-2xl bg-white px-4 py-3 shadow-sm">
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-sm font-semibold text-slate-800">{message.author_name}</span>
+                <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    {message.author_avatar_url ? (
+                      <img
+                        src={message.author_avatar_url}
+                        alt=""
+                        className="h-9 w-9 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+                        {getInitials(message.author_name)}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <span className="block truncate text-sm font-semibold text-slate-800">{message.author_name}</span>
+                      {message.author_status_text && (
+                        <span className="block truncate text-xs text-slate-400">{message.author_status_text}</span>
+                      )}
+                    </div>
+                  </div>
                   <time className="text-xs text-slate-400">{formatChatTime(message.created_at)}</time>
                 </div>
 

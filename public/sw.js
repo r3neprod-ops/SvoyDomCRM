@@ -36,11 +36,17 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(data.title || 'Уведомление', {
       body: data.body || '',
       icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: data.tag || 'svoydom-crm',
+      data: {
+        url: data.url || '/admin/dashboard',
+      },
     })
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  event.waitUntil(clients.openWindow('/admin/dashboard'));
+  const targetUrl = event.notification.data?.url || '/admin/dashboard';
+  event.waitUntil(clients.openWindow(targetUrl));
 });
