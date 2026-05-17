@@ -1,8 +1,6 @@
 import { revalidateTag } from 'next/cache';
 import { addLead } from '@/lib/admin/store';
 import { sendPushToAll } from '@/lib/admin/push';
-import { autoAssignLead } from '@/lib/admin/autoAssign';
-import { getSql } from '@/lib/admin/db';
 
 const DEDUPE_WINDOW_MS = 30 * 1000;
 const recentLeadStore = new Map();
@@ -303,15 +301,6 @@ export async function POST(request) {
     try {
       const lead = await addLead(safePayload);
       leadId = lead.id;
-      try {
-        const sql = getSql();
-        const [setting] = await sql`SELECT value FROM settings WHERE key = 'auto_assign'`;
-        if (setting?.value === 'true') {
-          await autoAssignLead(leadId);
-        }
-      } catch (assignErr) {
-        console.error('Auto-assign error:', assignErr);
-      }
       revalidateTag('leads');
       sendPushToAll({
         title: 'Новый лид!',

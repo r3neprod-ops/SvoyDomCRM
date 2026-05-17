@@ -86,8 +86,10 @@ export default function DashboardClient({ user }) {
   const [leads, setLeads] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [filter, setFilter] = useState('');
+  const [employeeLeadTab, setEmployeeLeadTab] = useState('common');
   const [loading, setLoading] = useState(true);
   const [notifStatus, setNotifStatus] = useState('default');
+  const [claimingLeadId, setClaimingLeadId] = useState(null);
 
   // Comments modal
   const [commentModal, setCommentModal] = useState(null); // { leadId, leadName }
@@ -114,10 +116,6 @@ export default function DashboardClient({ user }) {
   const [exportDateTo, setExportDateTo] = useState('');
   const [exportLoading, setExportLoading] = useState(false);
 
-  // Distribution tab
-  const [autoAssign, setAutoAssign] = useState(true);
-  const [settingsLoading, setSettingsLoading] = useState(false);
-
   // Close reason modal
   const [closeReasonModal, setCloseReasonModal] = useState(null); // { leadId, leadName }
   const [closeReasonText, setCloseReasonText] = useState('');
@@ -142,17 +140,6 @@ export default function DashboardClient({ user }) {
       commentsEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [comments]);
-
-  useEffect(() => {
-    if (activeTab !== 'distribution' || !isAdmin) return;
-    setSettingsLoading(true);
-    fetch('/api/settings')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.ok) setAutoAssign(data.settings.auto_assign === 'true');
-      })
-      .finally(() => setSettingsLoading(false));
-  }, [activeTab, isAdmin]);
 
   const enableNotifications = async () => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
@@ -241,6 +228,26 @@ export default function DashboardClient({ user }) {
       body: JSON.stringify({ assigned_to: value ? Number(value) : null }),
     });
     fetchLeads();
+  };
+
+  const claimLead = async (id) => {
+    setClaimingLeadId(id);
+    try {
+      const res = await fetch(`/api/leads/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assigned_to: user.id }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.message || 'Не удалось забрать лид');
+      } else {
+        setEmployeeLeadTab('my');
+      }
+      await fetchLeads();
+    } finally {
+      setClaimingLeadId(null);
+    }
   };
 
   const deleteLead = async (id) => {
@@ -377,17 +384,6 @@ export default function DashboardClient({ user }) {
     }
   };
 
-  // --- Distribution ---
-
-  const toggleAutoAssign = async (value) => {
-    setAutoAssign(value);
-    await fetch('/api/settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ auto_assign: String(value) }),
-    });
-  };
-
   const toggleAvailability = async (emp) => {
     const res = await fetch(`/api/users/${emp.id}/availability`, {
       method: 'PATCH',
@@ -439,6 +435,16 @@ export default function DashboardClient({ user }) {
       alert(data.message || 'Ошибка удаления');
     }
   };
+
+  const commonLeads = isAdmin ? [] : leads.filter((lead) => lead.assigned_to === null);
+  const myLeads = isAdmin ? [] : leads.filter((lead) => lead.assigned_to === user.id);
+  const visibleLeads = isAdmin ? leads : employeeLeadTab === 'common' ? commonLeads : myLeads;
+  const showWorkColumns = isAdmin || employeeLeadTab === 'my';
+  const emptyLeadsText = isAdmin
+    ? 'Лидов нет.'
+    : employeeLeadTab === 'common'
+    ? 'Общих лидов нет.'
+    : 'У вас пока нет лидов.';
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-6">
@@ -527,6 +533,26 @@ export default function DashboardClient({ user }) {
                   </button>
                 ))}
               </div>
+              {!isAdmin && (
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { key: 'common', label: `Общие (${commonLeads.length})` },
+                    { key: 'my', label: `Мои (${myLeads.length})` },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => setEmployeeLeadTab(key)}
+                      className={`rounded-xl px-4 py-2 text-sm transition ${
+                        employeeLeadTab === key
+                          ? 'bg-blue-600 text-white'
+                          : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
               {isAdmin && (
                 <button
                   onClick={() => setShowExportModal(true)}
@@ -549,7 +575,7 @@ export default function DashboardClient({ user }) {
                         <th className="p-3">Сообщение</th>
                         <th className="p-3">Статус</th>
                         {isAdmin && <th className="p-3">Назначен</th>}
-                        <th className="p-3">Комментарии</th>
+                        {showWorkColumns && <th className="p-3">Комментарии</th>}
                         <th className="p-3">Действия</th>
                       </tr>
                     </thead>
@@ -562,15 +588,15 @@ export default function DashboardClient({ user }) {
                           <td className="p-3"><div className="h-4 w-48 animate-pulse rounded bg-gray-200" /></td>
                           <td className="p-3"><div className="h-5 w-16 animate-pulse rounded-full bg-gray-200" /></td>
                           {isAdmin && <td className="p-3"><div className="h-6 w-24 animate-pulse rounded-lg bg-gray-200" /></td>}
-                          <td className="p-3"><div className="h-4 w-36 animate-pulse rounded bg-gray-200" /></td>
+                          {showWorkColumns && <td className="p-3"><div className="h-4 w-36 animate-pulse rounded bg-gray-200" /></td>}
                           <td className="p-3"><div className="h-6 w-32 animate-pulse rounded-lg bg-gray-200" /></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-              ) : leads.length === 0 ? (
-                <div className="py-16 text-center text-slate-500">Лидов нет.</div>
+              ) : visibleLeads.length === 0 ? (
+                <div className="py-16 text-center text-slate-500">{emptyLeadsText}</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
@@ -582,12 +608,12 @@ export default function DashboardClient({ user }) {
                         <th className="p-3">Сообщение</th>
                         <th className="p-3">Статус</th>
                         {isAdmin && <th className="p-3">Назначен</th>}
-                        <th className="p-3">Комментарии</th>
+                        {showWorkColumns && <th className="p-3">Комментарии</th>}
                         <th className="p-3">Действия</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {leads.map((lead) => (
+                      {visibleLeads.map((lead) => (
                         <tr key={lead.id} className="border-t border-slate-100 align-top">
                           <td className="whitespace-nowrap p-3 text-slate-500">{formatDate(lead.created_at)}</td>
                           <td className="p-3 font-medium">{lead.name || '—'}</td>
@@ -622,43 +648,57 @@ export default function DashboardClient({ user }) {
                               </select>
                             </td>
                           )}
-                          <td className="max-w-[200px] p-3">
-                            <button
-                              onClick={() => openComments(lead)}
-                              className="group w-full text-left"
-                            >
-                              <div className="flex items-center gap-1.5">
-                                <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600 group-hover:bg-slate-200">
-                                  💬 {lead.comment_count || 0}
-                                </span>
-                              </div>
-                              {lead.last_comment_text && (
-                                <p className="mt-1 text-xs text-slate-500 line-clamp-2 group-hover:text-slate-700">
-                                  {lead.last_comment_text.length > 50
-                                    ? lead.last_comment_text.slice(0, 50) + '…'
-                                    : lead.last_comment_text}
-                                </p>
-                              )}
-                            </button>
-                          </td>
+                          {showWorkColumns && (
+                            <td className="max-w-[200px] p-3">
+                              <button
+                                onClick={() => openComments(lead)}
+                                className="group w-full text-left"
+                              >
+                                <div className="flex items-center gap-1.5">
+                                  <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600 group-hover:bg-slate-200">
+                                    💬 {lead.comment_count || 0}
+                                  </span>
+                                </div>
+                                {lead.last_comment_text && (
+                                  <p className="mt-1 text-xs text-slate-500 line-clamp-2 group-hover:text-slate-700">
+                                    {lead.last_comment_text.length > 50
+                                      ? lead.last_comment_text.slice(0, 50) + '…'
+                                      : lead.last_comment_text}
+                                  </p>
+                                )}
+                              </button>
+                            </td>
+                          )}
                           <td className="p-3">
                             <div className="flex flex-wrap gap-1">
-                              {STATUSES.filter((s) => s !== lead.status).map((s) => (
+                              {!isAdmin && employeeLeadTab === 'common' ? (
                                 <button
-                                  key={s}
-                                  onClick={() => s === 'closed' ? openCloseReason(lead) : updateStatus(lead.id, s)}
-                                  className="rounded-lg border border-slate-200 px-2 py-1 text-xs transition hover:bg-slate-100"
+                                  onClick={() => claimLead(lead.id)}
+                                  disabled={claimingLeadId === lead.id}
+                                  className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:opacity-50"
                                 >
-                                  → {STATUS_LABELS[s]}
+                                  {claimingLeadId === lead.id ? 'Забираю...' : 'Забрать'}
                                 </button>
-                              ))}
-                              {isAdmin && (
-                                <button
-                                  onClick={() => deleteLead(lead.id)}
-                                  className="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600 transition hover:bg-red-50"
-                                >
-                                  Удалить
-                                </button>
+                              ) : (
+                                <>
+                                  {STATUSES.filter((s) => s !== lead.status).map((s) => (
+                                    <button
+                                      key={s}
+                                      onClick={() => s === 'closed' ? openCloseReason(lead) : updateStatus(lead.id, s)}
+                                      className="rounded-lg border border-slate-200 px-2 py-1 text-xs transition hover:bg-slate-100"
+                                    >
+                                      → {STATUS_LABELS[s]}
+                                    </button>
+                                  ))}
+                                  {isAdmin && (
+                                    <button
+                                      onClick={() => deleteLead(lead.id)}
+                                      className="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600 transition hover:bg-red-50"
+                                    >
+                                      Удалить
+                                    </button>
+                                  )}
+                                </>
                               )}
                             </div>
                           </td>
@@ -675,21 +715,12 @@ export default function DashboardClient({ user }) {
         {/* ── Distribution tab (admin only) ── */}
         {isAdmin && activeTab === 'distribution' && (
           <div className="space-y-6">
-            {/* Auto-assign toggle */}
-            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+            {/* Lead distribution mode */}
+            <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
               <div>
-                <p className="text-sm font-medium text-slate-800">Автораспределение лидов</p>
-                <p className="text-xs text-slate-500">Round Robin — новые лиды назначаются автоматически</p>
+                <p className="text-sm font-medium text-slate-800">Общий пул лидов</p>
+                <p className="text-xs text-slate-500">Новые лиды не назначаются автоматически. Сотрудники забирают свободные лиды вручную.</p>
               </div>
-              <button
-                onClick={() => toggleAutoAssign(!autoAssign)}
-                disabled={settingsLoading}
-                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-                  autoAssign ? 'bg-green-500' : 'bg-slate-300'
-                } disabled:opacity-50`}
-              >
-                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${autoAssign ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
             </div>
 
             {/* Employees table */}

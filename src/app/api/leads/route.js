@@ -8,7 +8,7 @@ const fetchLeadsData = unstable_cache(
     const sql = getSql();
 
     const filters = [
-      userRole === 'employee' && sql`l.assigned_to = ${userId}`,
+      userRole === 'employee' && sql`(l.assigned_to = ${userId} OR l.assigned_to IS NULL)`,
       status && sql`l.status = ${status}`,
     ].filter(Boolean);
 
