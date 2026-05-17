@@ -486,20 +486,6 @@ export default function DashboardClient({ user }) {
     }
   };
 
-  const toggleAvailability = async (emp) => {
-    const res = await fetch(`/api/users/${emp.id}/availability`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_active: !emp.is_active }),
-    });
-    const data = await res.json();
-    if (data.ok) {
-      setEmployees((prev) =>
-        prev.map((e) => (e.id === emp.id ? { ...e, is_active: !emp.is_active } : e))
-      );
-    }
-  };
-
   // --- Export ---
 
   const downloadExport = async ({ dateFrom, dateTo } = {}) => {
@@ -551,7 +537,6 @@ export default function DashboardClient({ user }) {
     { key: 'leads', label: 'Лиды', icon: '📋' },
     ...(isAdmin ? [
       { key: 'employees', label: 'Сотрудники', icon: '👥' },
-      { key: 'distribution', label: 'Распределение', icon: '⚙️' },
     ] : []),
     { key: 'chat', label: 'Общий чат', icon: '💬', badge: chatUnread },
     { key: 'profile', label: 'Профиль', icon: '👤' },
@@ -929,84 +914,6 @@ export default function DashboardClient({ user }) {
               </button>
             </form>
           </section>
-        )}
-
-        {/* ── Distribution tab (admin only) ── */}
-        {isAdmin && activeTab === 'distribution' && (
-          <div className="space-y-6">
-            {/* Lead distribution mode */}
-            <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-              <div>
-                <p className="text-sm font-medium text-slate-800">Общий пул лидов</p>
-                <p className="text-xs text-slate-500">Новые лиды не назначаются автоматически. Сотрудники забирают свободные лиды вручную.</p>
-              </div>
-            </div>
-
-            {/* Employees table */}
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-              {employees.length === 0 ? (
-                <div className="py-10 text-center text-sm text-slate-500">Сотрудников нет.</div>
-              ) : (
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-600">
-                    <tr>
-                      <th className="p-3">Имя</th>
-                      <th className="p-3">Активных лидов</th>
-                      <th className="p-3">Статус</th>
-                      <th className="p-3">Действия</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {employees.map((emp) => (
-                      <tr key={emp.id} className="border-t border-slate-100">
-                        <td className="p-3 font-medium">{emp.name}</td>
-                        <td className="p-3 text-slate-600">{emp.active_leads_count ?? 0}</td>
-                        <td className="p-3">
-                          {emp.is_active ? (
-                            <span className="rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700">🟢 Активен</span>
-                          ) : (
-                            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-500">⏸ Пауза</span>
-                          )}
-                        </td>
-                        <td className="p-3">
-                          <button
-                            onClick={() => toggleAvailability(emp)}
-                            className={`rounded-lg border px-3 py-1 text-xs transition ${
-                              emp.is_active
-                                ? 'border-slate-200 text-slate-600 hover:bg-slate-100'
-                                : 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
-                            }`}
-                          >
-                            {emp.is_active ? 'Пауза' : 'Активировать'}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            {/* Statistics */}
-            {employees.length > 0 && (() => {
-              const total = employees.reduce((s, e) => s + (e.leads_count || 0), 0);
-              return total > 0 ? (
-                <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Статистика назначений</p>
-                  <div className="flex flex-wrap gap-3">
-                    {employees.map((emp) => {
-                      const pct = total > 0 ? Math.round(((emp.leads_count || 0) / total) * 100) : 0;
-                      return (
-                        <span key={emp.id} className="rounded-lg bg-slate-50 px-3 py-1.5 text-sm text-slate-700">
-                          {emp.name}: <strong>{emp.leads_count || 0}</strong> лидов ({pct}%)
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null;
-            })()}
-          </div>
         )}
 
         {/* ── Employees tab (admin only) ── */}

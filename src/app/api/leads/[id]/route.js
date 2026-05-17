@@ -35,6 +35,7 @@ export async function PATCH(request, { params }) {
         return NextResponse.json({ ok: false, message: 'Лид уже назначен' }, { status: 409 });
       }
       updates.assigned_to = user.id;
+      updates.status = 'in_progress';
       isClaiming = true;
     }
 

@@ -108,7 +108,6 @@ export async function ensureSchema() {
       value TEXT NOT NULL
     )
   `;
-  await sql`INSERT INTO settings (key, value) VALUES ('auto_assign', 'true') ON CONFLICT (key) DO NOTHING`;
 
   const [{ count }] = await sql`SELECT COUNT(*)::int AS count FROM users`;
   if (count === 0) {
