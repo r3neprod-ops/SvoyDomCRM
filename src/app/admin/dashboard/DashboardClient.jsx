@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import TeamChatPanel from './TeamChatPanel';
 
 const STATUS_LABELS = { new: 'Новый', in_progress: 'В работе', closed: 'Закрыт' };
 const STATUS_COLORS = {
@@ -491,31 +492,32 @@ export default function DashboardClient({ user }) {
           </div>
         </header>
 
-        {/* Tabs (admin only) */}
-        {isAdmin && (
-          <div className="flex gap-2 border-b border-slate-200 pb-0">
-            {[
-              { key: 'leads', label: 'Лиды' },
+        {/* Main tabs */}
+        <div className="flex gap-2 border-b border-slate-200 pb-0">
+          {[
+            { key: 'leads', label: 'Лиды' },
+            ...(isAdmin ? [
               { key: 'employees', label: 'Сотрудники' },
               { key: 'distribution', label: 'Распределение' },
-            ].map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setActiveTab(key)}
-                className={`rounded-t-xl border border-b-0 px-5 py-2 text-sm font-medium transition ${
-                  activeTab === key
-                    ? 'border-slate-200 bg-white text-slate-900'
-                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
+            ] : []),
+            { key: 'chat', label: 'Общий чат' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`rounded-t-xl border border-b-0 px-5 py-2 text-sm font-medium transition ${
+                activeTab === key
+                  ? 'border-slate-200 bg-white text-slate-900'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
         {/* ── Leads tab ── */}
-        {(!isAdmin || activeTab === 'leads') && (
+        {activeTab === 'leads' && (
           <>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap gap-2">
@@ -711,6 +713,9 @@ export default function DashboardClient({ user }) {
             </div>
           </>
         )}
+
+        {/* ── Team chat tab ── */}
+        {activeTab === 'chat' && <TeamChatPanel user={user} />}
 
         {/* ── Distribution tab (admin only) ── */}
         {isAdmin && activeTab === 'distribution' && (

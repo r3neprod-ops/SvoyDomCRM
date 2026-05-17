@@ -64,6 +64,25 @@ export async function ensureSchema() {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id),
+      text TEXT,
+      media_url TEXT,
+      media_type TEXT NOT NULL DEFAULT 'text' CHECK(media_type IN ('text', 'image', 'video_note')),
+      media_mime TEXT,
+      media_size INTEGER,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      CHECK (
+        (text IS NOT NULL AND length(trim(text)) > 0)
+        OR (media_url IS NOT NULL AND length(trim(media_url)) > 0)
+      )
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS chat_messages_created_at_idx ON chat_messages (created_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS chat_messages_user_id_idx ON chat_messages (user_id)`;
+
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS leads_count INTEGER DEFAULT 0`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_assigned_at TIMESTAMP`;
