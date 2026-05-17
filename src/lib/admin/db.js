@@ -115,15 +115,17 @@ export async function ensureSchema() {
     )
   `;
 
-  const [{ count }] = await sql`SELECT COUNT(*)::int AS count FROM users`;
-  if (count === 0) {
+  // Ensure admin account always exists — but never overwrite an existing password.
+  // This runs on every cold start; ON CONFLICT DO NOTHING guarantees idempotency.
+  const [adminRow] = await sql`SELECT id FROM users WHERE username = 'admin' LIMIT 1`;
+  if (!adminRow) {
+    const hash = await bcrypt.hash('admin123', 10);
     await sql`
-      INSERT INTO users (username, password_hash, role, name) VALUES
-      ('admin',     ${bcrypt.hashSync('admin123', 10)}, 'admin',    'Администратор'),
-      ('employee1', ${bcrypt.hashSync('emp123',   10)}, 'employee', 'Сотрудник 1'),
-      ('employee2', ${bcrypt.hashSync('emp456',   10)}, 'employee', 'Сотрудник 2')
+      INSERT INTO users (username, password_hash, role, name)
+      VALUES ('admin', ${hash}, 'admin', 'Администратор')
       ON CONFLICT (username) DO NOTHING
     `;
+    console.log('[db] Admin user created with default password admin123');
   }
 
   initialized = true;

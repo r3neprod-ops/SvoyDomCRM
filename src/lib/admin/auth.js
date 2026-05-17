@@ -4,9 +4,11 @@ import { cookies } from 'next/headers';
 const COOKIE = 'auth_token';
 
 function getSecret() {
-  return new TextEncoder().encode(
-    process.env.JWT_SECRET || 'fallback-dev-secret-change-in-production'
-  );
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    console.warn('[auth] JWT_SECRET is not set — using insecure fallback. Set JWT_SECRET in production!');
+  }
+  return new TextEncoder().encode(secret || 'fallback-dev-secret-change-in-production');
 }
 
 export async function signToken(payload) {
