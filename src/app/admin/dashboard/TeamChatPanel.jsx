@@ -116,14 +116,6 @@ const DoubleCheck = ({ blue }) => (
   </svg>
 );
 
-/* ─── Telegram chat background ──────────────────────────────────────────────── */
-const TG_SVG = encodeURIComponent(
-  `<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'>` +
-  `<path d='M0 40 L40 0 L80 40 L40 80 Z' fill='none' stroke='%23b8c4ca' stroke-width='0.7' opacity='0.55'/>` +
-  `<circle cx='40' cy='40' r='2.5' fill='%23b8c4ca' opacity='0.35'/>` +
-  `</svg>`
-);
-
 /* ─── AudioPlayer ────────────────────────────────────────────────────────────── */
 function AudioPlayer({ src, msgId, own }) {
   const aRef  = useRef(null);
@@ -728,8 +720,7 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
 
   /* ── Render ──────────────────────────────────────────────────────────────── */
   return (
-    <section className="flex flex-col overflow-hidden rounded-xl border border-slate-200 shadow-sm"
-      style={{ background: '#dfe6eb' }}>
+    <section className="flex flex-col overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-[#f0f2f5]">
 
       {/* Header */}
       <div className="flex items-center gap-3 border-b border-white/50 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-sm">
@@ -745,20 +736,11 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
 
       <div className="flex h-[65vh] min-h-[520px] flex-col">
         {/* Messages area */}
-        <div className="relative flex-1 overflow-hidden">
-          {/* Background */}
-          <div className="pointer-events-none absolute inset-0"
-            style={{
-              backgroundColor: '#dfe6eb',
-              backgroundImage: `url("data:image/svg+xml,${TG_SVG}")`,
-              backgroundRepeat: 'repeat',
-              backgroundSize: '80px 80px',
-            }} />
-
+        <div className="relative flex-1 overflow-hidden bg-[#f0f2f5]">
           <div
             ref={listRef}
             onScroll={handleScroll}
-            className="relative z-10 h-full overflow-y-auto pb-2"
+            className="h-full overflow-y-auto pb-2"
           >
             {loading ? (
               <div className="flex justify-center py-20">
