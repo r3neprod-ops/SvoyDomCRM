@@ -127,6 +127,12 @@ export default function DashboardClient({ user }) {
   const [profileError, setProfileError] = useState('');
   const [profileSaved, setProfileSaved] = useState(false);
 
+  // Credentials change (login / password)
+  const [credForm, setCredForm] = useState({ current_password: '', new_username: '', new_password: '', confirm_password: '' });
+  const [credSaving, setCredSaving] = useState(false);
+  const [credError, setCredError] = useState('');
+  const [credSaved, setCredSaved] = useState('');
+
   // Comments modal
   const [commentModal, setCommentModal] = useState(null); // { leadId, leadName }
   const [comments, setComments] = useState([]);
@@ -370,6 +376,48 @@ export default function DashboardClient({ user }) {
       setProfileError('Не удалось сохранить профиль');
     } finally {
       setProfileSaving(false);
+    }
+  };
+
+  // --- Credentials ---
+
+  const saveCredentials = async (event) => {
+    event.preventDefault();
+    const { current_password, new_username, new_password, confirm_password } = credForm;
+
+    if (!current_password) { setCredError('Введите текущий пароль'); return; }
+    if (!new_username.trim() && !new_password) { setCredError('Укажите новый логин или новый пароль'); return; }
+    if (new_password && new_password.length < 4) { setCredError('Новый пароль минимум 4 символа'); return; }
+    if (new_password && new_password !== confirm_password) { setCredError('Пароли не совпадают'); return; }
+
+    setCredSaving(true);
+    setCredError('');
+    setCredSaved('');
+    try {
+      const body = { current_password };
+      if (new_username.trim()) body.new_username = new_username.trim();
+      if (new_password) { body.new_password = new_password; body.confirm_new_password = confirm_password; }
+
+      const res = await fetch('/api/profile/credentials', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!data.ok) { setCredError(data.message || 'Ошибка сохранения'); return; }
+
+      if (data.username_changed) {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        router.push('/admin/login');
+        return;
+      }
+      setCredSaved('Данные обновлены');
+      setCredForm({ current_password: '', new_username: '', new_password: '', confirm_password: '' });
+    } catch (err) {
+      console.error('Credentials save error:', err);
+      setCredError('Ошибка сохранения');
+    } finally {
+      setCredSaving(false);
     }
   };
 
@@ -860,6 +908,7 @@ export default function DashboardClient({ user }) {
 
         {/* ── Profile tab ── */}
         {activeTab === 'profile' && (
+          <div className="space-y-6">
           <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 px-5 py-4">
               <h2 className="text-lg font-semibold">Профиль</h2>
@@ -949,6 +998,84 @@ export default function DashboardClient({ user }) {
               </button>
             </form>
           </section>
+
+          {/* ── Credentials section ── */}
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h2 className="text-lg font-semibold">Безопасность</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Смена логина и пароля. Текущий пароль обязателен для любых изменений.
+              </p>
+            </div>
+            <form onSubmit={saveCredentials} className="space-y-4 px-5 py-5">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Новый логин (необязательно)</label>
+                  <div className="flex rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-slate-400">
+                    <span className="flex items-center border-r border-slate-200 px-3 text-sm text-slate-400">@</span>
+                    <input
+                      type="text"
+                      value={credForm.new_username}
+                      onChange={(e) => setCredForm((f) => ({ ...f, new_username: e.target.value.replace(/^@+/, '') }))}
+                      placeholder={profile.username}
+                      autoComplete="off"
+                      className="min-w-0 flex-1 rounded-r-xl px-3 py-2 text-sm focus:outline-none"
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-slate-400">При смене логина вы будете разлогинены.</p>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Текущий пароль *</label>
+                  <input
+                    type="password"
+                    value={credForm.current_password}
+                    onChange={(e) => setCredForm((f) => ({ ...f, current_password: e.target.value }))}
+                    placeholder="Введите текущий пароль"
+                    autoComplete="current-password"
+                    required
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Новый пароль (необязательно)</label>
+                  <input
+                    type="password"
+                    value={credForm.new_password}
+                    onChange={(e) => setCredForm((f) => ({ ...f, new_password: e.target.value }))}
+                    placeholder="Минимум 4 символа"
+                    autoComplete="new-password"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Повтор нового пароля</label>
+                  <input
+                    type="password"
+                    value={credForm.confirm_password}
+                    onChange={(e) => setCredForm((f) => ({ ...f, confirm_password: e.target.value }))}
+                    placeholder="Повторите новый пароль"
+                    autoComplete="new-password"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  />
+                </div>
+              </div>
+
+              {credError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{credError}</p>}
+              {credSaved && <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{credSaved}</p>}
+
+              <button
+                type="submit"
+                disabled={credSaving}
+                className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white transition hover:bg-slate-700 disabled:opacity-50"
+              >
+                {credSaving ? 'Сохранение...' : 'Обновить данные'}
+              </button>
+            </form>
+          </section>
+          </div>
         )}
 
         {/* ── Employees tab (admin only) ── */}

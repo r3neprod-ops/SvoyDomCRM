@@ -122,6 +122,7 @@ export async function ensureSchema() {
       ('admin',     ${bcrypt.hashSync('admin123', 10)}, 'admin',    'Администратор'),
       ('employee1', ${bcrypt.hashSync('emp123',   10)}, 'employee', 'Сотрудник 1'),
       ('employee2', ${bcrypt.hashSync('emp456',   10)}, 'employee', 'Сотрудник 2')
+      ON CONFLICT (username) DO NOTHING
     `;
   }
 
