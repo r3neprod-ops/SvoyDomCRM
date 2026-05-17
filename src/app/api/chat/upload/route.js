@@ -8,6 +8,20 @@ export const runtime = 'nodejs';
 
 const IMAGE_LIMIT = 10 * 1024 * 1024;
 const VIDEO_LIMIT = 50 * 1024 * 1024;
+const AUDIO_LIMIT = 25 * 1024 * 1024;
+const FILE_LIMIT = 25 * 1024 * 1024;
+
+const ALLOWED_FILE_TYPES = new Set([
+  'application/pdf',
+  'text/plain',
+  'text/csv',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/zip',
+  'application/x-zip-compressed',
+]);
 
 function getExtension(file) {
   const fromName = file.name?.split('.').pop()?.toLowerCase();
@@ -23,18 +37,44 @@ function validateUpload(file, requestedType) {
     return { message: 'Некорректный файл' };
   }
 
-  const isVideoNote = requestedType === 'video_note';
-  const allowedPrefix = isVideoNote ? 'video/' : 'image/';
-  const limit = isVideoNote ? VIDEO_LIMIT : IMAGE_LIMIT;
+  const limits = {
+    image: IMAGE_LIMIT,
+    video_note: VIDEO_LIMIT,
+    audio_note: AUDIO_LIMIT,
+    file: FILE_LIMIT,
+  };
 
-  if (!file.type?.startsWith(allowedPrefix)) {
-    return { message: isVideoNote ? 'Загрузите видеофайл' : 'Загрузите изображение' };
+  if (requestedType === 'image' && !file.type?.startsWith('image/')) {
+    return { message: 'Загрузите изображение' };
   }
-  if (file.size > limit) {
-    return { message: isVideoNote ? 'Видео должно быть не больше 50 МБ' : 'Фото должно быть не больше 10 МБ' };
+  if (requestedType === 'video_note' && !file.type?.startsWith('video/')) {
+    return { message: 'Загрузите видеофайл' };
+  }
+  if (requestedType === 'audio_note' && !file.type?.startsWith('audio/')) {
+    return { message: 'Загрузите аудиофайл' };
+  }
+  if (requestedType === 'file' && file.type && !ALLOWED_FILE_TYPES.has(file.type)) {
+    return { message: 'Поддерживаются PDF, TXT, CSV, DOCX, XLSX и ZIP' };
+  }
+  if (file.size > limits[requestedType]) {
+    if (requestedType === 'image') return { message: 'Фото должно быть не больше 10 МБ' };
+    if (requestedType === 'video_note') return { message: 'Видео должно быть не больше 50 МБ' };
+    return { message: 'Файл должен быть не больше 25 МБ' };
   }
 
   return null;
+}
+
+function normalizeRequestedType(value) {
+  if (value === 'video_note' || value === 'audio_note' || value === 'file') return value;
+  return 'image';
+}
+
+function getPushBody(type) {
+  if (type === 'video_note') return 'Видео-круг в общем чате';
+  if (type === 'audio_note') return 'Голосовое сообщение в общем чате';
+  if (type === 'file') return 'Файл в общем чате';
+  return 'Фото в общем чате';
 }
 
 export async function POST(request) {
@@ -43,7 +83,7 @@ export async function POST(request) {
 
   const formData = await request.formData();
   const file = formData.get('file');
-  const requestedType = formData.get('type') === 'video_note' ? 'video_note' : 'image';
+  const requestedType = normalizeRequestedType(formData.get('type'));
   const text = formData.get('text')?.toString().trim() || null;
 
   const validationError = validateUpload(file, requestedType);
@@ -57,25 +97,38 @@ export async function POST(request) {
     const extension = getExtension(file);
     const key = `chat/${new Date().toISOString().slice(0, 10)}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
     const buffer = Buffer.from(await file.arrayBuffer());
-    const mediaUrl = await uploadChatMedia({ key, body: buffer, contentType: file.type });
+    const contentType = file.type || 'application/octet-stream';
+    const mediaUrl = await uploadChatMedia({ key, body: buffer, contentType });
 
     const sql = getSql();
+    const [author] = await sql`
+      SELECT name, username, role, avatar_url, status_text
+      FROM users
+      WHERE id = ${user.id}
+    `;
     const [message] = await sql`
       INSERT INTO chat_messages (user_id, text, media_url, media_type, media_mime, media_size)
-      VALUES (${user.id}, ${text}, ${mediaUrl}, ${requestedType}, ${file.type}, ${file.size})
+      VALUES (${user.id}, ${text}, ${mediaUrl}, ${requestedType}, ${contentType}, ${file.size})
       RETURNING id, text, media_url, media_type, media_mime, media_size, created_at
     `;
 
     sendPushToAll({
       title: `Новое сообщение от ${user.name || 'CRM'}`,
-      body: requestedType === 'video_note' ? 'Видео-круг в общем чате' : 'Фото в общем чате',
+      body: getPushBody(requestedType),
       url: '/admin/dashboard',
       excludeUserId: user.id,
     }).catch((err) => console.error('Chat media push notification error:', err));
 
     return NextResponse.json({
       ok: true,
-      message: { ...message, author_name: user.name || 'Неизвестно' },
+      message: {
+        ...message,
+        author_name: author?.name || user.name || 'Неизвестно',
+        author_username: author?.username || user.username || '',
+        author_role: author?.role || user.role || 'employee',
+        author_avatar_url: author?.avatar_url || '',
+        author_status_text: author?.status_text || '',
+      },
     });
   } catch (error) {
     console.error('Chat upload error:', error);

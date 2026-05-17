@@ -7,6 +7,8 @@ function mapMessage(message) {
   return {
     ...message,
     author_name: message.author_name || 'Неизвестно',
+    author_username: message.author_username || '',
+    author_role: message.author_role || 'employee',
   };
 }
 
@@ -25,7 +27,7 @@ export async function GET(request) {
     FROM (
       SELECT cm.id, cm.user_id, cm.text, cm.media_url, cm.media_type, cm.media_mime, cm.media_size,
              cm.created_at, u.name AS author_name, u.avatar_url AS author_avatar_url,
-             u.status_text AS author_status_text
+             u.status_text AS author_status_text, u.username AS author_username, u.role AS author_role
       FROM chat_messages cm
       LEFT JOIN users u ON u.id = cm.user_id
       ORDER BY cm.created_at DESC
@@ -83,5 +85,13 @@ export async function POST(request) {
     excludeUserId: user.id,
   }).catch((err) => console.error('Chat push notification error:', err));
 
-  return NextResponse.json({ ok: true, message: mapMessage({ ...message, author_name: user.name }) });
+  return NextResponse.json({
+    ok: true,
+    message: mapMessage({
+      ...message,
+      author_name: user.name,
+      author_username: user.username,
+      author_role: user.role,
+    }),
+  });
 }

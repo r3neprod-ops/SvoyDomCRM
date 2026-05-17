@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getAuthUser } from '@/lib/admin/auth';
+import { getAuthUser, signToken } from '@/lib/admin/auth';
 import { ensureSchema, getSql } from '@/lib/admin/db';
 import { uploadChatMedia } from '@/lib/admin/s3';
 
 export const runtime = 'nodejs';
 
 const AVATAR_LIMIT = 5 * 1024 * 1024;
+const USERNAME_PATTERN = /^[a-z0-9_]{3,32}$/;
 
 function normalizeProfile(row) {
   return {
@@ -22,6 +23,10 @@ function normalizeProfile(row) {
 function validateText(value, limit) {
   const text = String(value ?? '').trim();
   return text.length > limit ? text.slice(0, limit) : text;
+}
+
+function normalizeUsername(value) {
+  return String(value ?? '').trim().replace(/^@+/, '').toLowerCase();
 }
 
 function getExtension(file) {
@@ -63,11 +68,15 @@ export async function PATCH(request) {
 
   let phone = '';
   let statusText = '';
+  let name = '';
+  let username = '';
   let avatarUrl = null;
   let avatarStorageKey = null;
 
   if (contentType.includes('multipart/form-data')) {
     const formData = await request.formData();
+    name = validateText(formData.get('name'), 80);
+    username = normalizeUsername(formData.get('username'));
     phone = validateText(formData.get('phone'), 40);
     statusText = validateText(formData.get('status_text'), 160);
     const avatar = formData.get('avatar');
@@ -87,23 +96,52 @@ export async function PATCH(request) {
     }
   } else {
     const body = await request.json().catch(() => ({}));
+    name = validateText(body.name, 80);
+    username = normalizeUsername(body.username);
     phone = validateText(body.phone, 40);
     statusText = validateText(body.status_text, 160);
+  }
+
+  if (!name) {
+    return NextResponse.json({ ok: false, message: 'Имя обязательно' }, { status: 400 });
+  }
+  if (!USERNAME_PATTERN.test(username)) {
+    return NextResponse.json(
+      { ok: false, message: 'Никнейм: 3-32 символа, латиница, цифры и _' },
+      { status: 400 }
+    );
+  }
+
+  const [existing] = await sql`
+    SELECT id
+    FROM users
+    WHERE lower(username) = lower(${username}) AND id <> ${user.id}
+  `;
+  if (existing) {
+    return NextResponse.json({ ok: false, message: 'Никнейм уже занят' }, { status: 409 });
   }
 
   const [profile] = avatarUrl
     ? await sql`
         UPDATE users
-        SET phone = ${phone}, status_text = ${statusText}, avatar_url = ${avatarUrl}, avatar_storage_key = ${avatarStorageKey}
+        SET name = ${name}, username = ${username}, phone = ${phone}, status_text = ${statusText}, avatar_url = ${avatarUrl}, avatar_storage_key = ${avatarStorageKey}
         WHERE id = ${user.id}
         RETURNING id, username, role, name, phone, status_text, avatar_url
       `
     : await sql`
         UPDATE users
-        SET phone = ${phone}, status_text = ${statusText}
+        SET name = ${name}, username = ${username}, phone = ${phone}, status_text = ${statusText}
         WHERE id = ${user.id}
         RETURNING id, username, role, name, phone, status_text, avatar_url
       `;
 
-  return NextResponse.json({ ok: true, profile: normalizeProfile(profile) });
+  const response = NextResponse.json({ ok: true, profile: normalizeProfile(profile) });
+  const token = await signToken({ id: profile.id, role: profile.role, name: profile.name, username: profile.username });
+  response.cookies.set('auth_token', token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60,
+  });
+  return response;
 }

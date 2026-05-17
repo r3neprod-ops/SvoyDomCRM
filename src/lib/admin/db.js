@@ -71,7 +71,7 @@ export async function ensureSchema() {
       user_id INTEGER REFERENCES users(id),
       text TEXT,
       media_url TEXT,
-      media_type TEXT NOT NULL DEFAULT 'text' CHECK(media_type IN ('text', 'image', 'video_note')),
+      media_type TEXT NOT NULL DEFAULT 'text' CHECK(media_type IN ('text', 'image', 'video_note', 'audio_note', 'file')),
       media_mime TEXT,
       media_size INTEGER,
       created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -80,6 +80,12 @@ export async function ensureSchema() {
         OR (media_url IS NOT NULL AND length(trim(media_url)) > 0)
       )
     )
+  `;
+  await sql`ALTER TABLE chat_messages DROP CONSTRAINT IF EXISTS chat_messages_media_type_check`;
+  await sql`
+    ALTER TABLE chat_messages
+    ADD CONSTRAINT chat_messages_media_type_check
+    CHECK(media_type IN ('text', 'image', 'video_note', 'audio_note', 'file'))
   `;
   await sql`CREATE INDEX IF NOT EXISTS chat_messages_created_at_idx ON chat_messages (created_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS chat_messages_user_id_idx ON chat_messages (user_id)`;

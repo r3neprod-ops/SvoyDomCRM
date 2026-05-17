@@ -116,7 +116,13 @@ export default function DashboardClient({ user }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
   const [profile, setProfile] = useState({ ...user, phone: '', status_text: '', avatar_url: '' });
-  const [profileForm, setProfileForm] = useState({ phone: '', status_text: '', avatar: null });
+  const [profileForm, setProfileForm] = useState({
+    name: user.name || '',
+    username: user.username || '',
+    phone: '',
+    status_text: '',
+    avatar: null,
+  });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState('');
   const [profileSaved, setProfileSaved] = useState(false);
@@ -165,6 +171,8 @@ export default function DashboardClient({ user }) {
         if (!cancelled && data?.ok) {
           setProfile(data.profile);
           setProfileForm({
+            name: data.profile.name || '',
+            username: data.profile.username || '',
             phone: data.profile.phone || '',
             status_text: data.profile.status_text || '',
             avatar: null,
@@ -342,6 +350,8 @@ export default function DashboardClient({ user }) {
     setProfileSaved(false);
     try {
       const formData = new FormData();
+      formData.append('name', profileForm.name);
+      formData.append('username', profileForm.username);
       formData.append('phone', profileForm.phone);
       formData.append('status_text', profileForm.status_text);
       if (profileForm.avatar) formData.append('avatar', profileForm.avatar);
@@ -867,6 +877,31 @@ export default function DashboardClient({ user }) {
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Отображаемое имя</label>
+                  <input
+                    type="text"
+                    value={profileForm.name}
+                    onChange={(e) => setProfileForm((prev) => ({ ...prev, name: e.target.value }))}
+                    placeholder="Иван Иванов"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Никнейм</label>
+                  <div className="flex rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-slate-400">
+                    <span className="flex items-center border-r border-slate-200 px-3 text-sm text-slate-400">@</span>
+                    <input
+                      type="text"
+                      value={profileForm.username}
+                      onChange={(e) => setProfileForm((prev) => ({ ...prev, username: e.target.value.replace(/^@+/, '') }))}
+                      placeholder="nickname"
+                      autoComplete="username"
+                      className="min-w-0 flex-1 rounded-r-xl px-3 py-2 text-sm focus:outline-none"
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-slate-400">3-32 символа: латиница, цифры и _.</p>
+                </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-slate-600">Телефон</label>
                   <input
