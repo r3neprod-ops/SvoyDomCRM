@@ -182,6 +182,23 @@ export async function ensureSchema() {
     )
   `;
 
+  // Real-time / reactions / reply features
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ`;
+  await sql`
+    CREATE TABLE IF NOT EXISTS message_reactions (
+      id         SERIAL PRIMARY KEY,
+      message_id INTEGER REFERENCES chat_messages(id) ON DELETE CASCADE,
+      user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      emoji      TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(message_id, user_id, emoji)
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS message_reactions_msg_idx ON message_reactions (message_id)`;
+  await sql`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS reply_to_id     INTEGER REFERENCES chat_messages(id) ON DELETE SET NULL`;
+  await sql`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS reply_to_text   TEXT`;
+  await sql`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS reply_to_author TEXT`;
+
   // Ensure admin account always exists — but never overwrite an existing password.
   // This runs on every cold start; ON CONFLICT DO NOTHING guarantees idempotency.
   const [adminRow] = await sql`SELECT id FROM users WHERE username = 'admin' LIMIT 1`;

@@ -88,6 +88,7 @@ const IconFile   = () => <Ic><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a
 const IconChevL  = () => <Ic><polyline points="15 18 9 12 15 6"/></Ic>;
 const IconSettings = () => <Ic><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></Ic>;
 const IconPlus   = () => <Ic cls="h-3.5 w-3.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Ic>;
+const IconMenu   = () => <Ic><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></Ic>;
 
 const DoubleCheck = ({ blue }) => (
   <svg width="20" height="12" viewBox="0 0 20 12" fill="none"
@@ -307,6 +308,7 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
   const [uploading,  setUploading]  = useState(false);
   const [error,      setError]      = useState('');
   const [newMsgBadge, setNewMsgBadge] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   /* ── DM state ───────────────────────────────────────────────────────────── */
   const [activeDmId,    setActiveDmId]    = useState(null);
@@ -500,16 +502,19 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
   const openGeneral = useCallback(() => {
     setActiveDmId(null); setDmOtherUser(null);
     setActiveRoomId(null); setActiveRoom(null);
+    setSidebarOpen(false);
   }, []);
 
   const openDm = useCallback((chatId, otherUser) => {
     setActiveDmId(chatId); setDmOtherUser(otherUser);
     setActiveRoomId(null); setActiveRoom(null);
+    setSidebarOpen(false);
   }, []);
 
   const openRoom = useCallback((roomId, room) => {
     setActiveDmId(null); setDmOtherUser(null);
     setActiveRoomId(roomId); setActiveRoom(room);
+    setSidebarOpen(false);
   }, []);
 
   const handleOpenDm = useCallback(async (emp) => {
@@ -766,114 +771,142 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
     return chatUsers.filter((u) => u.id !== user.id && !memberSet.has(u.id));
   }, [chatUsers, roomDetails, user.id]);
 
-  /* ── Render ──────────────────────────────────────────────────────────────── */
-  return (
-    <section className="relative flex overflow-hidden rounded-xl border border-slate-200 shadow-sm dark:border-gray-700"
-      style={{ height: '65vh', minHeight: 520 }}>
-
-      {/* ── Left sidebar ───────────────────────────────────────────────────── */}
-      <div className="flex w-52 shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-
-        {/* General chat */}
-        <button onClick={openGeneral}
-          className={`flex items-center gap-2.5 border-b border-slate-100 px-3 py-3 text-left transition dark:border-gray-700 ${
-            !activeDmId && !activeRoomId ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-gray-700'
-          }`}>
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white shadow"
-            style={{ background: 'linear-gradient(135deg, #2196F3, #00BCD4)' }}>CRM</div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between">
-              <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">Общий чат</span>
-              {(activeDmId || activeRoomId) && <UnreadBadge count={generalUnread} />}
-            </div>
-            <p className="truncate text-[11px] text-slate-400">{chatUsers.length} участников</p>
+  /* ── Sidebar content (shared between drawer) ────────────────────────────── */
+  const sidebarContent = (
+    <>
+      {/* General chat */}
+      <button onClick={openGeneral}
+        className={`flex items-center gap-2.5 border-b border-slate-100 px-3 py-3 text-left transition dark:border-gray-700 ${
+          !activeDmId && !activeRoomId ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-gray-700'
+        }`}>
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white shadow"
+          style={{ background: 'linear-gradient(135deg, #2196F3, #00BCD4)' }}>CRM</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between">
+            <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">Общий чат</span>
+            {(activeDmId || activeRoomId) && <UnreadBadge count={generalUnread} />}
           </div>
-        </button>
-
-        {/* Employees */}
-        <div className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Сотрудники</div>
-        {chatUsers.filter((u) => u.id !== user.id).map((emp) => {
-          const dmEntry  = dmList.find((c) => c.other_user_id === emp.id);
-          const dmUnread = dmEntry?.unread_count || 0;
-          const isActive = dmEntry ? activeDmId === dmEntry.id : false;
-          return (
-            <button key={emp.id} onClick={() => handleOpenDm(emp)}
-              className={`flex items-center gap-2.5 px-3 py-2 text-left transition ${isActive ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-gray-700'}`}>
-              {emp.avatar_url
-                ? <img src={emp.avatar_url} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
-                : <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                    style={{ background: `linear-gradient(135deg, ${nameCol(emp.id)}, ${nameCol(emp.id + 2)})` }}>
-                    {initials(emp.name)}
-                  </div>
-              }
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{emp.name}</span>
-                  <UnreadBadge count={dmUnread} />
-                </div>
-                <p className="truncate text-[11px] text-slate-400">{emp.role === 'admin' ? 'Администратор' : 'Сотрудник'}</p>
-              </div>
-            </button>
-          );
-        })}
-
-        {/* Rooms */}
-        <div className="flex items-center justify-between px-3 pb-1 pt-3">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Каналы</span>
-          <button onClick={() => setShowCreateRoom(true)}
-            className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-blue-100 hover:text-blue-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-blue-900/40"
-            title="Создать канал">
-            <IconPlus />
-          </button>
+          <p className="truncate text-[11px] text-slate-400">{chatUsers.length} участников</p>
         </div>
-        {roomList.length === 0 && (
-          <p className="px-3 pb-2 text-[11px] text-slate-400">Нет каналов</p>
-        )}
-        {roomList.map((room) => (
-          <button key={room.id} onClick={() => openRoom(room.id, room)}
-            className={`flex items-center gap-2.5 px-3 py-2 text-left transition ${activeRoomId === room.id ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-gray-700'}`}>
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
-              style={{ background: `linear-gradient(135deg, ${nameCol(room.id + 5)}, ${nameCol(room.id + 8)})` }}>
-              {room.name.slice(0, 2).toUpperCase()}
-            </div>
+      </button>
+
+      {/* Employees */}
+      <div className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Сотрудники</div>
+      {chatUsers.filter((u) => u.id !== user.id).map((emp) => {
+        const dmEntry  = dmList.find((c) => c.other_user_id === emp.id);
+        const dmUnread = dmEntry?.unread_count || 0;
+        const isActive = dmEntry ? activeDmId === dmEntry.id : false;
+        return (
+          <button key={emp.id} onClick={() => handleOpenDm(emp)}
+            className={`flex items-center gap-2.5 px-3 py-2 text-left transition ${isActive ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-gray-700'}`}>
+            {emp.avatar_url
+              ? <img src={emp.avatar_url} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+              : <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                  style={{ background: `linear-gradient(135deg, ${nameCol(emp.id)}, ${nameCol(emp.id + 2)})` }}>
+                  {initials(emp.name)}
+                </div>
+            }
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between">
-                <span className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{room.name}</span>
-                <UnreadBadge count={room.unread_count} />
+                <span className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{emp.name}</span>
+                <UnreadBadge count={dmUnread} />
               </div>
-              <p className="truncate text-[11px] text-slate-400">{room.member_count} уч.</p>
+              <p className="truncate text-[11px] text-slate-400">{emp.role === 'admin' ? 'Администратор' : 'Сотрудник'}</p>
             </div>
           </button>
-        ))}
+        );
+      })}
+
+      {/* Rooms */}
+      <div className="flex items-center justify-between px-3 pb-1 pt-3">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Каналы</span>
+        <button onClick={() => setShowCreateRoom(true)}
+          className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-blue-100 hover:text-blue-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-blue-900/40"
+          title="Создать канал">
+          <IconPlus />
+        </button>
+      </div>
+      {roomList.length === 0 && (
+        <p className="px-3 pb-2 text-[11px] text-slate-400">Нет каналов</p>
+      )}
+      {roomList.map((room) => (
+        <button key={room.id} onClick={() => openRoom(room.id, room)}
+          className={`flex items-center gap-2.5 px-3 py-2 text-left transition ${activeRoomId === room.id ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-gray-700'}`}>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+            style={{ background: `linear-gradient(135deg, ${nameCol(room.id + 5)}, ${nameCol(room.id + 8)})` }}>
+            {room.name.slice(0, 2).toUpperCase()}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between">
+              <span className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{room.name}</span>
+              <UnreadBadge count={room.unread_count} />
+            </div>
+            <p className="truncate text-[11px] text-slate-400">{room.member_count} уч.</p>
+          </div>
+        </button>
+      ))}
+    </>
+  );
+
+  /* ── Render ──────────────────────────────────────────────────────────────── */
+  return (
+    <section className="fixed inset-0 z-20 flex flex-col overflow-hidden bg-[#f0f2f5] dark:bg-gray-900 md:left-72">
+
+      {/* ── Sidebar backdrop ───────────────────────────────────────────────── */}
+      <div
+        className={`absolute inset-0 z-40 bg-black/40 transition-opacity duration-300 ${sidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden
+      />
+
+      {/* ── Sliding sidebar drawer ─────────────────────────────────────────── */}
+      <div className={`absolute inset-y-0 left-0 z-50 flex w-[280px] flex-col overflow-y-auto border-r border-slate-200 bg-white shadow-xl transition-transform duration-300 dark:border-gray-700 dark:bg-gray-800 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        {/* Drawer header */}
+        <div className="flex items-center justify-between border-b border-slate-100 px-3 py-3 dark:border-gray-700">
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Чаты</span>
+          <button onClick={() => setSidebarOpen(false)}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-gray-700"
+            aria-label="Закрыть">
+            <IconChevL />
+          </button>
+        </div>
+        {sidebarContent}
       </div>
 
-      {/* ── Right chat area ─────────────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col overflow-hidden bg-[#f0f2f5] dark:bg-gray-900">
+      {/* ── Chat area (full width) ──────────────────────────────────────────── */}
+      <div className="flex flex-1 flex-col overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center gap-3 border-b border-white/50 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/95">
+        <div className="flex items-center gap-2 border-b border-white/50 bg-white/90 px-3 py-3 shadow-sm backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/95">
+          {/* Hamburger button */}
+          <button onClick={() => setSidebarOpen(true)}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-gray-700"
+            aria-label="Открыть список чатов">
+            <IconMenu />
+          </button>
+
           {activeDmId ? (
             <>
               {dmOtherUser?.avatar_url
-                ? <img src={dmOtherUser.avatar_url} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
-                : <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow"
+                ? <img src={dmOtherUser.avatar_url} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+                : <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow"
                     style={{ background: `linear-gradient(135deg, ${nameCol(dmOtherUser?.id)}, ${nameCol((dmOtherUser?.id || 0) + 2)})` }}>
                     {initials(dmOtherUser?.name)}
                   </div>
               }
               <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-semibold text-slate-900">{dmOtherUser?.name}</h2>
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{dmOtherUser?.name}</h2>
                 <p className="text-[11px] text-slate-400">{dmOtherUser?.role === 'admin' ? 'Администратор' : 'Сотрудник'} · личный чат</p>
               </div>
             </>
           ) : activeRoomId ? (
             <>
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow"
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow"
                 style={{ background: `linear-gradient(135deg, ${nameCol(activeRoomId + 5)}, ${nameCol(activeRoomId + 8)})` }}>
                 {(activeRoom?.name || '?').slice(0, 2).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-semibold text-slate-900">{activeRoom?.name}</h2>
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{activeRoom?.name}</h2>
                 <p className="text-[11px] text-slate-400">{activeRoom?.member_count || '?'} участников</p>
               </div>
               <button onClick={openManageRoom}
@@ -884,10 +917,10 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
             </>
           ) : (
             <>
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow"
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow"
                 style={{ background: 'linear-gradient(135deg, #2196F3, #00BCD4)' }}>CRM</div>
               <div>
-                <h2 className="text-sm font-semibold text-slate-900">Общий чат</h2>
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Общий чат</h2>
                 <p className="text-[11px] text-slate-400">{chatUsers.length} участников · вы как {user.name}</p>
               </div>
             </>
@@ -1027,7 +1060,7 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
             </p>
           )}
         </div>
-      </div>
+      </div>{/* end chat area */}
 
       {/* ── Create room modal ───────────────────────────────────────────────── */}
       {showCreateRoom && (
