@@ -326,6 +326,7 @@ export default function TeamChatPanel({
   onDmSent,
   onRoomSent,
   onRoomListRefresh,
+  onOpenMenu,
 }) {
   /* ── Core state ─────────────────────────────────────────────────────────── */
   const [messages,   setMessages]   = useState([]);
@@ -676,6 +677,14 @@ export default function TeamChatPanel({
 
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-white/50 bg-white/90 px-3 py-3 shadow-sm backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/95">
+          <button
+            type="button"
+            onClick={onOpenMenu}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100 dark:border-gray-700 dark:bg-gray-900 dark:text-slate-100 dark:hover:bg-gray-700 md:hidden"
+            aria-label="Открыть меню"
+          >
+            <IconMenu />
+          </button>
 
           {activeDmId ? (
             <>

@@ -1,16 +1,19 @@
 import webpush from 'web-push';
 import { getSql, ensureSchema } from './db';
+import { getVapidKeys } from './pushConfig';
 
 function initWebPush() {
+  const { publicKey, privateKey } = getVapidKeys();
   webpush.setVapidDetails(
     'mailto:r3neprod@gmail.com',
-    process.env.VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
+    publicKey,
+    privateKey
   );
 }
 
 export async function sendPushToAll({ title, body, url = '/admin/dashboard', excludeUserId = null }) {
-  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+  const { publicKey, privateKey } = getVapidKeys();
+  if (!publicKey || !privateKey) {
     console.warn('[Push] VAPID keys not configured, skipping push');
     return;
   }
@@ -50,7 +53,8 @@ export async function sendPushToAll({ title, body, url = '/admin/dashboard', exc
 }
 
 export async function sendPushToUsers({ userIds, title, body, url = '/admin/dashboard' }) {
-  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY || !userIds?.length) {
+  const { publicKey, privateKey } = getVapidKeys();
+  if (!publicKey || !privateKey || !userIds?.length) {
     console.warn('[Push] VAPID keys not configured or no userIds, skipping push');
     return;
   }
@@ -88,7 +92,8 @@ export async function sendPushToUsers({ userIds, title, body, url = '/admin/dash
 }
 
 export async function sendPushToUser({ userId, title, body, url = '/admin/dashboard' }) {
-  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+  const { publicKey, privateKey } = getVapidKeys();
+  if (!publicKey || !privateKey) {
     console.warn('[Push] VAPID keys not configured, skipping push');
     return;
   }

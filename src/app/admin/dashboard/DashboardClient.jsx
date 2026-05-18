@@ -134,6 +134,7 @@ export default function DashboardClient({ user }) {
   const [loading, setLoading] = useState(true);
   const [notifStatus, setNotifStatus] = useState('default');
   const [testPushStatus, setTestPushStatus] = useState('idle');
+  const [notificationError, setNotificationError] = useState('');
   const [claimingLeadId, setClaimingLeadId] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
@@ -201,9 +202,18 @@ export default function DashboardClient({ user }) {
 
   const getVapidPublicKey = useCallback(async () => {
     const keyRes = await fetch('/api/push/vapid-public-key', { cache: 'no-store' });
-    if (!keyRes.ok) throw new Error('Failed to load VAPID public key');
-    const { publicKey } = await keyRes.json();
-    if (!publicKey) throw new Error('VAPID_PUBLIC_KEY is not configured');
+    const data = await keyRes.json().catch(() => ({}));
+    if (!keyRes.ok) {
+      const err = new Error(data.message || 'Failed to load VAPID public key');
+      err.code = data.code || 'vapid_public_key_error';
+      throw err;
+    }
+    const { publicKey } = data;
+    if (!publicKey) {
+      const err = new Error('VAPID public key is not configured');
+      err.code = 'vapid_public_key_missing';
+      throw err;
+    }
     return publicKey;
   }, []);
 
@@ -221,14 +231,17 @@ export default function DashboardClient({ user }) {
 
   const refreshNotificationStatus = useCallback(async () => {
     if (typeof window === 'undefined' || !('Notification' in window)) {
+      setNotificationError('');
       setNotifStatus('unsupported');
       return;
     }
     if (Notification.permission !== 'granted') {
+      setNotificationError('');
       setNotifStatus(Notification.permission);
       return;
     }
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setNotificationError('');
       setNotifStatus('unsupported');
       return;
     }
@@ -237,6 +250,7 @@ export default function DashboardClient({ user }) {
       const registration = await navigator.serviceWorker.getRegistration();
       const subscription = await registration?.pushManager.getSubscription();
       if (!subscription) {
+        setNotificationError('');
         setNotifStatus('default');
         return;
       }
@@ -244,14 +258,22 @@ export default function DashboardClient({ user }) {
       const publicKey = await getVapidPublicKey();
       if (!subscriptionUsesPublicKey(subscription, publicKey)) {
         console.warn('[Push] Existing subscription uses another VAPID key, resubscribe required');
+        setNotificationError('');
         setNotifStatus('default');
         return;
       }
 
       await savePushSubscription(subscription);
+      setNotificationError('');
       setNotifStatus('granted');
     } catch (err) {
       console.error('[Push] Status check error:', err);
+      if (err.code === 'vapid_public_key_missing') {
+        setNotificationError('На сервере не настроен публичный VAPID-ключ');
+        setNotifStatus('not_configured');
+        return;
+      }
+      setNotificationError(err.message || '');
       setNotifStatus('error');
     }
   }, [getVapidPublicKey, savePushSubscription]);
@@ -300,6 +322,8 @@ export default function DashboardClient({ user }) {
   const enableNotifications = async () => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       console.warn('[Push] ServiceWorker or PushManager not supported');
+      setNotificationError('');
+      setNotifStatus('unsupported');
       return;
     }
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches
@@ -347,9 +371,16 @@ export default function DashboardClient({ user }) {
 
       await savePushSubscription(subscription);
       console.log('[Push] Saved subscription on server');
+      setNotificationError('');
       setNotifStatus('granted');
     } catch (err) {
       console.error('[Push] Subscription error:', err);
+      if (err.code === 'vapid_public_key_missing') {
+        setNotificationError('На сервере не настроен публичный VAPID-ключ');
+        setNotifStatus('not_configured');
+        return;
+      }
+      setNotificationError(err.message || '');
       setNotifStatus('error');
     }
   };
@@ -362,9 +393,14 @@ export default function DashboardClient({ user }) {
       if (!res.ok || !data.ok) {
         console.warn('[Push] Test push failed:', data.message || res.status);
         if (res.status === 404) await refreshNotificationStatus();
+        if (data.code === 'vapid_keys_missing') {
+          setNotificationError('На сервере не настроены VAPID-ключи');
+          setNotifStatus('not_configured');
+        }
         setTestPushStatus('error');
         return;
       }
+      setNotificationError('');
       setTestPushStatus('sent');
     } catch (err) {
       console.error('[Push] Test push request error:', err);
@@ -388,6 +424,7 @@ export default function DashboardClient({ user }) {
           body: JSON.stringify({ endpoint }),
         });
       }
+      setNotificationError('');
       setNotifStatus('default');
     } catch (err) {
       console.error('[Push] Unsubscribe error:', err);
@@ -858,6 +895,8 @@ export default function DashboardClient({ user }) {
     ? 'Уведомления заблокированы'
     : notifStatus === 'unsupported'
     ? 'Push не поддерживается'
+    : notifStatus === 'not_configured'
+    ? 'Push-ключи не настроены'
     : notifStatus === 'loading'
     ? 'Подключение...'
     : notifStatus === 'error'
@@ -865,7 +904,7 @@ export default function DashboardClient({ user }) {
     : 'Включить уведомления';
   const notificationClass = notifStatus === 'granted'
     ? 'border-green-200 bg-green-50 text-green-700 hover:bg-red-50 hover:border-red-200 hover:text-red-700'
-    : notifStatus === 'denied' || notifStatus === 'unsupported'
+    : notifStatus === 'denied' || notifStatus === 'unsupported' || notifStatus === 'not_configured'
     ? 'border-red-200 bg-red-50 text-red-600'
     : notifStatus === 'error'
     ? 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100'
@@ -998,12 +1037,17 @@ export default function DashboardClient({ user }) {
           <span className="text-base">{theme === 'dark' ? '☀️' : '🌙'}</span>
         </button>
         <button
-          onClick={notifStatus === 'granted' ? disableNotifications : notifStatus === 'denied' || notifStatus === 'unsupported' ? undefined : enableNotifications}
-          disabled={notifStatus === 'loading' || notifStatus === 'denied' || notifStatus === 'unsupported'}
+          onClick={notifStatus === 'granted' ? disableNotifications : notifStatus === 'denied' || notifStatus === 'unsupported' || notifStatus === 'not_configured' ? undefined : enableNotifications}
+          disabled={notifStatus === 'loading' || notifStatus === 'denied' || notifStatus === 'unsupported' || notifStatus === 'not_configured'}
           className={`w-full rounded-xl border px-3 py-2 text-sm transition disabled:cursor-default ${notificationClass}`}
         >
           {notificationLabel}
         </button>
+        {notificationError && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-xs leading-snug text-red-700">
+            {notificationError}
+          </p>
+        )}
         <button
           onClick={logout}
           className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
@@ -1265,6 +1309,7 @@ export default function DashboardClient({ user }) {
             onDmSent={fetchDmList}
             onRoomSent={fetchRoomList}
             onRoomListRefresh={fetchRoomList}
+            onOpenMenu={() => setDrawerOpen(true)}
           />
         )}
 
@@ -1454,12 +1499,17 @@ export default function DashboardClient({ user }) {
                 </button>
               ) : (
                 <button
-                  onClick={notifStatus === 'denied' || notifStatus === 'unsupported' ? undefined : enableNotifications}
-                  disabled={notifStatus === 'loading' || notifStatus === 'denied' || notifStatus === 'unsupported'}
-                  className={`w-full rounded-xl border px-4 py-2 text-sm transition disabled:cursor-default ${notifStatus === 'denied' || notifStatus === 'unsupported' ? 'border-red-200 bg-red-50 text-red-700' : notifStatus === 'error' ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100' : notifStatus === 'loading' ? 'border-slate-200 bg-slate-50 text-slate-500' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}
+                  onClick={notifStatus === 'denied' || notifStatus === 'unsupported' || notifStatus === 'not_configured' ? undefined : enableNotifications}
+                  disabled={notifStatus === 'loading' || notifStatus === 'denied' || notifStatus === 'unsupported' || notifStatus === 'not_configured'}
+                  className={`w-full rounded-xl border px-4 py-2 text-sm transition disabled:cursor-default ${notifStatus === 'denied' || notifStatus === 'unsupported' || notifStatus === 'not_configured' ? 'border-red-200 bg-red-50 text-red-700' : notifStatus === 'error' ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100' : notifStatus === 'loading' ? 'border-slate-200 bg-slate-50 text-slate-500' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}
                 >
-                  {notifStatus === 'denied' ? 'Уведомления заблокированы' : notifStatus === 'unsupported' ? 'Push не поддерживается' : notifStatus === 'loading' ? 'Подключение...' : notifStatus === 'error' ? 'Ошибка — попробовать снова' : 'Включить уведомления'}
+                  {notifStatus === 'denied' ? 'Уведомления заблокированы' : notifStatus === 'unsupported' ? 'Push не поддерживается' : notifStatus === 'not_configured' ? 'Push-ключи не настроены' : notifStatus === 'loading' ? 'Подключение...' : notifStatus === 'error' ? 'Ошибка — попробовать снова' : 'Включить уведомления'}
                 </button>
+              )}
+              {notificationError && (
+                <p className="rounded-lg bg-red-50 px-3 py-2 text-xs leading-snug text-red-700">
+                  {notificationError}
+                </p>
               )}
               {notifStatus === 'granted' && (
                 <button

@@ -1,20 +1,24 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/admin/auth';
 import { getSql, ensureSchema } from '@/lib/admin/db';
+import { getVapidKeys } from '@/lib/admin/pushConfig';
 import webpush from 'web-push';
 
 export async function POST() {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
-  const vapidPublic = process.env.VAPID_PUBLIC_KEY;
-  const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
+  const { publicKey: vapidPublic, privateKey: vapidPrivate } = getVapidKeys();
 
   console.log(`[Push/test] user=${user.id}, VAPID_PUBLIC_KEY=${vapidPublic ? vapidPublic.slice(0, 20) + '…' : 'NOT SET'}, VAPID_PRIVATE_KEY=${vapidPrivate ? 'SET' : 'NOT SET'}`);
 
   if (!vapidPublic || !vapidPrivate) {
-    console.error('[Push/test] VAPID keys are not configured! Set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in .env');
-    return NextResponse.json({ ok: false, message: 'VAPID keys not configured' }, { status: 500 });
+    console.error('[Push/test] VAPID keys are not configured! Set VAPID_PUBLIC_KEY/NEXT_PUBLIC_VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in .env');
+    return NextResponse.json({
+      ok: false,
+      code: 'vapid_keys_missing',
+      message: 'VAPID keys not configured',
+    }, { status: 500 });
   }
 
   webpush.setVapidDetails('mailto:r3neprod@gmail.com', vapidPublic, vapidPrivate);
