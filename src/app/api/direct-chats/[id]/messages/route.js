@@ -118,6 +118,8 @@ export async function POST(request, { params }) {
     ok: true,
     message: {
       ...message,
+      user_id: user.id,
+      readers: [],
       author_name: user.name,
       author_username: user.username,
       author_role: user.role,

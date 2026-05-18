@@ -53,6 +53,7 @@ export async function GET(request) {
     SELECT cr.user_id, COALESCE(cr.last_read_message_id, 0)::int AS last_read, u.name
     FROM chat_reads cr
     JOIN users u ON u.id = cr.user_id
+    WHERE cr.user_id <> ${user.id}
   `;
 
   const messagesOut = messages.map((msg) => ({
@@ -103,6 +104,8 @@ export async function POST(request) {
     ok: true,
     message: mapMessage({
       ...message,
+      user_id: user.id,
+      readers: [],
       author_name: user.name,
       author_username: user.username,
       author_role: user.role,

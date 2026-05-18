@@ -96,10 +96,15 @@ const IconSettings = () => <Ic><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 
 const IconPlus   = () => <Ic cls="h-3.5 w-3.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Ic>;
 const IconMenu   = () => <Ic><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></Ic>;
 
-const DoubleCheck = ({ blue }) => (
+const SingleCheck = () => (
+  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
+    stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <polyline points="1 6 4 9 11 2"/>
+  </svg>
+);
+const DoubleCheck = () => (
   <svg width="20" height="12" viewBox="0 0 20 12" fill="none"
-    stroke={blue ? '#4FC3F7' : 'currentColor'}
-    strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    stroke="#4FC3F7" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <polyline points="1 7 4 10 11 3"/><polyline points="8 7 11 10 18 3"/>
   </svg>
 );
@@ -226,7 +231,7 @@ function Bubble({ msg, own, showAv, showName, isLast, isDm }) {
   const meta = (
     <span className={`inline-flex shrink-0 items-center gap-0.5 ${isVid ? 'rounded-full bg-black/30 px-1.5 py-0.5' : ''}`}>
       <span className={`text-[10px] leading-none tabular-nums ${isVid ? 'text-white' : own ? 'text-emerald-800/60' : 'text-slate-400'}`}>{t}</span>
-      {own && <span className={isVid ? 'text-white/80' : 'text-emerald-700/70'}><DoubleCheck blue={isRead} /></span>}
+      {own && <span className={isVid ? 'text-white/80' : 'text-emerald-700/70'}>{isRead ? <DoubleCheck /> : <SingleCheck />}</span>}
     </span>
   );
 
