@@ -91,6 +91,8 @@ const IconClip   = () => <Ic><path d="M21 11.5 12.2 20.3a6 6 0 0 1-8.5-8.5l9.1-9
 const IconPlay   = () => <Ic><polygon points="5 3 19 12 5 21 5 3"/></Ic>;
 const IconPause  = () => <Ic><line x1="6" y1="4" x2="6" y2="20"/><line x1="18" y1="4" x2="18" y2="20"/></Ic>;
 const IconFile   = () => <Ic><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/></Ic>;
+const IconPhoto  = () => <Ic><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="m21 15-5-5L5 19"/></Ic>;
+const IconCamera = () => <Ic><path d="M14.5 4 16 7h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l1.5-3z"/><circle cx="12" cy="13" r="3"/></Ic>;
 const IconChevL  = () => <Ic><polyline points="15 18 9 12 15 6"/></Ic>;
 const IconSettings = () => <Ic><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></Ic>;
 const IconPlus   = () => <Ic cls="h-3.5 w-3.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Ic>;
@@ -137,25 +139,25 @@ function AudioPlayer({ src, msgId, own }) {
 
   const prog = dur > 0 ? cur / dur : 0;
   const label = dur > 0 ? fmtSecs(playing ? cur : dur) : '0:00';
-  const actCol = own ? 'rgba(255,255,255,0.88)' : '#2196F3';
-  const inactCol = own ? 'rgba(255,255,255,0.3)' : '#c8dce8';
-  const btnCls = own ? 'bg-white/20 hover:bg-white/35 text-white' : 'bg-[#2196F3] hover:bg-[#1E88E5] text-white';
+  const actCol = own ? '#3a9f43' : '#229ED9';
+  const inactCol = own ? 'rgba(58,159,67,0.28)' : 'rgba(34,158,217,0.24)';
+  const btnCls = own ? 'bg-[#45a849] hover:bg-[#3e9846] text-white' : 'bg-[#229ED9] hover:bg-[#168ac2] text-white';
 
   return (
-    <div className="flex items-center gap-2.5" style={{ minWidth: 200, maxWidth: 280 }}>
+    <div className="flex w-[248px] max-w-[62vw] items-center gap-2.5">
       <audio ref={aRef} src={src} preload="metadata" />
-      <button onClick={toggle} className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition ${btnCls}`}>
+      <button onClick={toggle} className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full shadow-sm transition ${btnCls}`} aria-label={playing ? 'Пауза' : 'Воспроизвести'}>
         {playing ? <IconPause /> : <IconPlay />}
       </button>
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex h-9 cursor-pointer items-center gap-[2px]" onClick={seek}>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <div className="flex h-8 cursor-pointer items-center gap-[2px]" onClick={seek}>
           {bars.map((h, i) => (
-            <div key={i} className="rounded-full" style={{ width: 3, height: `${Math.round(h * 90)}%`, background: i / WAVE_BARS < prog ? actCol : inactCol }} />
+            <div key={i} className="rounded-full transition-colors" style={{ width: 3, height: `${Math.round(5 + h * 25)}px`, background: i / WAVE_BARS < prog ? actCol : inactCol }} />
           ))}
         </div>
-        <div className={`flex items-center justify-between text-[11px] font-medium ${own ? 'text-white/70' : 'text-slate-500'}`}>
+        <div className={`flex items-center justify-between text-[11px] font-medium ${own ? 'text-emerald-800/60' : 'text-slate-500'}`}>
           <span className="tabular-nums">{label}</span>
-          <button onClick={cycleSpd} className="rounded px-1 font-semibold hover:opacity-80">{spd}×</button>
+          <button onClick={cycleSpd} className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold transition ${own ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>{spd}x</button>
         </div>
       </div>
     </div>
@@ -167,7 +169,7 @@ function VideoNote({ src }) {
   const vRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [prog, setProg] = useState(0);
-  const S = 200, R = S / 2 - 5, CIRC = 2 * Math.PI * R;
+  const S = 188, R = S / 2 - 5, CIRC = 2 * Math.PI * R;
 
   useEffect(() => {
     const v = vRef.current; if (!v) return;
@@ -180,16 +182,16 @@ function VideoNote({ src }) {
   const toggle = () => { const v = vRef.current; if (!v) return; if (playing) { v.pause(); setPlaying(false); } else { v.play().catch(console.error); setPlaying(true); } };
 
   return (
-    <div className="relative cursor-pointer select-none" style={{ width: S, height: S }} onClick={toggle}>
+    <div className="relative cursor-pointer select-none rounded-full shadow-[0_2px_10px_rgba(15,23,42,0.22)]" style={{ width: S, height: S }} onClick={toggle}>
       <video ref={vRef} src={src} playsInline className="rounded-full object-cover" style={{ width: S, height: S }} />
       <svg className="pointer-events-none absolute inset-0" width={S} height={S} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={S/2} cy={S/2} r={R} fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="4"/>
+        <circle cx={S/2} cy={S/2} r={R} fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="4"/>
         <circle cx={S/2} cy={S/2} r={R} fill="none" stroke="white" strokeWidth="4"
           strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - prog)} strokeLinecap="round"/>
       </svg>
       {!playing && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-black/25">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/80 text-slate-800"><IconPlay /></div>
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/85 text-slate-800 shadow-lg"><IconPlay /></div>
         </div>
       )}
     </div>
@@ -334,6 +336,7 @@ export default function TeamChatPanel({
   const [text,       setText]       = useState('');
   const [sending,    setSending]    = useState(false);
   const [uploading,  setUploading]  = useState(false);
+  const [attachOpen, setAttachOpen] = useState(false);
   const [error,      setError]      = useState('');
   const [newMsgBadge, setNewMsgBadge] = useState(false);
 
@@ -358,6 +361,8 @@ export default function TeamChatPanel({
   /* ── Refs ───────────────────────────────────────────────────────────────── */
   const taRef        = useRef(null);
   const fileRef      = useRef(null);
+  const galleryRef   = useRef(null);
+  const cameraRef    = useRef(null);
   const endRef       = useRef(null);
   const listRef      = useRef(null);
   const atBottomRef  = useRef(true);
@@ -583,11 +588,20 @@ export default function TeamChatPanel({
       if (activeDmId) onDmSent?.();
       if (activeRoomId) onRoomSent?.();
     } catch { setError('Ошибка загрузки'); }
-    finally { setUploading(false); if (fileRef.current) fileRef.current.value = ''; }
+    finally {
+      setUploading(false);
+      [fileRef, galleryRef, cameraRef].forEach((ref) => {
+        if (ref.current) ref.current.value = '';
+      });
+    }
   };
 
-  const onFiles = (files) => {
-    for (const f of Array.from(files || [])) uploadMedia(f, f.type?.startsWith('image/') ? 'image' : 'file');
+  const onFiles = async (files, forcedType = null) => {
+    setAttachOpen(false);
+    for (const f of Array.from(files || [])) {
+      const type = forcedType || (f.type?.startsWith('image/') ? 'image' : 'file');
+      await uploadMedia(f, type);
+    }
   };
 
   /* ── Recording ───────────────────────────────────────────────────────────── */
@@ -799,6 +813,35 @@ export default function TeamChatPanel({
             </div>
           )}
 
+          {attachOpen && !isRec && (
+            <div className="absolute bottom-[76px] left-3 z-30 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+              <button type="button" onClick={() => galleryRef.current?.click()}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-gray-800">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-100 text-sky-600"><IconPhoto /></span>
+                <span>
+                  <span className="block font-medium">Фото из галереи</span>
+                  <span className="block text-xs text-slate-400">На телефоне откроется галерея</span>
+                </span>
+              </button>
+              <button type="button" onClick={() => cameraRef.current?.click()}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-gray-800">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-600"><IconCamera /></span>
+                <span>
+                  <span className="block font-medium">Сделать фото</span>
+                  <span className="block text-xs text-slate-400">Камера на мобильном</span>
+                </span>
+              </button>
+              <button type="button" onClick={() => fileRef.current?.click()}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-gray-800">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 text-violet-600"><IconFile /></span>
+                <span>
+                  <span className="block font-medium">Файл</span>
+                  <span className="block text-xs text-slate-400">PDF, DOCX, XLSX, ZIP</span>
+                </span>
+              </button>
+            </div>
+          )}
+
           {isRec ? (
             <div className={`flex items-center gap-3 rounded-2xl px-3 py-2 transition-colors ${isCancelZone ? 'bg-red-50' : 'bg-white'}`}>
               <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden"
@@ -821,13 +864,13 @@ export default function TeamChatPanel({
             </div>
           ) : (
             <div className="flex items-end gap-2">
-              <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
-                className="mb-[3px] flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm transition hover:bg-slate-100 disabled:opacity-40" aria-label="Прикрепить">
+              <button type="button" onClick={() => setAttachOpen((v) => !v)} disabled={uploading}
+                className={`mb-[3px] flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-sm transition disabled:opacity-40 ${attachOpen ? 'bg-[#2196F3] text-white' : 'bg-white text-slate-500 hover:bg-slate-100'}`} aria-label="Прикрепить">
                 <IconClip />
               </button>
               <textarea ref={taRef} value={text} onChange={onTAChange} onKeyDown={onTAKey}
                 onPaste={(e) => { const files = e.clipboardData?.files; if (!files?.length) return; e.preventDefault(); onFiles(files); }}
-                onClick={(e) => refreshMent(e.currentTarget.value, e.currentTarget.selectionStart ?? text.length)}
+                onClick={(e) => { setAttachOpen(false); refreshMent(e.currentTarget.value, e.currentTarget.selectionStart ?? text.length); }}
                 placeholder={activeDmId ? `Сообщение для ${dmOtherUser?.name || ''}…` : activeRoomId ? `Сообщение в ${activeRoom?.name || 'канал'}…` : 'Сообщение...'}
                 rows={1} style={{ minHeight: 36, maxHeight: 120, overflowY: 'auto' }}
                 className="flex-1 resize-none rounded-2xl bg-white px-3.5 py-2 text-sm shadow-sm ring-1 ring-slate-200/80 focus:outline-none focus:ring-2 focus:ring-blue-400" />
@@ -855,7 +898,9 @@ export default function TeamChatPanel({
             </div>
           )}
 
-          <input ref={fileRef} type="file" multiple className="hidden" onChange={(e) => onFiles(e.target.files)} />
+          <input ref={galleryRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => onFiles(e.target.files, 'image')} />
+          <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onFiles(e.target.files, 'image')} />
+          <input ref={fileRef} type="file" multiple accept=".pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.zip,application/pdf,text/plain,text/csv,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip" className="hidden" onChange={(e) => onFiles(e.target.files, 'file')} />
           {!isRec && (
             <p className="mt-1.5 text-[11px] text-slate-400">
               Enter — отправить · Shift+Enter — строка · @ — упомянуть · зажать {recMode === 'audio' ? '🎤' : '🎥'} — записать
