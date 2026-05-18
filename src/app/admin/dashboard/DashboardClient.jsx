@@ -80,6 +80,19 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }
 
+function uint8ArrayToBase64Url(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+}
+
+function subscriptionUsesPublicKey(subscription, publicKey) {
+  const currentKey = subscription?.options?.applicationServerKey;
+  if (!currentKey) return true;
+  return uint8ArrayToBase64Url(currentKey) === publicKey.replace(/=+$/, '');
+}
+
 function getInitials(name) {
   return String(name || '?')
     .trim()
@@ -186,11 +199,66 @@ export default function DashboardClient({ user }) {
   const [closeReasonText, setCloseReasonText] = useState('');
   const [closeReasonLoading, setCloseReasonLoading] = useState(false);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setNotifStatus(Notification.permission);
+  const getVapidPublicKey = useCallback(async () => {
+    const keyRes = await fetch('/api/push/vapid-public-key', { cache: 'no-store' });
+    if (!keyRes.ok) throw new Error('Failed to load VAPID public key');
+    const { publicKey } = await keyRes.json();
+    if (!publicKey) throw new Error('VAPID_PUBLIC_KEY is not configured');
+    return publicKey;
+  }, []);
+
+  const savePushSubscription = useCallback(async (subscription) => {
+    const res = await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      throw new Error(data.message || `Failed to save push subscription (${res.status})`);
     }
   }, []);
+
+  const refreshNotificationStatus = useCallback(async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setNotifStatus('unsupported');
+      return;
+    }
+    if (Notification.permission !== 'granted') {
+      setNotifStatus(Notification.permission);
+      return;
+    }
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setNotifStatus('unsupported');
+      return;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      const subscription = await registration?.pushManager.getSubscription();
+      if (!subscription) {
+        setNotifStatus('default');
+        return;
+      }
+
+      const publicKey = await getVapidPublicKey();
+      if (!subscriptionUsesPublicKey(subscription, publicKey)) {
+        console.warn('[Push] Existing subscription uses another VAPID key, resubscribe required');
+        setNotifStatus('default');
+        return;
+      }
+
+      await savePushSubscription(subscription);
+      setNotifStatus('granted');
+    } catch (err) {
+      console.error('[Push] Status check error:', err);
+      setNotifStatus('error');
+    }
+  }, [getVapidPublicKey, savePushSubscription]);
+
+  useEffect(() => {
+    refreshNotificationStatus();
+  }, [refreshNotificationStatus]);
 
   useEffect(() => {
     let cancelled = false;
@@ -243,8 +311,11 @@ export default function DashboardClient({ user }) {
       console.log('[Push] Permission:', permission);
       if (permission !== 'granted') { setNotifStatus(permission); return; }
 
+      const publicKey = await getVapidPublicKey();
+      const applicationServerKey = urlBase64ToUint8Array(publicKey);
+
       // Always register first (idempotent if already registered)
-      await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.register('/sw.js', { scope: '/' });
       console.log('[Push] SW registered, waiting for ready state...');
 
       // Wait for the SW to become active (with 10s timeout)
@@ -256,21 +327,25 @@ export default function DashboardClient({ user }) {
       ]);
       console.log('[Push] SW ready, state:', registration.active?.state);
 
-      const keyRes = await fetch('/api/push/vapid-public-key');
-      const { publicKey } = await keyRes.json();
-      console.log('[Push] Got VAPID key, subscribing...');
+      let subscription = await registration.pushManager.getSubscription();
+      if (subscription && !subscriptionUsesPublicKey(subscription, publicKey)) {
+        console.log('[Push] VAPID key changed, recreating subscription...');
+        await subscription.unsubscribe();
+        subscription = null;
+      }
 
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey),
-      });
+      if (!subscription) {
+        console.log('[Push] Got VAPID key, subscribing...');
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey,
+        });
+      } else {
+        console.log('[Push] Existing subscription found:', subscription.endpoint);
+      }
       console.log('[Push] Subscribed:', subscription.endpoint);
 
-      await fetch('/api/push/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscription }),
-      });
+      await savePushSubscription(subscription);
       console.log('[Push] Saved subscription on server');
       setNotifStatus('granted');
     } catch (err) {
@@ -284,8 +359,15 @@ export default function DashboardClient({ user }) {
     try {
       const res = await fetch('/api/push/test', { method: 'POST' });
       const data = await res.json().catch(() => ({}));
-      setTestPushStatus(data.ok ? 'sent' : 'error');
-    } catch {
+      if (!res.ok || !data.ok) {
+        console.warn('[Push] Test push failed:', data.message || res.status);
+        if (res.status === 404) await refreshNotificationStatus();
+        setTestPushStatus('error');
+        return;
+      }
+      setTestPushStatus('sent');
+    } catch (err) {
+      console.error('[Push] Test push request error:', err);
       setTestPushStatus('error');
     } finally {
       setTimeout(() => setTestPushStatus('idle'), 3000);
@@ -774,6 +856,8 @@ export default function DashboardClient({ user }) {
     ? 'Уведомления включены ✓'
     : notifStatus === 'denied'
     ? 'Уведомления заблокированы'
+    : notifStatus === 'unsupported'
+    ? 'Push не поддерживается'
     : notifStatus === 'loading'
     ? 'Подключение...'
     : notifStatus === 'error'
@@ -781,7 +865,7 @@ export default function DashboardClient({ user }) {
     : 'Включить уведомления';
   const notificationClass = notifStatus === 'granted'
     ? 'border-green-200 bg-green-50 text-green-700 hover:bg-red-50 hover:border-red-200 hover:text-red-700'
-    : notifStatus === 'denied'
+    : notifStatus === 'denied' || notifStatus === 'unsupported'
     ? 'border-red-200 bg-red-50 text-red-600'
     : notifStatus === 'error'
     ? 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100'
@@ -914,8 +998,8 @@ export default function DashboardClient({ user }) {
           <span className="text-base">{theme === 'dark' ? '☀️' : '🌙'}</span>
         </button>
         <button
-          onClick={notifStatus === 'granted' ? disableNotifications : notifStatus === 'denied' ? undefined : enableNotifications}
-          disabled={notifStatus === 'loading' || notifStatus === 'denied'}
+          onClick={notifStatus === 'granted' ? disableNotifications : notifStatus === 'denied' || notifStatus === 'unsupported' ? undefined : enableNotifications}
+          disabled={notifStatus === 'loading' || notifStatus === 'denied' || notifStatus === 'unsupported'}
           className={`w-full rounded-xl border px-3 py-2 text-sm transition disabled:cursor-default ${notificationClass}`}
         >
           {notificationLabel}
@@ -1370,11 +1454,11 @@ export default function DashboardClient({ user }) {
                 </button>
               ) : (
                 <button
-                  onClick={notifStatus === 'denied' ? undefined : enableNotifications}
-                  disabled={notifStatus === 'loading' || notifStatus === 'denied'}
-                  className={`w-full rounded-xl border px-4 py-2 text-sm transition disabled:cursor-default ${notifStatus === 'denied' ? 'border-red-200 bg-red-50 text-red-700' : notifStatus === 'error' ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100' : notifStatus === 'loading' ? 'border-slate-200 bg-slate-50 text-slate-500' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}
+                  onClick={notifStatus === 'denied' || notifStatus === 'unsupported' ? undefined : enableNotifications}
+                  disabled={notifStatus === 'loading' || notifStatus === 'denied' || notifStatus === 'unsupported'}
+                  className={`w-full rounded-xl border px-4 py-2 text-sm transition disabled:cursor-default ${notifStatus === 'denied' || notifStatus === 'unsupported' ? 'border-red-200 bg-red-50 text-red-700' : notifStatus === 'error' ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100' : notifStatus === 'loading' ? 'border-slate-200 bg-slate-50 text-slate-500' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}
                 >
-                  {notifStatus === 'denied' ? 'Уведомления заблокированы' : notifStatus === 'loading' ? 'Подключение...' : notifStatus === 'error' ? 'Ошибка — попробовать снова' : 'Включить уведомления'}
+                  {notifStatus === 'denied' ? 'Уведомления заблокированы' : notifStatus === 'unsupported' ? 'Push не поддерживается' : notifStatus === 'loading' ? 'Подключение...' : notifStatus === 'error' ? 'Ошибка — попробовать снова' : 'Включить уведомления'}
                 </button>
               )}
               {notifStatus === 'granted' && (
