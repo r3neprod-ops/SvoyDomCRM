@@ -91,6 +91,12 @@ function getInitials(name) {
     .toUpperCase();
 }
 
+const CHAT_PALETTE = ['#E91E63','#9C27B0','#673AB7','#3F51B5','#2196F3','#00BCD4','#009688','#4CAF50','#FF9800','#FF5722'];
+const chatColor = (uid) => CHAT_PALETTE[(uid ?? 0) % CHAT_PALETTE.length];
+function chatInitials(name) {
+  return String(name || '?').trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
+}
+
 function AvatarCircle({ profile, size = 'md' }) {
   const classes = size === 'lg' ? 'h-14 w-14 text-base' : 'h-10 w-10 text-sm';
   if (profile?.avatar_url) {
@@ -118,6 +124,20 @@ export default function DashboardClient({ user }) {
   const [claimingLeadId, setClaimingLeadId] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
+
+  // Chat navigation state (shared with TeamChatPanel)
+  const [chatNavUsers,   setChatNavUsers]   = useState([]);
+  const [dmList,         setDmList]         = useState([]);
+  const [roomList,       setRoomList]       = useState([]);
+  const [activeDmId,     setActiveDmId]     = useState(null);
+  const [dmOtherUser,    setDmOtherUser]    = useState(null);
+  const [activeRoomId,   setActiveRoomId]   = useState(null);
+  const [activeRoom,     setActiveRoom]     = useState(null);
+  const [chatGenUnread,  setChatGenUnread]  = useState(0);
+  const [showCreateRoom, setShowCreateRoom] = useState(false);
+  const [newRoomName,    setNewRoomName]    = useState('');
+  const [newRoomMembers, setNewRoomMembers] = useState([]);
+  const [creatingRoom,   setCreatingRoom]   = useState(false);
   const [profile, setProfile] = useState({ ...user, phone: '', status_text: '', avatar_url: '' });
   const [profileForm, setProfileForm] = useState({
     name: user.name || '',
@@ -284,7 +304,7 @@ export default function DashboardClient({ user }) {
       const res = await fetch('/api/chat/read');
       if (res.status === 401) return;
       const data = await res.json();
-      if (data.ok) setChatUnread(data.unread_count || 0);
+      if (data.ok) setChatGenUnread(data.unread_count || 0);
     } catch (err) {
       console.error('Chat unread fetch error:', err);
     }
@@ -295,6 +315,96 @@ export default function DashboardClient({ user }) {
     const interval = setInterval(fetchChatUnread, 10000);
     return () => clearInterval(interval);
   }, [fetchChatUnread]);
+
+  // Sync total chat badge: general + DMs + rooms
+  useEffect(() => {
+    const dmTotal   = dmList.reduce((s, c) => s + (c.unread_count || 0), 0);
+    const roomTotal = roomList.reduce((s, r) => s + (r.unread_count || 0), 0);
+    setChatUnread(chatGenUnread + dmTotal + roomTotal);
+  }, [chatGenUnread, dmList, roomList]);
+
+  const fetchChatNavUsers = useCallback(async () => {
+    try {
+      const res = await fetch('/api/chat/users');
+      const data = await res.json();
+      if (data.ok) setChatNavUsers(data.users || []);
+    } catch {}
+  }, []);
+
+  const fetchDmList = useCallback(async () => {
+    try {
+      const res = await fetch('/api/direct-chats');
+      const data = await res.json();
+      if (data.ok) setDmList(data.chats || []);
+    } catch {}
+  }, []);
+
+  const fetchRoomList = useCallback(async () => {
+    try {
+      const res = await fetch('/api/rooms');
+      const data = await res.json();
+      if (data.ok) setRoomList(data.rooms || []);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'chat') return;
+    fetchChatNavUsers();
+    fetchDmList();
+    fetchRoomList();
+    const i1 = setInterval(fetchDmList,  4000);
+    const i2 = setInterval(fetchRoomList, 4000);
+    return () => { clearInterval(i1); clearInterval(i2); };
+  }, [activeTab, fetchChatNavUsers, fetchDmList, fetchRoomList]);
+
+  const openChatGeneral = useCallback(() => {
+    setActiveDmId(null); setDmOtherUser(null);
+    setActiveRoomId(null); setActiveRoom(null);
+  }, []);
+
+  const openChatDm = useCallback((chatId, otherUser) => {
+    setActiveDmId(chatId); setDmOtherUser(otherUser);
+    setActiveRoomId(null); setActiveRoom(null);
+  }, []);
+
+  const openChatRoom = useCallback((roomId, room) => {
+    setActiveDmId(null); setDmOtherUser(null);
+    setActiveRoomId(roomId); setActiveRoom(room);
+  }, []);
+
+  const handleOpenChatDm = useCallback(async (emp) => {
+    const existing = dmList.find((c) => c.other_user_id === emp.id);
+    if (existing) { openChatDm(existing.id, emp); return; }
+    try {
+      const res = await fetch('/api/direct-chats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ other_user_id: emp.id }),
+      });
+      const data = await res.json();
+      if (data.ok) { fetchDmList(); openChatDm(data.chat.id, emp); }
+    } catch {}
+  }, [dmList, openChatDm, fetchDmList]);
+
+  const handleCreateRoom = async () => {
+    const name = newRoomName.trim();
+    if (!name || creatingRoom) return;
+    setCreatingRoom(true);
+    try {
+      const res = await fetch('/api/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, member_ids: newRoomMembers }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setShowCreateRoom(false); setNewRoomName(''); setNewRoomMembers([]);
+        await fetchRoomList();
+        openChatRoom(data.room.id, { ...data.room, my_role: 'admin', member_count: newRoomMembers.length + 1 });
+      }
+    } catch {}
+    finally { setCreatingRoom(false); }
+  };
 
   const updateStatus = async (id, status) => {
     await fetch(`/api/leads/${id}`, {
@@ -659,25 +769,106 @@ export default function DashboardClient({ user }) {
         </div>
       </button>
 
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 overflow-y-auto space-y-1 px-3 py-4">
         {navItems.map((item) => (
-          <button
-            key={item.key}
-            onClick={() => selectTab(item.key)}
-            className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition ${
-              activeTab === item.key
-                ? 'bg-slate-900 text-white'
-                : 'text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            <span className="w-6 text-center text-base">{item.icon}</span>
-            <span className="flex-1">{item.label}</span>
-            {item.badge > 0 && (
-              <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold text-white">
-                {item.badge > 99 ? '99+' : item.badge}
-              </span>
+          <div key={item.key}>
+            <button
+              onClick={() => selectTab(item.key)}
+              className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition ${
+                activeTab === item.key
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <span className="w-6 text-center text-base">{item.icon}</span>
+              <span className="flex-1">{item.label}</span>
+              {item.badge > 0 && (
+                <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold text-white">
+                  {item.badge > 99 ? '99+' : item.badge}
+                </span>
+              )}
+            </button>
+
+            {item.key === 'chat' && activeTab === 'chat' && (
+              <div className="mt-1 space-y-0.5 pb-1">
+                <button
+                  onClick={() => { openChatGeneral(); setDrawerOpen(false); }}
+                  className={`flex w-full items-center gap-2 rounded-xl py-1.5 pl-9 pr-3 text-left text-xs transition ${
+                    !activeDmId && !activeRoomId ? 'bg-blue-50 font-medium text-blue-700' : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[8px] font-bold text-white"
+                    style={{ background: 'linear-gradient(135deg, #2196F3, #00BCD4)' }}>CRM</div>
+                  <span className="flex-1 truncate">Общий чат</span>
+                  {chatGenUnread > 0 && (
+                    <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                      {chatGenUnread > 99 ? '99+' : chatGenUnread}
+                    </span>
+                  )}
+                </button>
+
+                <p className="px-3 pb-0.5 pt-2 text-[9px] font-semibold uppercase tracking-wider text-slate-400">Сотрудники</p>
+                {chatNavUsers.filter((u) => u.id !== user.id).map((emp) => {
+                  const dmEntry  = dmList.find((c) => c.other_user_id === emp.id);
+                  const dmUnread = dmEntry?.unread_count || 0;
+                  const isActive = dmEntry ? activeDmId === dmEntry.id : false;
+                  return (
+                    <button key={emp.id}
+                      onClick={() => { handleOpenChatDm(emp); setDrawerOpen(false); }}
+                      className={`flex w-full items-center gap-2 rounded-xl py-1.5 pl-9 pr-3 text-left text-xs transition ${
+                        isActive ? 'bg-blue-50 font-medium text-blue-700' : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {emp.avatar_url
+                        ? <img src={emp.avatar_url} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
+                        : <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[8px] font-bold text-white"
+                            style={{ background: chatColor(emp.id) }}>{chatInitials(emp.name)}</div>
+                      }
+                      <span className="min-w-0 flex-1 truncate">{emp.name}</span>
+                      {dmUnread > 0 && (
+                        <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                          {dmUnread > 99 ? '99+' : dmUnread}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+
+                <div className="flex items-center px-3 pb-0.5 pt-2">
+                  <span className="flex-1 text-[9px] font-semibold uppercase tracking-wider text-slate-400">Каналы</span>
+                  <button onClick={() => setShowCreateRoom(true)}
+                    className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 text-slate-500 transition hover:bg-blue-100 hover:text-blue-600"
+                    title="Создать канал">
+                    <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3">
+                      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                  </button>
+                </div>
+                {roomList.length === 0 && (
+                  <p className="pl-9 pr-3 text-[11px] text-slate-400">Нет каналов</p>
+                )}
+                {roomList.map((room) => (
+                  <button key={room.id}
+                    onClick={() => { openChatRoom(room.id, room); setDrawerOpen(false); }}
+                    className={`flex w-full items-center gap-2 rounded-xl py-1.5 pl-9 pr-3 text-left text-xs transition ${
+                      activeRoomId === room.id ? 'bg-blue-50 font-medium text-blue-700' : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[8px] font-bold text-white"
+                      style={{ background: chatColor(room.id + 5) }}>
+                      {room.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <span className="min-w-0 flex-1 truncate">{room.name}</span>
+                    {room.unread_count > 0 && (
+                      <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        {room.unread_count > 99 ? '99+' : room.unread_count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
             )}
-          </button>
+          </div>
         ))}
       </nav>
 
@@ -943,7 +1134,22 @@ export default function DashboardClient({ user }) {
         )}
 
         {/* ── Team chat tab ── */}
-        {activeTab === 'chat' && <TeamChatPanel user={profile} onUnreadChange={setChatUnread} />}
+        {activeTab === 'chat' && (
+          <TeamChatPanel
+            user={profile}
+            chatUsers={chatNavUsers}
+            activeDmId={activeDmId}
+            dmOtherUser={dmOtherUser}
+            activeRoomId={activeRoomId}
+            activeRoom={activeRoom}
+            onOpenGeneral={openChatGeneral}
+            onSetActiveRoom={setActiveRoom}
+            onGeneralUnread={setChatGenUnread}
+            onDmSent={fetchDmList}
+            onRoomSent={fetchRoomList}
+            onRoomListRefresh={fetchRoomList}
+          />
+        )}
 
         {/* ── Profile tab ── */}
         {activeTab === 'profile' && (
@@ -1356,6 +1562,53 @@ export default function DashboardClient({ user }) {
                   {closeReasonLoading ? 'Закрытие...' : 'Закрыть лид'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Create Room modal ── */}
+      {showCreateRoom && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-80 overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+              <h3 className="font-semibold text-slate-800">Создать канал</h3>
+              <button onClick={() => { setShowCreateRoom(false); setNewRoomName(''); setNewRoomMembers([]); }}
+                className="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+            <div className="max-h-[55vh] space-y-3 overflow-y-auto p-4">
+              <div>
+                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">Название</label>
+                <input type="text" value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreateRoom()}
+                  placeholder="Например: Маркетинг"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">Участники</label>
+                {chatNavUsers.filter((u) => u.id !== user.id).map((emp) => (
+                  <label key={emp.id} className="flex cursor-pointer items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-slate-50">
+                    <input type="checkbox" checked={newRoomMembers.includes(emp.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) setNewRoomMembers((p) => [...p, emp.id]);
+                        else setNewRoomMembers((p) => p.filter((id) => id !== emp.id));
+                      }}
+                      className="rounded accent-blue-500" />
+                    {emp.avatar_url
+                      ? <img src={emp.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover" />
+                      : <div className="flex h-7 w-7 items-center justify-center rounded-full text-[9px] font-bold text-white"
+                          style={{ background: chatColor(emp.id) }}>{chatInitials(emp.name)}</div>
+                    }
+                    <span className="text-sm text-slate-700">{emp.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="border-t border-slate-100 p-3">
+              <button onClick={handleCreateRoom} disabled={!newRoomName.trim() || creatingRoom}
+                className="w-full rounded-xl bg-[#2196F3] py-2.5 text-sm font-semibold text-white transition hover:bg-[#1E88E5] disabled:opacity-40">
+                {creatingRoom ? 'Создание...' : 'Создать канал'}
+              </button>
             </div>
           </div>
         </div>

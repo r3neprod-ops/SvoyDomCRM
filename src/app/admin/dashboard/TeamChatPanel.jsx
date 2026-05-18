@@ -308,32 +308,30 @@ function UnreadBadge({ count }) {
 }
 
 /* ─── Main component ─────────────────────────────────────────────────────────── */
-export default function TeamChatPanel({ user, onUnreadChange }) {
+export default function TeamChatPanel({
+  user,
+  chatUsers,
+  activeDmId,
+  dmOtherUser,
+  activeRoomId,
+  activeRoom,
+  onOpenGeneral,
+  onSetActiveRoom,
+  onGeneralUnread,
+  onDmSent,
+  onRoomSent,
+  onRoomListRefresh,
+}) {
   /* ── Core state ─────────────────────────────────────────────────────────── */
   const [messages,   setMessages]   = useState([]);
-  const [chatUsers,  setChatUsers]  = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [text,       setText]       = useState('');
   const [sending,    setSending]    = useState(false);
   const [uploading,  setUploading]  = useState(false);
   const [error,      setError]      = useState('');
   const [newMsgBadge, setNewMsgBadge] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  /* ── DM state ───────────────────────────────────────────────────────────── */
-  const [activeDmId,    setActiveDmId]    = useState(null);
-  const [dmOtherUser,   setDmOtherUser]   = useState(null);
-  const [dmList,        setDmList]        = useState([]);
-  const [generalUnread, setGeneralUnread] = useState(0);
-
-  /* ── Room state ─────────────────────────────────────────────────────────── */
-  const [activeRoomId,     setActiveRoomId]     = useState(null);
-  const [activeRoom,       setActiveRoom]       = useState(null);
-  const [roomList,         setRoomList]         = useState([]);
-  const [showCreateRoom,   setShowCreateRoom]   = useState(false);
-  const [newRoomName,      setNewRoomName]      = useState('');
-  const [newRoomMemberIds, setNewRoomMemberIds] = useState([]);
-  const [creatingRoom,     setCreatingRoom]     = useState(false);
+  /* ── Room management state ──────────────────────────────────────────────── */
   const [showManageRoom,   setShowManageRoom]   = useState(false);
   const [roomDetails,      setRoomDetails]      = useState(null);
   const [manageLoading,    setManageLoading]    = useState(false);
@@ -383,59 +381,6 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
     if (atBottomRef.current) setNewMsgBadge(false);
   }, []);
 
-  /* ── DM list ────────────────────────────────────────────────────────────── */
-  const fetchDmList = useCallback(async () => {
-    try {
-      const res = await fetch('/api/direct-chats');
-      const data = await res.json();
-      if (data.ok) setDmList(data.chats || []);
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    fetchDmList();
-    const id = setInterval(fetchDmList, POLL_MS);
-    return () => clearInterval(id);
-  }, [fetchDmList]);
-
-  /* ── Room list ──────────────────────────────────────────────────────────── */
-  const fetchRoomList = useCallback(async () => {
-    try {
-      const res = await fetch('/api/rooms');
-      const data = await res.json();
-      if (data.ok) setRoomList(data.rooms || []);
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    fetchRoomList();
-    const id = setInterval(fetchRoomList, POLL_MS);
-    return () => clearInterval(id);
-  }, [fetchRoomList]);
-
-  /* ── Background general-unread (when in DM or room) ────────────────────── */
-  const fetchGeneralUnread = useCallback(async () => {
-    try {
-      const res = await fetch('/api/chat/read');
-      const data = await res.json();
-      if (data.ok) setGeneralUnread(data.unread_count || 0);
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    if (!activeDmId && !activeRoomId) return;
-    fetchGeneralUnread();
-    const id = setInterval(fetchGeneralUnread, POLL_MS);
-    return () => clearInterval(id);
-  }, [activeDmId, activeRoomId, fetchGeneralUnread]);
-
-  /* ── Tab badge (general + DMs + rooms) ─────────────────────────────────── */
-  useEffect(() => {
-    const dmTotal   = dmList.reduce((s, c) => s + (c.unread_count || 0), 0);
-    const roomTotal = roomList.reduce((s, r) => s + (r.unread_count || 0), 0);
-    onUnreadChange?.(generalUnread + dmTotal + roomTotal);
-  }, [generalUnread, dmList, roomList, onUnreadChange]);
-
   /* ── Fetch messages (mode-aware) ────────────────────────────────────────── */
   const fetchMessages = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
@@ -450,7 +395,7 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
       const data = await res.json();
       if (data.ok) {
         setMessages(data.messages);
-        if (!activeDmId && !activeRoomId) setGeneralUnread(data.unread_count || 0);
+        if (!activeDmId && !activeRoomId) onGeneralUnread?.(data.unread_count || 0);
         const lid = data.messages.at(-1)?.id;
         if (lid) {
           const readUrl = activeDmId
@@ -463,7 +408,7 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ last_read_message_id: lid }),
           }).catch(console.error);
-          if (!activeDmId && !activeRoomId) setGeneralUnread(0);
+          if (!activeDmId && !activeRoomId) onGeneralUnread?.(0);
         }
         setError('');
       }
@@ -483,13 +428,6 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
   }, [fetchMessages]);
 
   useEffect(() => {
-    fetch('/api/chat/users')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d?.ok) setChatUsers(d.users || []); })
-      .catch(console.error);
-  }, []);
-
-  useEffect(() => {
     const lastId = messages.at(-1)?.id ?? 0;
     if (lastId === lastMsgIdRef.current) return;
     const isOwn = messages.at(-1)?.user_id === user?.id;
@@ -507,60 +445,7 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
     acRef.current?.close();
   }, []);
 
-  /* ── Navigation ─────────────────────────────────────────────────────────── */
-  const openGeneral = useCallback(() => {
-    setActiveDmId(null); setDmOtherUser(null);
-    setActiveRoomId(null); setActiveRoom(null);
-    setSidebarOpen(false);
-  }, []);
-
-  const openDm = useCallback((chatId, otherUser) => {
-    setActiveDmId(chatId); setDmOtherUser(otherUser);
-    setActiveRoomId(null); setActiveRoom(null);
-    setSidebarOpen(false);
-  }, []);
-
-  const openRoom = useCallback((roomId, room) => {
-    setActiveDmId(null); setDmOtherUser(null);
-    setActiveRoomId(roomId); setActiveRoom(room);
-    setSidebarOpen(false);
-  }, []);
-
-  const handleOpenDm = useCallback(async (emp) => {
-    const existing = dmList.find((c) => c.other_user_id === emp.id);
-    if (existing) { openDm(existing.id, emp); return; }
-    try {
-      const res = await fetch('/api/direct-chats', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ other_user_id: emp.id }),
-      });
-      const data = await res.json();
-      if (data.ok) { fetchDmList(); openDm(data.chat.id, emp); }
-    } catch {}
-  }, [dmList, openDm, fetchDmList]);
-
-  /* ── Room CRUD ──────────────────────────────────────────────────────────── */
-  const handleCreateRoom = async () => {
-    const name = newRoomName.trim();
-    if (!name || creatingRoom) return;
-    setCreatingRoom(true);
-    try {
-      const res = await fetch('/api/rooms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, member_ids: newRoomMemberIds }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setShowCreateRoom(false); setNewRoomName(''); setNewRoomMemberIds([]);
-        await fetchRoomList();
-        openRoom(data.room.id, { ...data.room, my_role: 'admin', member_count: newRoomMemberIds.length + 1 });
-      }
-    } catch {}
-    finally { setCreatingRoom(false); }
-  };
-
+  /* ── Room management ────────────────────────────────────────────────────── */
   const openManageRoom = async () => {
     setManageLoading(true); setShowManageRoom(true); setAddMemberUserId('');
     try {
@@ -582,9 +467,9 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
       });
       const data = await res.json();
       if (data.ok) {
-        setActiveRoom((r) => ({ ...r, name }));
+        onSetActiveRoom?.((r) => ({ ...r, name }));
         setRoomDetails((d) => ({ ...d, name }));
-        setRoomList((list) => list.map((r) => r.id === activeRoomId ? { ...r, name } : r));
+        onRoomListRefresh?.();
       }
     } catch {}
   };
@@ -595,11 +480,11 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
       const data = await res.json();
       if (data.ok) {
         if (targetUserId === user.id) {
-          setShowManageRoom(false); openGeneral(); fetchRoomList();
+          setShowManageRoom(false); onOpenGeneral?.(); onRoomListRefresh?.();
         } else {
           setRoomDetails((d) => ({ ...d, members: (d.members || []).filter((m) => m.user_id !== targetUserId) }));
-          setActiveRoom((r) => ({ ...r, member_count: (r.member_count || 1) - 1 }));
-          fetchRoomList();
+          onSetActiveRoom?.((r) => ({ ...r, member_count: (r.member_count || 1) - 1 }));
+          onRoomListRefresh?.();
         }
       } else if (data.message) {
         alert(data.message);
@@ -620,8 +505,8 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
         setAddMemberUserId('');
         const res2 = await fetch(`/api/rooms/${activeRoomId}`);
         const d2 = await res2.json();
-        if (d2.ok) { setRoomDetails(d2.room); setActiveRoom((r) => ({ ...r, member_count: d2.room.member_count })); }
-        fetchRoomList();
+        if (d2.ok) { setRoomDetails(d2.room); onSetActiveRoom?.((r) => ({ ...r, member_count: d2.room.member_count })); }
+        onRoomListRefresh?.();
       }
     } catch {}
   };
@@ -631,7 +516,7 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
     try {
       const res = await fetch(`/api/rooms/${activeRoomId}`, { method: 'DELETE' });
       const data = await res.json();
-      if (data.ok) { setShowManageRoom(false); openGeneral(); fetchRoomList(); }
+      if (data.ok) { setShowManageRoom(false); onOpenGeneral?.(); onRoomListRefresh?.(); }
     } catch {}
   };
 
@@ -672,8 +557,8 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
       if (!data.ok) { setError(data.message || 'Ошибка отправки'); return; }
       append(data.message); setText('');
       if (taRef.current) taRef.current.style.height = '36px';
-      if (activeDmId) fetchDmList();
-      if (activeRoomId) fetchRoomList();
+      if (activeDmId) onDmSent?.();
+      if (activeRoomId) onRoomSent?.();
     } catch { setError('Ошибка отправки'); }
     finally { setSending(false); }
   };
@@ -689,8 +574,8 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
       const data = await res.json();
       if (!data.ok) { setError(data.message || 'Ошибка загрузки'); return; }
       append(data.message);
-      if (activeDmId) fetchDmList();
-      if (activeRoomId) fetchRoomList();
+      if (activeDmId) onDmSent?.();
+      if (activeRoomId) onRoomSent?.();
     } catch { setError('Ошибка загрузки'); }
     finally { setUploading(false); if (fileRef.current) fileRef.current.value = ''; }
   };
@@ -780,119 +665,12 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
     return chatUsers.filter((u) => u.id !== user.id && !memberSet.has(u.id));
   }, [chatUsers, roomDetails, user.id]);
 
-  /* ── Sidebar content (shared between drawer) ────────────────────────────── */
-  const sidebarContent = (
-    <>
-      {/* General chat */}
-      <button onClick={openGeneral}
-        className={`flex items-center gap-2.5 border-b border-slate-100 px-3 py-3 text-left transition dark:border-gray-700 ${
-          !activeDmId && !activeRoomId ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-gray-700'
-        }`}>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white shadow"
-          style={{ background: 'linear-gradient(135deg, #2196F3, #00BCD4)' }}>CRM</div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between">
-            <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">Общий чат</span>
-            {(activeDmId || activeRoomId) && <UnreadBadge count={generalUnread} />}
-          </div>
-          <p className="truncate text-[11px] text-slate-400">{chatUsers.length} участников</p>
-        </div>
-      </button>
-
-      {/* Employees */}
-      <div className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Сотрудники</div>
-      {chatUsers.filter((u) => u.id !== user.id).map((emp) => {
-        const dmEntry  = dmList.find((c) => c.other_user_id === emp.id);
-        const dmUnread = dmEntry?.unread_count || 0;
-        const isActive = dmEntry ? activeDmId === dmEntry.id : false;
-        return (
-          <button key={emp.id} onClick={() => handleOpenDm(emp)}
-            className={`flex items-center gap-2.5 px-3 py-2 text-left transition ${isActive ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-gray-700'}`}>
-            {emp.avatar_url
-              ? <img src={emp.avatar_url} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
-              : <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                  style={{ background: `linear-gradient(135deg, ${nameCol(emp.id)}, ${nameCol(emp.id + 2)})` }}>
-                  {initials(emp.name)}
-                </div>
-            }
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between">
-                <span className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{emp.name}</span>
-                <UnreadBadge count={dmUnread} />
-              </div>
-              <p className="truncate text-[11px] text-slate-400">{emp.role === 'admin' ? 'Администратор' : 'Сотрудник'}</p>
-            </div>
-          </button>
-        );
-      })}
-
-      {/* Rooms */}
-      <div className="flex items-center justify-between px-3 pb-1 pt-3">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Каналы</span>
-        <button onClick={() => setShowCreateRoom(true)}
-          className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-blue-100 hover:text-blue-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-blue-900/40"
-          title="Создать канал">
-          <IconPlus />
-        </button>
-      </div>
-      {roomList.length === 0 && (
-        <p className="px-3 pb-2 text-[11px] text-slate-400">Нет каналов</p>
-      )}
-      {roomList.map((room) => (
-        <button key={room.id} onClick={() => openRoom(room.id, room)}
-          className={`flex items-center gap-2.5 px-3 py-2 text-left transition ${activeRoomId === room.id ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-gray-700'}`}>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
-            style={{ background: `linear-gradient(135deg, ${nameCol(room.id + 5)}, ${nameCol(room.id + 8)})` }}>
-            {room.name.slice(0, 2).toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between">
-              <span className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{room.name}</span>
-              <UnreadBadge count={room.unread_count} />
-            </div>
-            <p className="truncate text-[11px] text-slate-400">{room.member_count} уч.</p>
-          </div>
-        </button>
-      ))}
-    </>
-  );
-
   /* ── Render ──────────────────────────────────────────────────────────────── */
   return (
     <section className="fixed inset-0 z-20 flex flex-col overflow-hidden bg-[#f0f2f5] dark:bg-gray-900 md:left-72">
 
-      {/* ── Sidebar backdrop ───────────────────────────────────────────────── */}
-      <div
-        className={`absolute inset-0 z-40 bg-black/40 transition-opacity duration-300 ${sidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-        onClick={() => setSidebarOpen(false)}
-        aria-hidden
-      />
-
-      {/* ── Sliding sidebar drawer ─────────────────────────────────────────── */}
-      <div className={`absolute inset-y-0 left-0 z-50 flex w-[280px] flex-col overflow-y-auto border-r border-slate-200 bg-white shadow-xl transition-transform duration-300 dark:border-gray-700 dark:bg-gray-800 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        {/* Drawer header */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-3 py-3 dark:border-gray-700">
-          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Чаты</span>
-          <button onClick={() => setSidebarOpen(false)}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-gray-700"
-            aria-label="Закрыть">
-            <IconChevL />
-          </button>
-        </div>
-        {sidebarContent}
-      </div>
-
-      {/* ── Chat area (full width) ──────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-
-        {/* Header */}
-        <div className="flex items-center gap-2 border-b border-white/50 bg-white/90 px-3 py-3 shadow-sm backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/95">
-          {/* Hamburger button */}
-          <button onClick={() => setSidebarOpen(true)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-gray-700"
-            aria-label="Открыть список чатов">
-            <IconMenu />
-          </button>
+      {/* Header */}
+      <div className="flex items-center gap-2 border-b border-white/50 bg-white/90 px-3 py-3 shadow-sm backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/95">
 
           {activeDmId ? (
             <>
@@ -1070,54 +848,6 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
             </p>
           )}
         </div>
-      </div>{/* end chat area */}
-
-      {/* ── Create room modal ───────────────────────────────────────────────── */}
-      {showCreateRoom && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-80 overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-800">
-            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-gray-700">
-              <h3 className="font-semibold text-slate-800 dark:text-slate-100">Создать канал</h3>
-              <button onClick={() => { setShowCreateRoom(false); setNewRoomName(''); setNewRoomMemberIds([]); }}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">✕</button>
-            </div>
-            <div className="max-h-[55vh] space-y-3 overflow-y-auto p-4">
-              <div>
-                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">Название</label>
-                <input type="text" value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreateRoom()}
-                  placeholder="Например: Маркетинг"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-600 dark:bg-gray-700 dark:text-slate-100" />
-              </div>
-              <div>
-                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">Участники</label>
-                {chatUsers.filter((u) => u.id !== user.id).map((emp) => (
-                  <label key={emp.id} className="flex cursor-pointer items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-gray-700">
-                    <input type="checkbox" checked={newRoomMemberIds.includes(emp.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) setNewRoomMemberIds((p) => [...p, emp.id]);
-                        else setNewRoomMemberIds((p) => p.filter((id) => id !== emp.id));
-                      }}
-                      className="rounded accent-blue-500" />
-                    {emp.avatar_url
-                      ? <img src={emp.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover" />
-                      : <div className="flex h-7 w-7 items-center justify-center rounded-full text-[9px] font-bold text-white"
-                          style={{ background: nameCol(emp.id) }}>{initials(emp.name)}</div>
-                    }
-                    <span className="text-sm text-slate-700 dark:text-slate-200">{emp.name}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div className="border-t border-slate-100 p-3 dark:border-gray-700">
-              <button onClick={handleCreateRoom} disabled={!newRoomName.trim() || creatingRoom}
-                className="w-full rounded-xl bg-[#2196F3] py-2.5 text-sm font-semibold text-white transition hover:bg-[#1E88E5] disabled:opacity-40">
-                {creatingRoom ? 'Создание...' : 'Создать канал'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── Manage room modal ───────────────────────────────────────────────── */}
       {showManageRoom && (
