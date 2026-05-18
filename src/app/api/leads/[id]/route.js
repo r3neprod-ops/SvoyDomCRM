@@ -22,9 +22,13 @@ export async function PATCH(request, { params }) {
   if (user.role === 'admin') {
     if (body.status !== undefined) updates.status = body.status;
     if (body.assigned_to !== undefined) {
-      updates.assigned_to = body.assigned_to === null || body.assigned_to === ''
+      const newAssignee = body.assigned_to === null || body.assigned_to === ''
         ? null
         : Number(body.assigned_to);
+      updates.assigned_to = newAssignee;
+      if (body.status === undefined) {
+        updates.status = newAssignee !== null ? 'in_progress' : 'new';
+      }
     }
   } else {
     if (body.assigned_to !== undefined) {
@@ -37,13 +41,17 @@ export async function PATCH(request, { params }) {
       updates.assigned_to = user.id;
       updates.status = 'in_progress';
       isClaiming = true;
-    }
-
-    if (body.status !== undefined) {
-      if (lead.assigned_to !== user.id) {
-        return NextResponse.json({ ok: false }, { status: 403 });
+    } else if (body.status !== undefined) {
+      if (body.status === 'in_progress' && lead.assigned_to === null) {
+        updates.assigned_to = user.id;
+        updates.status = 'in_progress';
+        isClaiming = true;
+      } else {
+        if (lead.assigned_to !== user.id) {
+          return NextResponse.json({ ok: false }, { status: 403 });
+        }
+        updates.status = body.status;
       }
-      updates.status = body.status;
     }
   }
 

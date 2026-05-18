@@ -31,22 +31,46 @@ self.addEventListener('fetch', (event) => {
 
 // Push notifications
 self.addEventListener('push', (event) => {
-  const data = event.data?.json() ?? {};
+  console.log('[SW] push event received', event.data?.text?.() ?? '(no data)');
+  let data = {};
+  try {
+    data = event.data?.json() ?? {};
+  } catch (err) {
+    console.error('[SW] Failed to parse push payload as JSON:', err, event.data?.text?.());
+  }
+  console.log('[SW] push data:', data);
+
   event.waitUntil(
     self.registration.showNotification(data.title || 'Уведомление', {
       body: data.body || '',
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       tag: data.tag || 'svoydom-crm',
-      data: {
-        url: data.url || '/admin/dashboard',
-      },
+      vibrate: [200, 100, 200],
+      requireInteraction: false,
+      data: { url: data.url || '/admin/dashboard' },
+    }).then(() => {
+      console.log('[SW] Notification shown successfully');
+    }).catch((err) => {
+      console.error('[SW] showNotification failed:', err);
     })
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] notificationclick', event.notification.data);
   event.notification.close();
   const targetUrl = event.notification.data?.url || '/admin/dashboard';
-  event.waitUntil(clients.openWindow(targetUrl));
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.includes(targetUrl) && 'focus' in client) {
+          console.log('[SW] Focusing existing window');
+          return client.focus();
+        }
+      }
+      console.log('[SW] Opening new window:', targetUrl);
+      return clients.openWindow(targetUrl);
+    })
+  );
 });

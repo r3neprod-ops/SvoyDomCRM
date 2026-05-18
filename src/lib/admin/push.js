@@ -10,7 +10,10 @@ function initWebPush() {
 }
 
 export async function sendPushToAll({ title, body, url = '/admin/dashboard', excludeUserId = null }) {
-  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return;
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+    console.warn('[Push] VAPID keys not configured, skipping push');
+    return;
+  }
   initWebPush();
 
   await ensureSchema();
@@ -22,6 +25,7 @@ export async function sendPushToAll({ title, body, url = '/admin/dashboard', exc
         WHERE user_id IS NULL OR user_id <> ${excludeUserId}
       `
     : await sql`SELECT id, endpoint, subscription FROM push_subscriptions`;
+  console.log(`[Push] sendPushToAll: ${rows.length} subscriptions, title="${title}"`);
   if (!rows.length) return;
 
   const payload = JSON.stringify({ title, body, url });
@@ -31,18 +35,25 @@ export async function sendPushToAll({ title, body, url = '/admin/dashboard', exc
 
   const expiredIds = [];
   results.forEach((result, i) => {
-    if (result.status === 'rejected' && [404, 410].includes(result.reason?.statusCode)) {
-      expiredIds.push(rows[i].id);
+    if (result.status === 'fulfilled') {
+      console.log(`[Push] OK subscription ${rows[i].id}, status ${result.value?.statusCode}`);
+    } else {
+      console.error(`[Push] FAILED subscription ${rows[i].id}:`, result.reason?.statusCode, result.reason?.body ?? result.reason?.message);
+      if ([404, 410].includes(result.reason?.statusCode)) expiredIds.push(rows[i].id);
     }
   });
 
   if (expiredIds.length > 0) {
+    console.log(`[Push] Removing ${expiredIds.length} expired subscriptions`);
     await sql`DELETE FROM push_subscriptions WHERE id = ANY(${expiredIds})`;
   }
 }
 
 export async function sendPushToUsers({ userIds, title, body, url = '/admin/dashboard' }) {
-  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY || !userIds?.length) return;
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY || !userIds?.length) {
+    console.warn('[Push] VAPID keys not configured or no userIds, skipping push');
+    return;
+  }
   initWebPush();
 
   await ensureSchema();
@@ -52,6 +63,7 @@ export async function sendPushToUsers({ userIds, title, body, url = '/admin/dash
     FROM push_subscriptions
     WHERE user_id = ANY(${userIds})
   `;
+  console.log(`[Push] sendPushToUsers: ${rows.length} subscriptions for ${userIds.length} users, title="${title}"`);
   if (!rows.length) return;
 
   const payload = JSON.stringify({ title, body, url });
@@ -61,18 +73,25 @@ export async function sendPushToUsers({ userIds, title, body, url = '/admin/dash
 
   const expiredIds = [];
   results.forEach((result, i) => {
-    if (result.status === 'rejected' && [404, 410].includes(result.reason?.statusCode)) {
-      expiredIds.push(rows[i].id);
+    if (result.status === 'fulfilled') {
+      console.log(`[Push] OK subscription ${rows[i].id}`);
+    } else {
+      console.error(`[Push] FAILED subscription ${rows[i].id}:`, result.reason?.statusCode, result.reason?.body ?? result.reason?.message);
+      if ([404, 410].includes(result.reason?.statusCode)) expiredIds.push(rows[i].id);
     }
   });
 
   if (expiredIds.length > 0) {
+    console.log(`[Push] Removing ${expiredIds.length} expired subscriptions`);
     await sql`DELETE FROM push_subscriptions WHERE id = ANY(${expiredIds})`;
   }
 }
 
 export async function sendPushToUser({ userId, title, body, url = '/admin/dashboard' }) {
-  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return;
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+    console.warn('[Push] VAPID keys not configured, skipping push');
+    return;
+  }
   initWebPush();
 
   await ensureSchema();
@@ -82,6 +101,7 @@ export async function sendPushToUser({ userId, title, body, url = '/admin/dashbo
     FROM push_subscriptions
     WHERE user_id = ${userId}
   `;
+  console.log(`[Push] sendPushToUser ${userId}: ${rows.length} subscriptions, title="${title}"`);
   if (!rows.length) return;
 
   const payload = JSON.stringify({ title, body, url });
@@ -91,12 +111,16 @@ export async function sendPushToUser({ userId, title, body, url = '/admin/dashbo
 
   const expiredIds = [];
   results.forEach((result, i) => {
-    if (result.status === 'rejected' && [404, 410].includes(result.reason?.statusCode)) {
-      expiredIds.push(rows[i].id);
+    if (result.status === 'fulfilled') {
+      console.log(`[Push] OK subscription ${rows[i].id}`);
+    } else {
+      console.error(`[Push] FAILED subscription ${rows[i].id}:`, result.reason?.statusCode, result.reason?.body ?? result.reason?.message);
+      if ([404, 410].includes(result.reason?.statusCode)) expiredIds.push(rows[i].id);
     }
   });
 
   if (expiredIds.length > 0) {
+    console.log(`[Push] Removing ${expiredIds.length} expired subscriptions`);
     await sql`DELETE FROM push_subscriptions WHERE id = ANY(${expiredIds})`;
   }
 }

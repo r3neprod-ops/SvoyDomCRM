@@ -121,6 +121,7 @@ export default function DashboardClient({ user }) {
   const [employeeLeadTab, setEmployeeLeadTab] = useState('common');
   const [loading, setLoading] = useState(true);
   const [notifStatus, setNotifStatus] = useState('default');
+  const [testPushStatus, setTestPushStatus] = useState('idle');
   const [claimingLeadId, setClaimingLeadId] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
@@ -276,6 +277,19 @@ export default function DashboardClient({ user }) {
     } catch (err) {
       console.error('[Push] Subscription error:', err);
       setNotifStatus('error');
+    }
+  };
+
+  const sendTestPush = async () => {
+    setTestPushStatus('loading');
+    try {
+      const res = await fetch('/api/push/test', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      setTestPushStatus(data.ok ? 'sent' : 'error');
+    } catch {
+      setTestPushStatus('error');
+    } finally {
+      setTimeout(() => setTestPushStatus('idle'), 3000);
     }
   };
 
@@ -1098,7 +1112,7 @@ export default function DashboardClient({ user }) {
                                   disabled={claimingLeadId === lead.id}
                                   className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:opacity-50"
                                 >
-                                  {claimingLeadId === lead.id ? 'Забираю...' : 'Забрать'}
+                                  {claimingLeadId === lead.id ? 'Забираю...' : '→ В работе'}
                                 </button>
                               ) : (
                                 <>
@@ -1319,6 +1333,32 @@ export default function DashboardClient({ user }) {
                 {credSaving ? 'Сохранение...' : 'Обновить данные'}
               </button>
             </form>
+          </section>
+
+          {/* ── Notifications section ── */}
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h2 className="text-lg font-semibold">Уведомления</h2>
+              <p className="mt-1 text-sm text-slate-500">Push-уведомления о новых лидах и сообщениях.</p>
+            </div>
+            <div className="space-y-3 px-5 py-5">
+              <button
+                onClick={notifStatus === 'granted' ? undefined : enableNotifications}
+                disabled={notifStatus === 'loading' || notifStatus === 'denied' || notifStatus === 'granted'}
+                className={`w-full rounded-xl border px-4 py-2 text-sm transition disabled:cursor-default ${notifStatus === 'granted' ? 'border-green-200 bg-green-50 text-green-700' : notifStatus === 'denied' ? 'border-red-200 bg-red-50 text-red-700' : notifStatus === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}
+              >
+                {notifStatus === 'granted' ? 'Уведомления включены' : notifStatus === 'denied' ? 'Уведомления заблокированы' : notifStatus === 'loading' ? 'Подключение...' : notifStatus === 'error' ? 'Ошибка подключения' : 'Включить уведомления'}
+              </button>
+              {notifStatus === 'granted' && (
+                <button
+                  onClick={sendTestPush}
+                  disabled={testPushStatus === 'loading'}
+                  className="w-full rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-700 transition hover:bg-blue-100 disabled:opacity-50"
+                >
+                  {testPushStatus === 'loading' ? 'Отправка...' : testPushStatus === 'sent' ? 'Отправлено!' : testPushStatus === 'error' ? 'Ошибка отправки' : 'Отправить тестовый пуш'}
+                </button>
+              )}
+            </div>
           </section>
 
           {/* ── Biometric login section ── */}
