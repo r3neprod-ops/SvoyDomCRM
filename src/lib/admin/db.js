@@ -185,6 +185,20 @@ export async function ensureSchema() {
   await sql`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS reply_to_id     INTEGER REFERENCES chat_messages(id) ON DELETE SET NULL`;
   await sql`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS reply_to_text   TEXT`;
   await sql`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS reply_to_author TEXT`;
+  await sql`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS media_name TEXT`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS lead_events (
+      id SERIAL PRIMARY KEY,
+      lead_id INTEGER REFERENCES leads(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      type TEXT NOT NULL,
+      message TEXT NOT NULL,
+      meta JSONB,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS lead_events_lead_id_created_at_idx ON lead_events (lead_id, created_at DESC)`;
 
   // Ensure admin account always exists — but never overwrite an existing password.
   // This runs on every cold start; ON CONFLICT DO NOTHING guarantees idempotency.

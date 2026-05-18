@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/admin/auth';
 import { getSql, ensureSchema } from '@/lib/admin/db';
+import { addLeadEvent } from '@/lib/admin/leadEvents';
 
 export async function GET(request, { params }) {
   const user = await getAuthUser();
@@ -26,7 +27,14 @@ export async function GET(request, { params }) {
     WHERE c.lead_id = ${leadId}
     ORDER BY c.created_at ASC
   `;
-  return NextResponse.json({ ok: true, comments });
+  const events = await sql`
+    SELECT le.id, le.type, le.message, le.meta, le.created_at, u.name AS author_name
+    FROM lead_events le
+    LEFT JOIN users u ON u.id = le.user_id
+    WHERE le.lead_id = ${leadId}
+    ORDER BY le.created_at ASC
+  `;
+  return NextResponse.json({ ok: true, comments, events });
 }
 
 export async function POST(request, { params }) {
@@ -54,6 +62,12 @@ export async function POST(request, { params }) {
     VALUES (${leadId}, ${user.id}, ${text})
     RETURNING id, text, created_at
   `;
+  const [event] = await addLeadEvent(sql, {
+    leadId,
+    userId: user.id,
+    type: 'comment_added',
+    message: 'Добавлен комментарий',
+  });
 
-  return NextResponse.json({ ok: true, comment: { ...comment, author_name: user.name } });
+  return NextResponse.json({ ok: true, comment: { ...comment, author_name: user.name }, event });
 }

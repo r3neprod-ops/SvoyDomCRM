@@ -11,18 +11,6 @@ const VIDEO_LIMIT = 50 * 1024 * 1024;
 const AUDIO_LIMIT = 25 * 1024 * 1024;
 const FILE_LIMIT  = 25 * 1024 * 1024;
 
-const ALLOWED_FILE_TYPES = new Set([
-  'application/pdf',
-  'text/plain',
-  'text/csv',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/zip',
-  'application/x-zip-compressed',
-]);
-
 function getExtension(file) {
   const fromName = file.name?.split('.').pop()?.toLowerCase();
   if (fromName && /^[a-z0-9]+$/.test(fromName)) return fromName;
@@ -37,7 +25,6 @@ function validateUpload(file, requestedType) {
   if (requestedType === 'image'      && !file.type?.startsWith('image/')) return { message: 'Загрузите изображение' };
   if (requestedType === 'video_note' && !file.type?.startsWith('video/')) return { message: 'Загрузите видеофайл' };
   if (requestedType === 'audio_note' && !file.type?.startsWith('audio/')) return { message: 'Загрузите аудиофайл' };
-  if (requestedType === 'file' && file.type && !ALLOWED_FILE_TYPES.has(file.type)) return { message: 'Поддерживаются PDF, TXT, CSV, DOCX, XLSX и ZIP' };
   if (file.size > limits[requestedType]) {
     if (requestedType === 'image') return { message: 'Фото не больше 10 МБ' };
     if (requestedType === 'video_note') return { message: 'Видео не больше 50 МБ' };
@@ -84,9 +71,9 @@ export async function POST(request, { params }) {
 
     const [author] = await sql`SELECT name, username, role, avatar_url, status_text FROM users WHERE id = ${user.id}`;
     const [message] = await sql`
-      INSERT INTO chat_messages (user_id, direct_chat_id, text, media_url, media_type, media_mime, media_size)
-      VALUES (${user.id}, ${chatId}, ${text}, ${mediaUrl}, ${requestedType}, ${contentType}, ${file.size})
-      RETURNING id, text, media_url, media_type, media_mime, media_size, created_at
+      INSERT INTO chat_messages (user_id, direct_chat_id, text, media_url, media_type, media_mime, media_size, media_name)
+      VALUES (${user.id}, ${chatId}, ${text}, ${mediaUrl}, ${requestedType}, ${contentType}, ${file.size}, ${file.name || null})
+      RETURNING id, text, media_url, media_type, media_mime, media_size, media_name, created_at
     `;
 
     const [chatRow] = await sql`SELECT user1_id, user2_id FROM direct_chats WHERE id = ${chatId}`;

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 const SWIPE_CANCEL_PX = 80;
 const MAX_AUDIO_MS    = 120_000;
 const MAX_VIDEO_MS    = 30_000;
-const POLL_MS         = 4_000;
+const POLL_MS         = 12_000;
 const WAVE_BARS       = 36;
 
 /* ─── Helpers ───────────────────────────────────────────────────────────────── */
@@ -97,6 +97,7 @@ const IconChevL  = () => <Ic><polyline points="15 18 9 12 15 6"/></Ic>;
 const IconSettings = () => <Ic><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></Ic>;
 const IconPlus   = () => <Ic cls="h-3.5 w-3.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Ic>;
 const IconMenu   = () => <Ic><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></Ic>;
+const IconX      = () => <Ic cls="h-4 w-4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Ic>;
 
 const SingleCheck = () => (
   <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
@@ -277,10 +278,11 @@ function Bubble({ msg, own, showAv, showName, isLast, isDm }) {
                 className="flex items-center gap-2.5 rounded-xl transition hover:opacity-80" style={{ minWidth: 200 }}>
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: own ? '#45a849' : '#2196F3' }}><IconFile /></span>
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium text-slate-800">Открыть файл</span>
+                  <span className="block truncate text-sm font-medium text-slate-800">{msg.media_name || 'Открыть файл'}</span>
                   <span className="text-[11px] text-slate-500">{msg.media_mime || 'Файл'} · {fmtSize(msg.media_size)}</span>
                 </span>
               </a>
+              {msg.text && <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-900">{msg.text}</p>}
               <div className="mt-0.5 flex justify-end">{meta}</div>
             </div>
           )}
@@ -337,6 +339,7 @@ export default function TeamChatPanel({
   const [sending,    setSending]    = useState(false);
   const [uploading,  setUploading]  = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState([]);
   const [error,      setError]      = useState('');
   const [newMsgBadge, setNewMsgBadge] = useState(false);
 
@@ -367,6 +370,7 @@ export default function TeamChatPanel({
   const listRef      = useRef(null);
   const atBottomRef  = useRef(true);
   const lastMsgIdRef = useRef(0);
+  const pendingFilesRef = useRef([]);
   const recorderRef  = useRef(null);
   const chunksRef    = useRef([]);
   const streamRef    = useRef(null);
@@ -428,15 +432,32 @@ export default function TeamChatPanel({
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [activeDmId, activeRoomId]);
+  }, [activeDmId, activeRoomId, onGeneralUnread]);
 
   useEffect(() => {
     setMessages([]); setLoading(true); lastMsgIdRef.current = 0;
     atBottomRef.current = true; setNewMsgBadge(false);
     fetchMessages();
-    const id = setInterval(() => fetchMessages({ silent: true }), POLL_MS);
-    return () => clearInterval(id);
-  }, [fetchMessages]);
+    const pollId = setInterval(() => fetchMessages({ silent: true }), POLL_MS);
+    let source = null;
+    if (typeof window !== 'undefined' && 'EventSource' in window) {
+      const streamUrl = activeDmId
+        ? `/api/direct-chats/${activeDmId}/stream?after=${lastMsgIdRef.current || 0}`
+        : activeRoomId
+        ? `/api/rooms/${activeRoomId}/stream?after=${lastMsgIdRef.current || 0}`
+        : `/api/chat/stream?after=${lastMsgIdRef.current || 0}`;
+      source = new EventSource(streamUrl);
+      source.addEventListener('changed', () => fetchMessages({ silent: true }));
+      source.onerror = () => {
+        source?.close();
+        source = null;
+      };
+    }
+    return () => {
+      clearInterval(pollId);
+      source?.close();
+    };
+  }, [fetchMessages, activeDmId, activeRoomId]);
 
   useEffect(() => {
     const lastId = messages.at(-1)?.id ?? 0;
@@ -454,6 +475,16 @@ export default function TeamChatPanel({
     clearTimeout(stopTmRef.current); clearInterval(recTmRef.current);
     streamRef.current?.getTracks().forEach((t) => t.stop());
     acRef.current?.close();
+  }, []);
+
+  useEffect(() => {
+    pendingFilesRef.current = pendingFiles;
+  }, [pendingFiles]);
+
+  useEffect(() => () => {
+    pendingFilesRef.current.forEach((item) => {
+      if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+    });
   }, []);
 
   /* ── Room management ────────────────────────────────────────────────────── */
@@ -574,20 +605,25 @@ export default function TeamChatPanel({
     finally { setSending(false); }
   };
 
-  const uploadMedia = async (file, type) => {
+  const uploadMedia = async (file, type, caption = '') => {
     setUploading(true);
     const url = activeDmId ? `/api/direct-chats/${activeDmId}/upload`
       : activeRoomId ? `/api/rooms/${activeRoomId}/upload`
       : '/api/chat/upload';
     try {
       const fd = new FormData(); fd.append('file', file); fd.append('type', type);
+      if (caption) fd.append('text', caption);
       const res = await fetch(url, { method: 'POST', body: fd });
       const data = await res.json();
-      if (!data.ok) { setError(data.message || 'Ошибка загрузки'); return; }
+      if (!data.ok) { setError(data.message || 'Ошибка загрузки'); return false; }
       append(data.message);
       if (activeDmId) onDmSent?.();
       if (activeRoomId) onRoomSent?.();
-    } catch { setError('Ошибка загрузки'); }
+      return true;
+    } catch {
+      setError('Ошибка загрузки');
+      return false;
+    }
     finally {
       setUploading(false);
       [fileRef, galleryRef, cameraRef].forEach((ref) => {
@@ -596,11 +632,54 @@ export default function TeamChatPanel({
     }
   };
 
-  const onFiles = async (files, forcedType = null) => {
+  const onFiles = (files, forcedType = null) => {
     setAttachOpen(false);
-    for (const f of Array.from(files || [])) {
+    const next = Array.from(files || []).map((f) => {
       const type = forcedType || (f.type?.startsWith('image/') ? 'image' : 'file');
-      await uploadMedia(f, type);
+      return {
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        file: f,
+        type,
+        name: f.name || (type === 'image' ? 'photo' : 'file'),
+        size: f.size,
+        previewUrl: type === 'image' ? URL.createObjectURL(f) : '',
+      };
+    });
+    if (next.length) setPendingFiles((prev) => [...prev, ...next]);
+    [fileRef, galleryRef, cameraRef].forEach((ref) => {
+      if (ref.current) ref.current.value = '';
+    });
+  };
+
+  const removePendingFile = (id) => {
+    setPendingFiles((prev) => prev.filter((item) => {
+      if (item.id !== id) return true;
+      if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+      return false;
+    }));
+  };
+
+  const sendPendingFiles = async () => {
+    if (uploading || pendingFiles.length === 0) return;
+    const sentIds = new Set();
+    const caption = text.trim();
+    closeMent();
+    for (let i = 0; i < pendingFiles.length; i += 1) {
+      const item = pendingFiles[i];
+      const ok = await uploadMedia(item.file, item.type, i === 0 ? caption : '');
+      if (!ok) break;
+      sentIds.add(item.id);
+    }
+    if (sentIds.size > 0) {
+      setPendingFiles((prev) => prev.filter((item) => {
+        if (!sentIds.has(item.id)) return true;
+        if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+        return false;
+      }));
+      if (sentIds.size === pendingFiles.length && caption) {
+        setText('');
+        if (taRef.current) taRef.current.style.height = '36px';
+      }
     }
   };
 
@@ -677,6 +756,7 @@ export default function TeamChatPanel({
 
   const isCancelZone = swipeOff < -SWIPE_CANCEL_PX;
   const hasText      = text.trim().length > 0;
+  const hasPendingFiles = pendingFiles.length > 0;
 
   /* ── Derived data ────────────────────────────────────────────────────────── */
   const nonMemberUsers = useMemo(() => {
@@ -813,6 +893,29 @@ export default function TeamChatPanel({
             </div>
           )}
 
+          {hasPendingFiles && !isRec && (
+            <div className="mb-3 flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm dark:border-gray-700 dark:bg-gray-900/95">
+              {pendingFiles.map((item) => (
+                <div key={item.id} className="relative flex w-40 shrink-0 items-center gap-2 rounded-xl bg-slate-50 p-2 dark:bg-gray-800">
+                  {item.type === 'image' && item.previewUrl ? (
+                    <img src={item.previewUrl} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
+                  ) : (
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-600"><IconFile /></span>
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-semibold text-slate-700 dark:text-slate-100">{item.name}</span>
+                    <span className="block text-[11px] text-slate-400">{fmtSize(item.size)}</span>
+                  </span>
+                  <button type="button" onClick={() => removePendingFile(item.id)}
+                    className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-md transition hover:bg-red-500"
+                    aria-label="Убрать файл">
+                    <IconX />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {attachOpen && !isRec && (
             <div className="absolute bottom-[76px] left-3 z-30 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
               <button type="button" onClick={() => galleryRef.current?.click()}
@@ -875,15 +978,15 @@ export default function TeamChatPanel({
                 rows={1} style={{ minHeight: 36, maxHeight: 120, overflowY: 'auto' }}
                 className="flex-1 resize-none rounded-2xl bg-white px-3.5 py-2 text-sm shadow-sm ring-1 ring-slate-200/80 focus:outline-none focus:ring-2 focus:ring-blue-400" />
               <div className="mb-[3px] flex shrink-0 items-center gap-1">
-                {!hasText && (
+                {!hasText && !hasPendingFiles && (
                   <button type="button" onClick={() => setRecMode((m) => m === 'audio' ? 'video' : 'audio')}
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm transition hover:bg-slate-100"
                     title={recMode === 'audio' ? 'Режим видео-круга' : 'Режим голосового'}>
                     {recMode === 'audio' ? <IconVideo /> : <IconMic />}
                   </button>
                 )}
-                {hasText ? (
-                  <button type="button" onClick={sendText} disabled={sending}
+                {hasText || hasPendingFiles ? (
+                  <button type="button" onClick={hasPendingFiles ? sendPendingFiles : sendText} disabled={sending || uploading}
                     className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2196F3] text-white shadow-md transition hover:bg-[#1E88E5] disabled:opacity-40" aria-label="Отправить">
                     <IconSend />
                   </button>
@@ -900,7 +1003,7 @@ export default function TeamChatPanel({
 
           <input ref={galleryRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => onFiles(e.target.files, 'image')} />
           <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onFiles(e.target.files, 'image')} />
-          <input ref={fileRef} type="file" multiple accept=".pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.zip,application/pdf,text/plain,text/csv,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip" className="hidden" onChange={(e) => onFiles(e.target.files, 'file')} />
+          <input ref={fileRef} type="file" multiple className="hidden" onChange={(e) => onFiles(e.target.files, 'file')} />
           {!isRec && (
             <p className="mt-1.5 text-[11px] text-slate-400">
               Enter — отправить · Shift+Enter — строка · @ — упомянуть · зажать {recMode === 'audio' ? '🎤' : '🎥'} — записать

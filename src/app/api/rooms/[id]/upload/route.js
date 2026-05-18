@@ -7,14 +7,6 @@ import { sendPushToUsers } from '@/lib/admin/push';
 export const runtime = 'nodejs';
 
 const LIMITS = { image: 10 * 1024 * 1024, video_note: 50 * 1024 * 1024, audio_note: 25 * 1024 * 1024, file: 25 * 1024 * 1024 };
-const ALLOWED_FILE_TYPES = new Set([
-  'application/pdf', 'text/plain', 'text/csv', 'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/zip', 'application/x-zip-compressed',
-]);
-
 function getExtension(file) {
   const fromName = file.name?.split('.').pop()?.toLowerCase();
   if (fromName && /^[a-z0-9]+$/.test(fromName)) return fromName;
@@ -27,7 +19,6 @@ function validate(file, type) {
   if (type === 'image'      && !file.type?.startsWith('image/')) return 'Загрузите изображение';
   if (type === 'video_note' && !file.type?.startsWith('video/')) return 'Загрузите видеофайл';
   if (type === 'audio_note' && !file.type?.startsWith('audio/')) return 'Загрузите аудиофайл';
-  if (type === 'file' && file.type && !ALLOWED_FILE_TYPES.has(file.type)) return 'Поддерживаются PDF, TXT, CSV, DOCX, XLSX и ZIP';
   if (file.size > LIMITS[type]) return `Файл превышает лимит`;
   return null;
 }
@@ -68,9 +59,9 @@ export async function POST(request, { params }) {
 
     const [author] = await sql`SELECT name, username, role, avatar_url, status_text FROM users WHERE id = ${user.id}`;
     const [message] = await sql`
-      INSERT INTO chat_messages (user_id, room_id, text, media_url, media_type, media_mime, media_size)
-      VALUES (${user.id}, ${roomId}, ${text}, ${mediaUrl}, ${requestedType}, ${contentType}, ${file.size})
-      RETURNING id, text, media_url, media_type, media_mime, media_size, created_at
+      INSERT INTO chat_messages (user_id, room_id, text, media_url, media_type, media_mime, media_size, media_name)
+      VALUES (${user.id}, ${roomId}, ${text}, ${mediaUrl}, ${requestedType}, ${contentType}, ${file.size}, ${file.name || null})
+      RETURNING id, text, media_url, media_type, media_mime, media_size, media_name, created_at
     `;
 
     const [room] = await sql`SELECT name FROM chat_rooms WHERE id = ${roomId}`;

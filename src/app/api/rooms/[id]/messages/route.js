@@ -30,7 +30,7 @@ export async function GET(request, { params }) {
   const messages = await sql`
     SELECT *
     FROM (
-      SELECT cm.id, cm.user_id, cm.text, cm.media_url, cm.media_type, cm.media_mime, cm.media_size,
+      SELECT cm.id, cm.user_id, cm.text, cm.media_url, cm.media_type, cm.media_mime, cm.media_size, cm.media_name,
              cm.created_at, u.name AS author_name, u.avatar_url AS author_avatar_url,
              u.status_text AS author_status_text, u.username AS author_username, u.role AS author_role
       FROM chat_messages cm
@@ -101,7 +101,7 @@ export async function POST(request, { params }) {
   const [message] = await sql`
     INSERT INTO chat_messages (user_id, room_id, text, media_type)
     VALUES (${user.id}, ${roomId}, ${text}, 'text')
-    RETURNING id, text, media_url, media_type, media_mime, media_size, created_at
+    RETURNING id, text, media_url, media_type, media_mime, media_size, media_name, created_at
   `;
 
   const [room] = await sql`SELECT name FROM chat_rooms WHERE id = ${roomId}`;

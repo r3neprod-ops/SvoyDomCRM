@@ -1,4 +1,5 @@
 import { getSql, ensureSchema } from './db';
+import { addLeadEvent } from './leadEvents';
 
 function buildMessage(answers) {
   if (!answers || typeof answers !== 'object') return '';
@@ -24,6 +25,12 @@ export async function addLead(payload) {
     VALUES (${name}, ${phone}, ${message}, 'new')
     RETURNING id
   `;
+  await addLeadEvent(sql, {
+    leadId: row.id,
+    type: 'created',
+    message: 'Лид создан',
+    meta: { source: payload?.pageUrl || null },
+  });
 
   return { id: row.id, name, phone, message, status: 'new' };
 }

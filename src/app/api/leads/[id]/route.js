@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
 import { getAuthUser } from '@/lib/admin/auth';
 import { getSql, ensureSchema } from '@/lib/admin/db';
+import { addLeadEvent } from '@/lib/admin/leadEvents';
+
+const STATUS_LABELS = { new: 'Новый', in_progress: 'В работе', closed: 'Закрыт' };
 
 export async function PATCH(request, { params }) {
   const user = await getAuthUser();
@@ -59,6 +62,9 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ ok: false, message: 'Нет данных для обновления' }, { status: 400 });
   }
 
+  const oldStatus = lead.status;
+  const oldAssignee = lead.assigned_to;
+
   if (isClaiming) {
     const [updated] = await sql`
       UPDATE leads SET ${sql(updates)}
@@ -76,6 +82,34 @@ export async function PATCH(request, { params }) {
     `;
   } else {
     await sql`UPDATE leads SET ${sql(updates)} WHERE id = ${id}`;
+  }
+
+  const [freshLead] = await sql`
+    SELECT l.status, l.assigned_to, u.name AS assigned_to_name
+    FROM leads l
+    LEFT JOIN users u ON u.id = l.assigned_to
+    WHERE l.id = ${id}
+  `;
+
+  if (updates.assigned_to !== undefined && oldAssignee !== freshLead.assigned_to) {
+    await addLeadEvent(sql, {
+      leadId: id,
+      userId: user.id,
+      type: freshLead.assigned_to ? 'assigned' : 'unassigned',
+      message: freshLead.assigned_to
+        ? `Назначен ответственный: ${freshLead.assigned_to_name || `#${freshLead.assigned_to}`}`
+        : 'Ответственный снят',
+      meta: { from: oldAssignee, to: freshLead.assigned_to },
+    });
+  }
+  if (updates.status !== undefined && oldStatus !== freshLead.status) {
+    await addLeadEvent(sql, {
+      leadId: id,
+      userId: user.id,
+      type: 'status_changed',
+      message: `Статус: ${STATUS_LABELS[oldStatus] || oldStatus} → ${STATUS_LABELS[freshLead.status] || freshLead.status}`,
+      meta: { from: oldStatus, to: freshLead.status },
+    });
   }
   revalidateTag('leads');
 

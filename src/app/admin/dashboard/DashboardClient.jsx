@@ -135,6 +135,8 @@ export default function DashboardClient({ user }) {
   const [loading, setLoading] = useState(true);
   const [notifStatus, setNotifStatus] = useState('default');
   const [testPushStatus, setTestPushStatus] = useState('idle');
+  const [pushDiagnostics, setPushDiagnostics] = useState(null);
+  const [pushDiagnosticsLoading, setPushDiagnosticsLoading] = useState(false);
   const [notificationError, setNotificationError] = useState('');
   const [claimingLeadId, setClaimingLeadId] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -174,6 +176,7 @@ export default function DashboardClient({ user }) {
   // Comments modal
   const [commentModal, setCommentModal] = useState(null); // { leadId, leadName }
   const [comments, setComments] = useState([]);
+  const [leadEvents, setLeadEvents] = useState([]);
   const [commentText, setCommentText] = useState('');
   const [commentsLoading, setCommentsLoading] = useState(false);
   const commentInputRef = useRef(null);
@@ -408,6 +411,37 @@ export default function DashboardClient({ user }) {
       setTestPushStatus('error');
     } finally {
       setTimeout(() => setTestPushStatus('idle'), 3000);
+    }
+  };
+
+  const runPushDiagnostics = async () => {
+    setPushDiagnosticsLoading(true);
+    try {
+      const browser = {
+        notificationApi: typeof window !== 'undefined' && 'Notification' in window,
+        serviceWorker: typeof navigator !== 'undefined' && 'serviceWorker' in navigator,
+        pushManager: typeof window !== 'undefined' && 'PushManager' in window,
+        permission: typeof Notification !== 'undefined' ? Notification.permission : 'unsupported',
+        subscription: false,
+        endpoint: '',
+      };
+
+      if (browser.serviceWorker && browser.pushManager) {
+        const registration = await navigator.serviceWorker.getRegistration();
+        const subscription = await registration?.pushManager.getSubscription();
+        browser.subscription = Boolean(subscription);
+        browser.endpoint = subscription?.endpoint
+          ? `${subscription.endpoint.slice(0, 18)}...${subscription.endpoint.slice(-8)}`
+          : '';
+      }
+
+      const res = await fetch('/api/push/diagnostics', { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      setPushDiagnostics({ browser, server: data.diagnostics || null });
+    } catch (err) {
+      setPushDiagnostics({ error: err?.message || 'Ошибка диагностики' });
+    } finally {
+      setPushDiagnosticsLoading(false);
     }
   };
 
@@ -721,7 +755,10 @@ export default function DashboardClient({ user }) {
     try {
       const res = await fetch(`/api/leads/${lead.id}/comments`);
       const data = await res.json();
-      if (data.ok) setComments(data.comments);
+      if (data.ok) {
+        setComments(data.comments);
+        setLeadEvents(data.events || []);
+      }
     } finally {
       setCommentsLoading(false);
     }
@@ -730,6 +767,7 @@ export default function DashboardClient({ user }) {
   const closeComments = () => {
     setCommentModal(null);
     setComments([]);
+    setLeadEvents([]);
   };
 
   const sendComment = async () => {
@@ -742,6 +780,9 @@ export default function DashboardClient({ user }) {
     const data = await res.json();
     if (data.ok) {
       setComments((prev) => [...prev, data.comment]);
+      if (data.event) {
+        setLeadEvents((prev) => [...prev, { ...data.event, author_name: user.name }]);
+      }
       setCommentText('');
       setLeads((prev) =>
         prev.map((l) =>
@@ -1203,7 +1244,90 @@ export default function DashboardClient({ user }) {
               </span>
             </div>
 
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="space-y-3 md:hidden">
+              {loading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="mb-3 h-4 w-32 animate-pulse rounded bg-slate-200" />
+                    <div className="mb-2 h-3 w-48 animate-pulse rounded bg-slate-200" />
+                    <div className="h-3 w-full animate-pulse rounded bg-slate-200" />
+                  </div>
+                ))
+              ) : filteredVisibleLeads.length === 0 ? (
+                <div className="rounded-xl border border-slate-200 bg-white py-12 text-center text-sm text-slate-500 shadow-sm">{searchEmptyText}</div>
+              ) : (
+                filteredVisibleLeads.map((lead) => (
+                  <article key={lead.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-semibold text-slate-900">{lead.name || '—'}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">{formatDate(lead.created_at)}</p>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${STATUS_COLORS[lead.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                        {STATUS_LABELS[lead.status] ?? lead.status}
+                      </span>
+                    </div>
+                    {lead.phone && (
+                      <a href={`tel:${lead.phone}`} className="mb-3 inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-sm font-medium text-slate-800">
+                        📞 {lead.phone}
+                      </a>
+                    )}
+                    <p className="mb-3 text-sm leading-relaxed text-slate-600">{formatMessage(lead.message)}</p>
+                    {isAdmin && (
+                      <select
+                        value={lead.assigned_to ?? ''}
+                        onChange={(e) => assignLead(lead.id, e.target.value || null)}
+                        className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-400"
+                      >
+                        <option value="">Не назначен</option>
+                        {employees.map((emp) => (
+                          <option key={emp.id} value={emp.id}>{emp.name}</option>
+                        ))}
+                      </select>
+                    )}
+                    {showWorkColumns && (
+                      <button onClick={() => openComments(lead)} className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-left text-sm text-slate-700">
+                        💬 Комментарии: {lead.comment_count || 0}
+                        {lead.last_comment_text && <span className="mt-1 block truncate text-xs text-slate-500">{lead.last_comment_text}</span>}
+                      </button>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {!isAdmin && employeeLeadTab === 'common' ? (
+                        <button
+                          onClick={() => claimLead(lead.id)}
+                          disabled={claimingLeadId === lead.id}
+                          className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 disabled:opacity-50"
+                        >
+                          {claimingLeadId === lead.id ? 'Забираю...' : '→ В работу'}
+                        </button>
+                      ) : (
+                        <>
+                          {STATUSES.filter((s) => s !== lead.status).map((s) => (
+                            <button
+                              key={s}
+                              onClick={() => s === 'closed' ? openCloseReason(lead) : updateStatus(lead.id, s)}
+                              className="rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                            >
+                              → {STATUS_LABELS[s]}
+                            </button>
+                          ))}
+                          {isAdmin && (
+                            <button
+                              onClick={() => deleteLead(lead.id)}
+                              className="rounded-lg border border-red-200 px-3 py-2 text-xs text-red-600"
+                            >
+                              Удалить
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </article>
+                ))
+              )}
+            </div>
+
+            <div className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:block">
               {loading ? (
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
@@ -1577,6 +1701,31 @@ export default function DashboardClient({ user }) {
                 >
                   {testPushStatus === 'loading' ? 'Отправка...' : testPushStatus === 'sent' ? 'Отправлено!' : testPushStatus === 'error' ? 'Ошибка отправки' : 'Отправить тестовый пуш'}
                 </button>
+              )}
+              <button
+                onClick={runPushDiagnostics}
+                disabled={pushDiagnosticsLoading}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
+              >
+                {pushDiagnosticsLoading ? 'Проверка...' : 'Диагностика push'}
+              </button>
+              {pushDiagnostics && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
+                  {pushDiagnostics.error ? (
+                    <p className="text-red-600">{pushDiagnostics.error}</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <p>{pushDiagnostics.browser?.notificationApi ? '✓' : '×'} Notification API: {pushDiagnostics.browser?.permission}</p>
+                      <p>{pushDiagnostics.browser?.serviceWorker ? '✓' : '×'} Service Worker</p>
+                      <p>{pushDiagnostics.browser?.pushManager ? '✓' : '×'} PushManager</p>
+                      <p>{pushDiagnostics.browser?.subscription ? '✓' : '×'} Подписка в браузере{pushDiagnostics.browser?.endpoint ? `: ${pushDiagnostics.browser.endpoint}` : ''}</p>
+                      <p>{pushDiagnostics.server?.vapidPublicKey?.ok ? '✓' : '×'} VAPID public key</p>
+                      <p>{pushDiagnostics.server?.vapidPrivateKey?.ok ? '✓' : '×'} VAPID private key</p>
+                      <p>{pushDiagnostics.server?.database?.ok ? '✓' : '×'} База данных: {pushDiagnostics.server?.database?.label}</p>
+                      <p>{pushDiagnostics.server?.subscriptions?.ok ? '✓' : '×'} Подписки на сервере: {pushDiagnostics.server?.subscriptions?.count || 0}</p>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </section>
@@ -1967,6 +2116,22 @@ export default function DashboardClient({ user }) {
                     <p className="text-sm text-slate-800 whitespace-pre-wrap">{c.text}</p>
                   </div>
                 ))
+              )}
+              {leadEvents.length > 0 && (
+                <div className="mt-4 border-t border-slate-100 pt-4">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">История действий</h3>
+                  <div className="space-y-2">
+                    {leadEvents.map((event) => (
+                      <div key={event.id} className="rounded-xl border border-slate-100 bg-white px-3 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold text-slate-700">{event.author_name || 'Система'}</span>
+                          <span className="text-[11px] text-slate-400">{formatDate(event.created_at)}</span>
+                        </div>
+                        <p className="mt-1 text-sm text-slate-700">{event.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
               <div ref={commentsEndRef} />
             </div>
