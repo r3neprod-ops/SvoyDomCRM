@@ -57,6 +57,12 @@ function newDay(msgs, i) {
   if (i === 0) return true;
   return new Date(msgs[i - 1].created_at).toDateString() !== new Date(msgs[i].created_at).toDateString();
 }
+function readerLabel(readers) {
+  if (!readers?.length) return null;
+  if (readers.length === 1) return `Прочитал ${readers[0].name}`;
+  if (readers.length <= 3) return `Прочитали ${readers.map((r) => r.name).join(', ')}`;
+  return `Прочитали ${readers[0].name} и ещё ${readers.length - 1}`;
+}
 function sameGroup(msgs, i) {
   if (i === 0) return false;
   const p = msgs[i - 1], c = msgs[i];
@@ -211,8 +217,8 @@ function LiveWave({ analyserRef: aRef }) {
 }
 
 /* ─── Bubble ─────────────────────────────────────────────────────────────────── */
-function Bubble({ msg, own, readUpTo, showAv, showName, isLast }) {
-  const isRead = own && msg.id <= readUpTo;
+function Bubble({ msg, own, showAv, showName, isLast, isDm }) {
+  const isRead = own && (msg.readers?.length ?? 0) > 0;
   const t = fmtTime(msg.created_at);
   const tailCls = isLast ? (own ? 'rounded-br-[4px]' : 'rounded-bl-[4px]') : '';
   const isVid = msg.media_type === 'video_note';
@@ -272,6 +278,11 @@ function Bubble({ msg, own, readUpTo, showAv, showName, isLast }) {
             </div>
           )}
         </div>
+        {own && !isDm && msg.readers?.length > 0 && (
+          <p className="mt-0.5 pr-1 text-right text-[10px] text-slate-400 dark:text-slate-500">
+            {readerLabel(msg.readers)}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -302,7 +313,6 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
   const [messages,   setMessages]   = useState([]);
   const [chatUsers,  setChatUsers]  = useState([]);
   const [loading,    setLoading]    = useState(true);
-  const [readUpTo,   setReadUpTo]   = useState(0);
   const [text,       setText]       = useState('');
   const [sending,    setSending]    = useState(false);
   const [uploading,  setUploading]  = useState(false);
@@ -440,7 +450,6 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
       const data = await res.json();
       if (data.ok) {
         setMessages(data.messages);
-        setReadUpTo(data.read_by_others_up_to || 0);
         if (!activeDmId && !activeRoomId) setGeneralUnread(data.unread_count || 0);
         const lid = data.messages.at(-1)?.id;
         if (lid) {
@@ -949,10 +958,11 @@ export default function TeamChatPanel({ user, onUnreadChange }) {
                   <div key={msg.id}>
                     {newDay(messages, i) && <DateSep iso={msg.created_at} />}
                     <div className={`px-3 ${sameGroup(messages, i) ? 'mt-0.5' : 'mt-3'}`}>
-                      <Bubble msg={msg} own={own} readUpTo={readUpTo}
+                      <Bubble msg={msg} own={own}
                         showAv={!own && isLastGroup}
                         showName={!own && first && !activeDmId}
-                        isLast={isLastGroup} />
+                        isLast={isLastGroup}
+                        isDm={!!activeDmId} />
                     </div>
                   </div>
                 );
