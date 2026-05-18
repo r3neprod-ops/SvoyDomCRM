@@ -84,6 +84,17 @@ const DOWN_PAYMENT_LABELS = {
   need_advice: 'Пока не знаю / нужна консультация',
 };
 
+function buildLeadPushBody(payload) {
+  const name = payload?.name || '—';
+  const answers = payload?.answers ?? {};
+  const parts = [];
+  const apartment = answers.apartmentType ? mappedAnswer(answers.apartmentType, APARTMENT_TYPE_LABELS) : null;
+  const budget = answers.budgetPreset ? mappedAnswer(answers.budgetPreset, BUDGET_LABELS) : null;
+  if (apartment) parts.push(apartment);
+  if (budget) parts.push(`бюджет ${budget}`);
+  return parts.length > 0 ? `${name} — ${parts.join(', ')}` : name;
+}
+
 function humanizeFallback(value) {
   const text = String(value ?? '').trim();
   if (!text) return '';
@@ -302,9 +313,10 @@ export async function POST(request) {
       const lead = await addLead(safePayload);
       leadId = lead.id;
       revalidateTag('leads');
+      const pushBody = buildLeadPushBody(safePayload);
       sendPushToAll({
         title: 'Новый лид!',
-        body: `Имя: ${safePayload.name || '—'}, Телефон: ${safePayload.phone || '—'}`,
+        body: pushBody,
         url: '/admin/dashboard',
       }).catch((err) => console.error('Push notification error:', err));
     } catch (dbError) {

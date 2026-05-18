@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TeamChatPanel from './TeamChatPanel';
-import BiometricSection from './BiometricSection';
 import { useTheme } from '@/app/ThemeProvider';
 
 const STATUS_LABELS = { new: 'Новый', in_progress: 'В работе', closed: 'Закрыт' };
@@ -290,6 +289,26 @@ export default function DashboardClient({ user }) {
       setTestPushStatus('error');
     } finally {
       setTimeout(() => setTestPushStatus('idle'), 3000);
+    }
+  };
+
+  const disableNotifications = async () => {
+    if (!confirm('Выключить уведомления?')) return;
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        const endpoint = subscription.endpoint;
+        await subscription.unsubscribe();
+        await fetch('/api/push/subscribe', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint }),
+        });
+      }
+      setNotifStatus('default');
+    } catch (err) {
+      console.error('[Push] Unsubscribe error:', err);
     }
   };
 
@@ -752,7 +771,7 @@ export default function DashboardClient({ user }) {
     { key: 'profile', label: 'Профиль', icon: '👤' },
   ];
   const notificationLabel = notifStatus === 'granted'
-    ? 'Уведомления включены'
+    ? 'Уведомления включены ✓'
     : notifStatus === 'denied'
     ? 'Уведомления заблокированы'
     : notifStatus === 'loading'
@@ -761,7 +780,7 @@ export default function DashboardClient({ user }) {
     ? 'Ошибка, попробуйте снова'
     : 'Включить уведомления';
   const notificationClass = notifStatus === 'granted'
-    ? 'border-green-200 bg-green-50 text-green-700'
+    ? 'border-green-200 bg-green-50 text-green-700 hover:bg-red-50 hover:border-red-200 hover:text-red-700'
     : notifStatus === 'denied'
     ? 'border-red-200 bg-red-50 text-red-600'
     : notifStatus === 'error'
@@ -895,8 +914,8 @@ export default function DashboardClient({ user }) {
           <span className="text-base">{theme === 'dark' ? '☀️' : '🌙'}</span>
         </button>
         <button
-          onClick={notifStatus === 'granted' ? undefined : enableNotifications}
-          disabled={notifStatus === 'loading' || notifStatus === 'denied' || notifStatus === 'granted'}
+          onClick={notifStatus === 'granted' ? disableNotifications : notifStatus === 'denied' ? undefined : enableNotifications}
+          disabled={notifStatus === 'loading' || notifStatus === 'denied'}
           className={`w-full rounded-xl border px-3 py-2 text-sm transition disabled:cursor-default ${notificationClass}`}
         >
           {notificationLabel}
@@ -1342,13 +1361,22 @@ export default function DashboardClient({ user }) {
               <p className="mt-1 text-sm text-slate-500">Push-уведомления о новых лидах и сообщениях.</p>
             </div>
             <div className="space-y-3 px-5 py-5">
-              <button
-                onClick={notifStatus === 'granted' ? undefined : enableNotifications}
-                disabled={notifStatus === 'loading' || notifStatus === 'denied' || notifStatus === 'granted'}
-                className={`w-full rounded-xl border px-4 py-2 text-sm transition disabled:cursor-default ${notifStatus === 'granted' ? 'border-green-200 bg-green-50 text-green-700' : notifStatus === 'denied' ? 'border-red-200 bg-red-50 text-red-700' : notifStatus === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}
-              >
-                {notifStatus === 'granted' ? 'Уведомления включены' : notifStatus === 'denied' ? 'Уведомления заблокированы' : notifStatus === 'loading' ? 'Подключение...' : notifStatus === 'error' ? 'Ошибка подключения' : 'Включить уведомления'}
-              </button>
+              {notifStatus === 'granted' ? (
+                <button
+                  onClick={disableNotifications}
+                  className="w-full rounded-xl border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-700 transition hover:bg-red-50 hover:border-red-200 hover:text-red-700"
+                >
+                  Уведомления включены ✓
+                </button>
+              ) : (
+                <button
+                  onClick={notifStatus === 'denied' ? undefined : enableNotifications}
+                  disabled={notifStatus === 'loading' || notifStatus === 'denied'}
+                  className={`w-full rounded-xl border px-4 py-2 text-sm transition disabled:cursor-default ${notifStatus === 'denied' ? 'border-red-200 bg-red-50 text-red-700' : notifStatus === 'error' ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100' : notifStatus === 'loading' ? 'border-slate-200 bg-slate-50 text-slate-500' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}
+                >
+                  {notifStatus === 'denied' ? 'Уведомления заблокированы' : notifStatus === 'loading' ? 'Подключение...' : notifStatus === 'error' ? 'Ошибка — попробовать снова' : 'Включить уведомления'}
+                </button>
+              )}
               {notifStatus === 'granted' && (
                 <button
                   onClick={sendTestPush}
@@ -1361,8 +1389,6 @@ export default function DashboardClient({ user }) {
             </div>
           </section>
 
-          {/* ── Biometric login section ── */}
-          <BiometricSection />
           </div>
         )}
 

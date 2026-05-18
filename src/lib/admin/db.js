@@ -115,19 +115,6 @@ export async function ensureSchema() {
     )
   `;
 
-  await sql`
-    CREATE TABLE IF NOT EXISTS webauthn_credentials (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-      credential_id TEXT UNIQUE NOT NULL,
-      public_key TEXT NOT NULL,
-      counter BIGINT DEFAULT 0,
-      device_name TEXT,
-      created_at TIMESTAMP DEFAULT NOW()
-    )
-  `;
-  await sql`CREATE INDEX IF NOT EXISTS webauthn_credentials_user_id_idx ON webauthn_credentials (user_id)`;
-
   // Direct chat tables (Task 3)
   await sql`
     CREATE TABLE IF NOT EXISTS direct_chats (

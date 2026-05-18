@@ -10,7 +10,9 @@ export default function ServiceWorkerRegistration() {
     const isSecureContext = protocol === 'https:' || hostname === 'localhost';
     if (!isSecureContext) return;
 
-    navigator.serviceWorker.register('/sw.js').catch((error) => {
+    navigator.serviceWorker.register('/sw.js').then((reg) => {
+      reg.update().catch(() => undefined);
+    }).catch((error) => {
       console.warn('Service worker registration failed:', error);
     });
   }, []);
