@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TeamChatPanel from './TeamChatPanel';
 import { useTheme } from '@/app/ThemeProvider';
@@ -130,6 +130,7 @@ export default function DashboardClient({ user }) {
   const [leads, setLeads] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [filter, setFilter] = useState('');
+  const [leadSearch, setLeadSearch] = useState('');
   const [employeeLeadTab, setEmployeeLeadTab] = useState('common');
   const [loading, setLoading] = useState(true);
   const [notifStatus, setNotifStatus] = useState('default');
@@ -875,12 +876,36 @@ export default function DashboardClient({ user }) {
   const commonLeads = isAdmin ? [] : leads.filter((lead) => lead.assigned_to === null);
   const myLeads = isAdmin ? [] : leads.filter((lead) => lead.assigned_to === user.id);
   const visibleLeads = isAdmin ? leads : employeeLeadTab === 'common' ? commonLeads : myLeads;
+  const leadStats = useMemo(() => {
+    const countByStatus = (status) => leads.filter((lead) => lead.status === status).length;
+    return [
+      { label: 'Всего', value: leads.length, tone: 'bg-slate-900 text-white' },
+      { label: STATUS_LABELS.new, value: countByStatus('new'), tone: 'bg-blue-50 text-blue-700' },
+      { label: STATUS_LABELS.in_progress, value: countByStatus('in_progress'), tone: 'bg-yellow-50 text-yellow-700' },
+      { label: STATUS_LABELS.closed, value: countByStatus('closed'), tone: 'bg-green-50 text-green-700' },
+    ];
+  }, [leads]);
+  const filteredVisibleLeads = useMemo(() => {
+    const query = leadSearch.trim().toLowerCase();
+    if (!query) return visibleLeads;
+    return visibleLeads.filter((lead) => {
+      const assignee = employees.find((emp) => emp.id === lead.assigned_to);
+      return [
+        lead.name,
+        lead.phone,
+        formatMessage(lead.message),
+        STATUS_LABELS[lead.status] ?? lead.status,
+        assignee?.name,
+      ].some((value) => String(value || '').toLowerCase().includes(query));
+    });
+  }, [employees, leadSearch, visibleLeads]);
   const showWorkColumns = isAdmin || employeeLeadTab === 'my';
   const emptyLeadsText = isAdmin
     ? 'Лидов нет.'
     : employeeLeadTab === 'common'
     ? 'Общих лидов нет.'
     : 'У вас пока нет лидов.';
+  const searchEmptyText = leadSearch.trim() ? 'По этому поиску лидов нет.' : emptyLeadsText;
   const navItems = [
     { key: 'leads', label: 'Лиды', icon: '📋' },
     ...(isAdmin ? [
@@ -1145,6 +1170,39 @@ export default function DashboardClient({ user }) {
               )}
             </div>
 
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+              {leadStats.map((stat) => (
+                <div key={stat.label} className={`rounded-xl border border-slate-200 px-4 py-3 shadow-sm ${stat.tone}`}>
+                  <p className="text-xs opacity-75">{stat.label}</p>
+                  <p className="mt-1 text-2xl font-semibold tabular-nums">{stat.value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center">
+              <div className="relative flex-1">
+                <input
+                  value={leadSearch}
+                  onChange={(e) => setLeadSearch(e.target.value)}
+                  placeholder="Поиск по имени, телефону, сообщению или сотруднику"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                />
+                {leadSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setLeadSearch('')}
+                    className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                    aria-label="Очистить поиск"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+              <span className="shrink-0 text-xs text-slate-500">
+                Показано {filteredVisibleLeads.length} из {visibleLeads.length}
+              </span>
+            </div>
+
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               {loading ? (
                 <div className="overflow-x-auto">
@@ -1177,8 +1235,8 @@ export default function DashboardClient({ user }) {
                     </tbody>
                   </table>
                 </div>
-              ) : visibleLeads.length === 0 ? (
-                <div className="py-16 text-center text-slate-500">{emptyLeadsText}</div>
+              ) : filteredVisibleLeads.length === 0 ? (
+                <div className="py-16 text-center text-slate-500">{searchEmptyText}</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
@@ -1195,7 +1253,7 @@ export default function DashboardClient({ user }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {visibleLeads.map((lead) => (
+                      {filteredVisibleLeads.map((lead) => (
                         <tr key={lead.id} className="border-t border-slate-100 align-top">
                           <td className="whitespace-nowrap p-3 text-slate-500">{formatDate(lead.created_at)}</td>
                           <td className="p-3 font-medium">{lead.name || '—'}</td>
