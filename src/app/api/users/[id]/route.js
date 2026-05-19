@@ -23,27 +23,36 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({ ok: false, message: 'Нельзя удалить администратора' }, { status: 400 });
   }
 
-  const [result] = await sql.begin(async (tx) => {
-    const reassignedLeads = await tx`
-      UPDATE leads
-      SET
-        assigned_to = NULL,
-        status = CASE WHEN status = 'in_progress' THEN 'new' ELSE status END
-      WHERE assigned_to = ${id}
-      RETURNING id
-    `;
-    await tx`UPDATE comments SET user_id = NULL WHERE user_id = ${id}`;
-    await tx`UPDATE lead_events SET user_id = NULL WHERE user_id = ${id}`;
-    await tx`UPDATE chat_messages SET user_id = NULL WHERE user_id = ${id}`;
-    await tx`UPDATE chat_rooms SET created_by = NULL WHERE created_by = ${id}`;
-    await tx`DELETE FROM push_subscriptions WHERE user_id = ${id}`;
-    await tx`DELETE FROM message_reactions WHERE user_id = ${id}`;
-    await tx`DELETE FROM users WHERE id = ${id}`;
-    return [{ reassigned_leads: reassignedLeads.length }];
-  });
+  try {
+    const [result] = await sql.begin(async (tx) => {
+      const reassignedLeads = await tx`
+        UPDATE leads
+        SET
+          assigned_to = NULL,
+          status = CASE WHEN status = 'in_progress' THEN 'new' ELSE status END
+        WHERE assigned_to = ${id}
+        RETURNING id
+      `;
+      await tx`UPDATE comments SET user_id = NULL WHERE user_id = ${id}`;
+      await tx`UPDATE lead_events SET user_id = NULL WHERE user_id = ${id}`;
+      await tx`UPDATE chat_messages SET user_id = NULL WHERE user_id = ${id}`;
+      await tx`UPDATE chat_rooms SET created_by = NULL WHERE created_by = ${id}`;
+      await tx`DELETE FROM push_subscriptions WHERE user_id = ${id}`;
+      await tx`DELETE FROM message_reactions WHERE user_id = ${id}`;
+      await tx`DELETE FROM users WHERE id = ${id}`;
+      return [{ reassigned_leads: reassignedLeads.length }];
+    });
 
-  revalidateTag('leads');
-  return NextResponse.json({ ok: true, ...result });
+    revalidateTag('leads');
+    return NextResponse.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('[User delete] Failed:', err);
+    return NextResponse.json({
+      ok: false,
+      message: 'Не удалось удалить сотрудника. Сервер вернул ошибку, детали записаны в логи.',
+      detail: err?.message || 'unknown error',
+    }, { status: 500 });
+  }
 }
 
 export async function PATCH(request, { params }) {

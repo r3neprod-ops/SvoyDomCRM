@@ -119,6 +119,16 @@ function getInitials(name) {
     .toUpperCase();
 }
 
+async function readApiJson(res) {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { ok: false, message: text.slice(0, 500) };
+  }
+}
+
 const CHAT_PALETTE = ['#E91E63','#9C27B0','#673AB7','#3F51B5','#2196F3','#00BCD4','#009688','#4CAF50','#FF9800','#FF5722'];
 const chatColor = (uid) => CHAT_PALETTE[(uid ?? 0) % CHAT_PALETTE.length];
 function chatInitials(name) {
@@ -699,14 +709,18 @@ export default function DashboardClient({ user }) {
 
   const deleteLead = async (id) => {
     if (!confirm('Удалить лид?')) return;
-    const res = await fetch(`/api/leads/${id}`, { method: 'DELETE' });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data.ok) {
-      setLeads((prev) => prev.filter((lead) => lead.id !== id));
-      fetchLeads();
-      return;
+    try {
+      const res = await fetch(`/api/leads/${id}`, { method: 'DELETE' });
+      const data = await readApiJson(res);
+      if (res.ok && data.ok) {
+        setLeads((prev) => prev.filter((lead) => lead.id !== id));
+        fetchLeads();
+        return;
+      }
+      alert(data.message || `Не удалось удалить лид (${res.status})`);
+    } catch (err) {
+      alert(err?.message || 'Не удалось удалить лид');
     }
-    alert(data.message || 'Не удалось удалить лид');
   };
 
   const logout = async () => {
@@ -951,19 +965,24 @@ export default function DashboardClient({ user }) {
 
   const deleteEmployee = async (emp) => {
     if (!confirm(`Вы уверены? Сотрудник "${emp.name}" будет удалён.`)) return;
-    const res = await fetch(`/api/users/${emp.id}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (data.ok) {
-      setEmployees((prev) => prev.filter((e) => e.id !== emp.id));
-      setLeads((prev) =>
-        prev.map((lead) =>
-          lead.assigned_to === emp.id
-            ? { ...lead, assigned_to: null, assigned_to_name: null, status: lead.status === 'in_progress' ? 'new' : lead.status }
-            : lead
-        )
-      );
-    } else {
-      alert(data.message || 'Ошибка удаления');
+    try {
+      const res = await fetch(`/api/users/${emp.id}`, { method: 'DELETE' });
+      const data = await readApiJson(res);
+      if (res.ok && data.ok) {
+        setEmployees((prev) => prev.filter((e) => e.id !== emp.id));
+        setLeads((prev) =>
+          prev.map((lead) =>
+            lead.assigned_to === emp.id
+              ? { ...lead, assigned_to: null, assigned_to_name: null, status: lead.status === 'in_progress' ? 'new' : lead.status }
+              : lead
+          )
+        );
+        fetchLeads();
+        return;
+      }
+      alert(data.message || `Ошибка удаления (${res.status})`);
+    } catch (err) {
+      alert(err?.message || 'Ошибка удаления');
     }
   };
 

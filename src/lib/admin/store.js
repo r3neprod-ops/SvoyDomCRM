@@ -25,6 +25,7 @@ export async function addLead(payload) {
     VALUES (${name}, ${phone}, ${message}, 'new', NULL)
     RETURNING id
   `;
+  await sql`UPDATE leads SET assigned_to = NULL, status = 'new' WHERE id = ${row.id}`;
   await addLeadEvent(sql, {
     leadId: row.id,
     type: 'created',
