@@ -126,6 +126,14 @@ export async function DELETE(request, { params }) {
 
   await ensureSchema();
   const sql = getSql();
-  await sql`DELETE FROM leads WHERE id = ${id}`;
+  const [lead] = await sql`SELECT id FROM leads WHERE id = ${id}`;
+  if (!lead) return NextResponse.json({ ok: false, message: 'Лид не найден' }, { status: 404 });
+
+  await sql.begin(async (tx) => {
+    await tx`DELETE FROM comments WHERE lead_id = ${id}`;
+    await tx`DELETE FROM lead_events WHERE lead_id = ${id}`;
+    await tx`DELETE FROM leads WHERE id = ${id}`;
+  });
+  revalidateTag('leads');
   return NextResponse.json({ ok: true });
 }

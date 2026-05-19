@@ -699,8 +699,14 @@ export default function DashboardClient({ user }) {
 
   const deleteLead = async (id) => {
     if (!confirm('Удалить лид?')) return;
-    await fetch(`/api/leads/${id}`, { method: 'DELETE' });
-    fetchLeads();
+    const res = await fetch(`/api/leads/${id}`, { method: 'DELETE' });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok) {
+      setLeads((prev) => prev.filter((lead) => lead.id !== id));
+      fetchLeads();
+      return;
+    }
+    alert(data.message || 'Не удалось удалить лид');
   };
 
   const logout = async () => {

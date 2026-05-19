@@ -21,8 +21,8 @@ export async function addLead(payload) {
   const message = buildMessage(answers);
 
   const [row] = await sql`
-    INSERT INTO leads (name, phone, message, status)
-    VALUES (${name}, ${phone}, ${message}, 'new')
+    INSERT INTO leads (name, phone, message, status, assigned_to)
+    VALUES (${name}, ${phone}, ${message}, 'new', NULL)
     RETURNING id
   `;
   await addLeadEvent(sql, {

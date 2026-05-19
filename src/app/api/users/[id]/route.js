@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { getAuthUser } from '@/lib/admin/auth';
 import { getSql, ensureSchema } from '@/lib/admin/db';
 
@@ -41,6 +42,7 @@ export async function DELETE(request, { params }) {
     return [{ reassigned_leads: reassignedLeads.length }];
   });
 
+  revalidateTag('leads');
   return NextResponse.json({ ok: true, ...result });
 }
 
