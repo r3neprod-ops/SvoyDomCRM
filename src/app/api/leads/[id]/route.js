@@ -23,6 +23,28 @@ async function getActiveEmployee(sql, id) {
   return employee || null;
 }
 
+async function runManualLeadAssignment(sql, { id, updates, user, wantsAssignee }) {
+  return sql.begin(async (tx) => {
+    await tx`SET LOCAL app.manual_lead_assignment = 'on'`;
+
+    if (user.role !== 'admin' && wantsAssignee) {
+      const [claimed] = await tx`
+        UPDATE leads SET ${tx(updates)}
+        WHERE id = ${id} AND assigned_to IS NULL
+        RETURNING id
+      `;
+      return claimed || null;
+    }
+
+    const [changed] = await tx`
+      UPDATE leads SET ${tx(updates)}
+      WHERE id = ${id}
+      RETURNING id
+    `;
+    return changed || null;
+  });
+}
+
 export async function PATCH(request, { params }) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
@@ -88,12 +110,8 @@ export async function PATCH(request, { params }) {
   const oldStatus = lead.status;
   const oldAssignee = lead.assigned_to;
 
-  if (user.role !== 'admin' && wantsAssignee) {
-    const [updated] = await sql`
-      UPDATE leads SET ${sql(updates)}
-      WHERE id = ${id} AND assigned_to IS NULL
-      RETURNING id
-    `;
+  if (updates.assigned_to !== undefined) {
+    const updated = await runManualLeadAssignment(sql, { id, updates, user, wantsAssignee });
     if (!updated) {
       return NextResponse.json({ ok: false, message: 'Лид уже назначен' }, { status: 409 });
     }
@@ -119,17 +137,18 @@ export async function PATCH(request, { params }) {
       meta: { from: oldAssignee, to: freshLead.assigned_to },
     });
   }
+
   if (updates.status !== undefined && oldStatus !== freshLead.status) {
     await addLeadEvent(sql, {
       leadId: id,
       userId: user.id,
       type: 'status_changed',
-      message: `Статус: ${STATUS_LABELS[oldStatus] || oldStatus} → ${STATUS_LABELS[freshLead.status] || freshLead.status}`,
+      message: `Статус: ${STATUS_LABELS[oldStatus] || oldStatus} -> ${STATUS_LABELS[freshLead.status] || freshLead.status}`,
       meta: { from: oldStatus, to: freshLead.status },
     });
   }
-  revalidateTag('leads');
 
+  revalidateTag('leads');
   return NextResponse.json({ ok: true });
 }
 

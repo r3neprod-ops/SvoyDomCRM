@@ -23,6 +23,8 @@ async function dropLeadAssignmentTriggers(sql) {
   }
 
   for (const trigger of triggers) {
+    if (trigger.tgname === 'svoydom_guard_lead_assignment') continue;
+
     const source = `${trigger.trigger_def}\n${trigger.function_body}`.toLowerCase();
     const touchesAssignment =
       source.includes('assigned_to') ||
@@ -34,6 +36,41 @@ async function dropLeadAssignmentTriggers(sql) {
     await sql`DROP TRIGGER IF EXISTS ${sql(trigger.tgname)} ON leads`;
     console.warn(`[db] Dropped lead assignment trigger: ${trigger.tgname}`);
   }
+}
+
+async function installLeadAssignmentGuard(sql) {
+  await sql`
+    CREATE OR REPLACE FUNCTION svoydom_guard_lead_assignment()
+    RETURNS trigger AS $$
+    BEGIN
+      IF TG_OP = 'INSERT' THEN
+        NEW.assigned_to := NULL;
+        IF NEW.status = 'in_progress' THEN
+          NEW.status := 'new';
+        END IF;
+        RETURN NEW;
+      END IF;
+
+      IF OLD.assigned_to IS DISTINCT FROM NEW.assigned_to
+         AND current_setting('app.manual_lead_assignment', true) IS DISTINCT FROM 'on' THEN
+        NEW.assigned_to := OLD.assigned_to;
+        IF OLD.assigned_to IS NULL AND NEW.status = 'in_progress' THEN
+          NEW.status := 'new';
+        END IF;
+      END IF;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql
+  `;
+
+  await sql`DROP TRIGGER IF EXISTS svoydom_guard_lead_assignment ON leads`;
+  await sql`
+    CREATE TRIGGER svoydom_guard_lead_assignment
+    BEFORE INSERT OR UPDATE OF assigned_to ON leads
+    FOR EACH ROW
+    EXECUTE FUNCTION svoydom_guard_lead_assignment()
+  `;
 }
 
 async function clearAutoAssignedNewLeads(sql) {
@@ -253,6 +290,7 @@ export async function ensureSchema() {
   await sql`CREATE INDEX IF NOT EXISTS lead_events_lead_id_created_at_idx ON lead_events (lead_id, created_at DESC)`;
   await dropLeadAssignmentTriggers(sql);
   await clearAutoAssignedNewLeads(sql);
+  await installLeadAssignmentGuard(sql);
 
   // Ensure admin account always exists — but never overwrite an existing password.
   // This runs on every cold start; ON CONFLICT DO NOTHING guarantees idempotency.
