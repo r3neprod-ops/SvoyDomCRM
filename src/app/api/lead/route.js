@@ -276,44 +276,56 @@ export async function OPTIONS(request) {
   });
 }
 
+// Raw DB probe — no try/catch, throws on failure, fire-and-forget version via .catch(()=>{})
+function _dblog(stage, data, leadId = null) {
+  const s = getSql();
+  return s`INSERT INTO push_debug_log (stage, lead_id, data)
+           VALUES (${stage}, ${leadId ?? null}, ${JSON.stringify(data ?? null)}::jsonb)`;
+}
+
 export async function POST(request) {
-  const startTime = Date.now();
-  console.log('[Lead] Request received at:', new Date().toISOString());
-  const cors = getCors(request);
+  // === BARE INSERT — FIRST LINE, NO TRY/CATCH — throws if getSql() or DB fails ===
+  await _dblog('lead:handler_entered', { url: request.url, method: request.method });
 
-  if (!cors.allowed) {
-    return jsonWithCors(
-      request,
-      { ok: false, code: 'FORBIDDEN_ORIGIN', message: 'Источник заявки не разрешён.' },
-      { status: 403 }
-    );
-  }
-
+  // === OUTER TRY/CATCH WRAPS EVERYTHING BELOW ===
   try {
+    const startTime = Date.now();
+    console.log('[Lead] Request received at:', new Date().toISOString());
+    const cors = getCors(request);
+
+    if (!cors.allowed) {
+      _dblog('lead:returning', { status: 403, reason: 'cors' }).catch(() => {});
+      return jsonWithCors(
+        request,
+        { ok: false, code: 'FORBIDDEN_ORIGIN', message: 'Источник заявки не разрешён.' },
+        { status: 403 }
+      );
+    }
+
     const payload = await request.json();
 
     if (!payload || typeof payload !== 'object') {
+      _dblog('lead:returning', { status: 400, reason: 'bad_request' }).catch(() => {});
       return jsonWithCors(request, { ok: false, code: 'BAD_REQUEST', message: 'Пустой запрос.' }, { status: 400 });
     }
 
     if (payload.company && String(payload.company).trim()) {
+      _dblog('lead:returning', { status: 200, reason: 'honeypot' }).catch(() => {});
       return jsonWithCors(request, { ok: true });
     }
 
     console.log('[Lead] Step: validation');
     const phoneValidation = validatePhone(payload.phone);
     if (!phoneValidation.ok) {
+      _dblog('lead:returning', { status: phoneValidation.status, reason: 'phone_invalid' }).catch(() => {});
       return jsonWithCors(request, phoneValidation.body, { status: phoneValidation.status });
     }
 
     if (payload.privacyConsent !== true) {
+      _dblog('lead:returning', { status: 400, reason: 'no_consent' }).catch(() => {});
       return jsonWithCors(
         request,
-        {
-          ok: false,
-          code: 'MISSING_PRIVACY_CONSENT',
-          message: 'Необходимо согласие на обработку персональных данных.',
-        },
+        { ok: false, code: 'MISSING_PRIVACY_CONSENT', message: 'Необходимо согласие на обработку персональных данных.' },
         { status: 400 }
       );
     }
@@ -329,6 +341,7 @@ export async function POST(request) {
     const dedupeKey = makeDedupKey(phoneValidation.phoneDigits, safePayload.answers);
     if (isDuplicateLead(dedupeKey)) {
       console.log('[Lead] Duplicate detected, skipping bitrix:', dedupeKey);
+      _dblog('lead:returning', { status: 200, reason: 'dedup' }).catch(() => {});
       return jsonWithCors(request, { ok: true, deduped: true });
     }
 
@@ -338,16 +351,8 @@ export async function POST(request) {
       const lead = await addLead(safePayload);
       leadId = lead.id;
       revalidateTag('leads');
+      await _dblog('lead:after_addlead', null, leadId);
 
-      // Direct INSERT — bypass helper to confirm DB write works from this route
-      try {
-        const _sql = getSql();
-        await _sql`INSERT INTO push_debug_log (stage, lead_id) VALUES ('lead:route_reached', ${leadId})`;
-      } catch (e) {
-        console.error('[Lead] direct debug INSERT failed:', e?.message);
-      }
-
-      await pushDebugLog('lead:created', { leadId });
       const pushBody = buildReadableLeadPushBody(safePayload);
       console.log('[Lead] triggering push for lead', leadId);
       try {
@@ -360,10 +365,11 @@ export async function POST(request) {
         });
       } catch (pushError) {
         console.error('Lead push notification error:', pushError);
-        await pushDebugLog('lead:push_error', { leadId, error: `${pushError.message}\n${pushError.stack || ''}` });
+        _dblog('lead:push_error', { error: pushError?.message, stack: String(pushError?.stack || '').slice(0, 500) }, leadId).catch(() => {});
       }
     } catch (dbError) {
       console.error('Lead DB save error:', dbError);
+      _dblog('lead:returning', { status: 500, reason: 'db_error', error: dbError?.message }, leadId).catch(() => {});
       return jsonWithCors(
         request,
         { ok: false, code: 'DB_ERROR', message: 'Не удалось сохранить заявку. Попробуйте ещё раз.' },
@@ -375,16 +381,16 @@ export async function POST(request) {
     await sendToBitrix24(safePayload);
 
     console.log('[Lead] Completed in', Date.now() - startTime, 'ms');
+    _dblog('lead:returning', { status: 200, reason: 'success', leadId }).catch(() => {});
     return jsonWithCors(request, { success: true, leadId });
-  } catch (error) {
-    console.error('Lead API error:', error);
+
+  } catch (err) {
+    // === TOP-LEVEL CATCH — captures anything not caught below ===
+    _dblog('lead:top_catch', { error: err?.message, stack: String(err?.stack || '').slice(0, 1000) }).catch(() => {});
+    console.error('Lead API error:', err);
     return jsonWithCors(
       request,
-      {
-        ok: false,
-        code: 'SERVER_ERROR',
-        message: 'Не удалось отправить. Попробуйте ещё раз.',
-      },
+      { ok: false, code: 'SERVER_ERROR', message: 'Не удалось отправить. Попробуйте ещё раз.' },
       { status: 500 }
     );
   }
