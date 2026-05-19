@@ -338,6 +338,7 @@ export async function POST(request) {
       leadId = lead.id;
       revalidateTag('leads');
       const pushBody = buildReadableLeadPushBody(safePayload);
+      console.log('[Lead] triggering push for lead', leadId);
       try {
         await sendPushToAll({
           title: 'Новый лид!',

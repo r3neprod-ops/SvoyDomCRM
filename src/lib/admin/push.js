@@ -85,6 +85,7 @@ async function markFailure(sql, id, statusCode, message) {
 
 export async function sendPushRows(rows, payload, { label = 'push' } = {}) {
   const config = configureWebPush();
+  console.log(`[Push] ${label}: configureWebPush result`, config);
   if (!config.ok) {
     console.warn(`[Push] ${label}: VAPID keys missing`);
     return { ok: false, code: config.reason, sent: 0, failed: 0, total: rows.length, results: [] };
@@ -161,6 +162,7 @@ export async function sendPushRows(rows, payload, { label = 'push' } = {}) {
 }
 
 export async function sendPushToAll({ title, body, url = DEFAULT_URL, excludeUserId = null, tag = 'svoydom-crm-all', type = 'broadcast' }) {
+  console.log('[Push] sendPushToAll called', { title, type, excludeUserId });
   await ensureSchema();
   const sql = getSql();
   const rows = excludeUserId
