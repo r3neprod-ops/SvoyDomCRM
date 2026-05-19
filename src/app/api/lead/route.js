@@ -276,6 +276,23 @@ export async function OPTIONS(request) {
   });
 }
 
+export async function GET() {
+  const probeKey = `_dbg_get_probe_${Date.now()}`;
+  let dbOk = false;
+  let dbError = null;
+  let dbgRows = [];
+  try {
+    const s = getSql();
+    await s`INSERT INTO settings (key, value) VALUES (${probeKey}, ${'get_probe'}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+    dbOk = true;
+    const rows = await s`SELECT key, value FROM settings WHERE key LIKE '_dbg_%' ORDER BY key DESC LIMIT 20`;
+    dbgRows = rows.map((r) => ({ key: r.key, value: r.value }));
+  } catch (e) {
+    dbError = e?.message || String(e);
+  }
+  return Response.json({ revision: 'dbg-20260519-2007', dbOk, dbError, probeKey, dbgRows });
+}
+
 // Raw DB probe — writes to settings table (plain TEXT, no JSONB) to avoid any type issues
 function _dblog(stage, data, leadId = null) {
   const s = getSql();
