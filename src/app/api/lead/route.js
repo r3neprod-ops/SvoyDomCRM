@@ -276,11 +276,12 @@ export async function OPTIONS(request) {
   });
 }
 
-// Raw DB probe — no try/catch, throws on failure, fire-and-forget version via .catch(()=>{})
+// Raw DB probe — writes to settings table (plain TEXT, no JSONB) to avoid any type issues
 function _dblog(stage, data, leadId = null) {
   const s = getSql();
-  return s`INSERT INTO push_debug_log (stage, lead_id, data)
-           VALUES (${stage}, ${leadId ?? null}, ${JSON.stringify(data ?? null)}::jsonb)`;
+  const key = `_dbg_${stage}_${Date.now()}`;
+  const val = JSON.stringify({ stage, leadId, data, ts: new Date().toISOString() });
+  return s`INSERT INTO settings (key, value) VALUES (${key}, ${val}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
 }
 
 export async function POST(request) {
