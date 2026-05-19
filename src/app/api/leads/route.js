@@ -27,7 +27,7 @@ const fetchLeadsData = unstable_cache(
 
     const employees = userRole === 'admin'
       ? await sql`
-          SELECT u.id, u.name, u.username, u.is_active, u.leads_count,
+          SELECT u.id, u.name, u.username, u.is_active,
                  COUNT(l.id) FILTER (WHERE l.status IN ('new', 'in_progress'))::int AS active_leads_count
           FROM users u
           LEFT JOIN leads l ON l.assigned_to = u.id

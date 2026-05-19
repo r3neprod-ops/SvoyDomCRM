@@ -91,8 +91,6 @@ export async function ensureSchema() {
   await sql`CREATE INDEX IF NOT EXISTS chat_messages_user_id_idx ON chat_messages (user_id)`;
 
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`;
-  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS leads_count INTEGER DEFAULT 0`;
-  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_assigned_at TIMESTAMP`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS status_text TEXT`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`;

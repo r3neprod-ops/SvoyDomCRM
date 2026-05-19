@@ -5,6 +5,23 @@ import { getSql, ensureSchema } from '@/lib/admin/db';
 import { addLeadEvent } from '@/lib/admin/leadEvents';
 
 const STATUS_LABELS = { new: 'Новый', in_progress: 'В работе', closed: 'Закрыт' };
+const VALID_STATUSES = new Set(['new', 'in_progress', 'closed']);
+
+function normalizeAssignee(value) {
+  if (value === null || value === '') return null;
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : NaN;
+}
+
+async function getActiveEmployee(sql, id) {
+  if (!id) return null;
+  const [employee] = await sql`
+    SELECT id, name
+    FROM users
+    WHERE id = ${id} AND role = 'employee' AND is_active = true
+  `;
+  return employee || null;
+}
 
 export async function PATCH(request, { params }) {
   const user = await getAuthUser();
@@ -20,22 +37,32 @@ export async function PATCH(request, { params }) {
 
   const body = await request.json();
   const updates = {};
-  let isClaiming = false;
+  const wantsStatus = body.status !== undefined;
+  const wantsAssignee = body.assigned_to !== undefined;
 
   if (user.role === 'admin') {
-    if (body.status !== undefined) updates.status = body.status;
-    if (body.assigned_to !== undefined) {
-      const newAssignee = body.assigned_to === null || body.assigned_to === ''
-        ? null
-        : Number(body.assigned_to);
-      updates.assigned_to = newAssignee;
-      if (body.status === undefined) {
-        updates.status = newAssignee !== null ? 'in_progress' : 'new';
+    if (wantsStatus) {
+      if (!VALID_STATUSES.has(body.status)) {
+        return NextResponse.json({ ok: false, message: 'Некорректный статус' }, { status: 400 });
       }
+      updates.status = body.status;
+    }
+
+    if (wantsAssignee) {
+      const newAssignee = normalizeAssignee(body.assigned_to);
+      if (Number.isNaN(newAssignee)) {
+        return NextResponse.json({ ok: false, message: 'Некорректный сотрудник' }, { status: 400 });
+      }
+      if (newAssignee !== null && !await getActiveEmployee(sql, newAssignee)) {
+        return NextResponse.json({ ok: false, message: 'Сотрудник не найден или выключен' }, { status: 400 });
+      }
+
+      updates.assigned_to = newAssignee;
+      if (!wantsStatus) updates.status = newAssignee === null ? 'new' : 'in_progress';
     }
   } else {
-    if (body.assigned_to !== undefined) {
-      if (Number(body.assigned_to) !== user.id) {
+    if (wantsAssignee) {
+      if (normalizeAssignee(body.assigned_to) !== user.id) {
         return NextResponse.json({ ok: false }, { status: 403 });
       }
       if (lead.assigned_to !== null) {
@@ -43,18 +70,14 @@ export async function PATCH(request, { params }) {
       }
       updates.assigned_to = user.id;
       updates.status = 'in_progress';
-      isClaiming = true;
-    } else if (body.status !== undefined) {
-      if (body.status === 'in_progress' && lead.assigned_to === null) {
-        updates.assigned_to = user.id;
-        updates.status = 'in_progress';
-        isClaiming = true;
-      } else {
-        if (lead.assigned_to !== user.id) {
-          return NextResponse.json({ ok: false }, { status: 403 });
-        }
-        updates.status = body.status;
+    } else if (wantsStatus) {
+      if (!VALID_STATUSES.has(body.status)) {
+        return NextResponse.json({ ok: false, message: 'Некорректный статус' }, { status: 400 });
       }
+      if (lead.assigned_to !== user.id) {
+        return NextResponse.json({ ok: false }, { status: 403 });
+      }
+      updates.status = body.status;
     }
   }
 
@@ -65,7 +88,7 @@ export async function PATCH(request, { params }) {
   const oldStatus = lead.status;
   const oldAssignee = lead.assigned_to;
 
-  if (isClaiming) {
+  if (user.role !== 'admin' && wantsAssignee) {
     const [updated] = await sql`
       UPDATE leads SET ${sql(updates)}
       WHERE id = ${id} AND assigned_to IS NULL
@@ -74,12 +97,6 @@ export async function PATCH(request, { params }) {
     if (!updated) {
       return NextResponse.json({ ok: false, message: 'Лид уже назначен' }, { status: 409 });
     }
-    await sql`
-      UPDATE users SET
-        leads_count = leads_count + 1,
-        last_assigned_at = NOW()
-      WHERE id = ${user.id}
-    `;
   } else {
     await sql`UPDATE leads SET ${sql(updates)} WHERE id = ${id}`;
   }
