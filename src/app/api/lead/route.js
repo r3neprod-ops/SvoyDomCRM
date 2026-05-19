@@ -1,6 +1,7 @@
 import { revalidateTag } from 'next/cache';
 import { addLead } from '@/lib/admin/store';
 import { sendPushToAll } from '@/lib/admin/push';
+import { pushDebugLog } from '@/lib/admin/db';
 
 const DEDUPE_WINDOW_MS = 30 * 1000;
 const recentLeadStore = new Map();
@@ -337,6 +338,7 @@ export async function POST(request) {
       const lead = await addLead(safePayload);
       leadId = lead.id;
       revalidateTag('leads');
+      await pushDebugLog('lead:created', { leadId });
       const pushBody = buildReadableLeadPushBody(safePayload);
       console.log('[Lead] triggering push for lead', leadId);
       try {
@@ -349,6 +351,7 @@ export async function POST(request) {
         });
       } catch (pushError) {
         console.error('Lead push notification error:', pushError);
+        await pushDebugLog('lead:push_error', { leadId, error: `${pushError.message}\n${pushError.stack || ''}` });
       }
     } catch (dbError) {
       console.error('Lead DB save error:', dbError);

@@ -1,5 +1,5 @@
 import webpush from 'web-push';
-import { getSql, ensureSchema } from './db';
+import { getSql, ensureSchema, pushDebugLog } from './db';
 import { getVapidKeys } from './pushConfig';
 
 const DEFAULT_URL = '/admin/dashboard';
@@ -86,6 +86,8 @@ async function markFailure(sql, id, statusCode, message) {
 export async function sendPushRows(rows, payload, { label = 'push' } = {}) {
   const config = configureWebPush();
   console.log(`[Push] ${label}: configureWebPush result`, config);
+  await pushDebugLog('configureWebPush:result', { data: { label, ...config } });
+
   if (!config.ok) {
     console.warn(`[Push] ${label}: VAPID keys missing`);
     return { ok: false, code: config.reason, sent: 0, failed: 0, total: rows.length, results: [] };
@@ -93,6 +95,8 @@ export async function sendPushRows(rows, payload, { label = 'push' } = {}) {
 
   await ensureSchema();
   const sql = getSql();
+
+  await pushDebugLog('sendPushRows:before_loop', { data: { label, count: rows.length } });
 
   if (!rows.length) {
     return { ok: false, code: 'no_subscriptions', sent: 0, failed: 0, total: 0, results: [] };
@@ -122,6 +126,7 @@ export async function sendPushRows(rows, payload, { label = 'push' } = {}) {
       sent += 1;
       results.push({ id: row.id, ok: true, statusCode, endpoint: row.endpoint });
       await markSuccess(sql, row.id, statusCode);
+      await pushDebugLog('sendPushRows:row_processed', { subscriptionId: row.id, data: { ok: true, statusCode } });
       continue;
     }
 
@@ -130,6 +135,7 @@ export async function sendPushRows(rows, payload, { label = 'push' } = {}) {
     failed += 1;
     results.push({ id: row.id, ok: false, statusCode, error: message, endpoint: row.endpoint });
     await markFailure(sql, row.id, statusCode, message);
+    await pushDebugLog('sendPushRows:row_processed', { subscriptionId: row.id, data: { ok: false, statusCode }, error: message });
     console.error(`[Push] ${label}: failed subscription ${row.id}`, statusCode, message);
 
     if ([404, 410].includes(statusCode)) expiredIds.push(row.id);
@@ -164,6 +170,8 @@ export async function sendPushRows(rows, payload, { label = 'push' } = {}) {
 export async function sendPushToAll({ title, body, url = DEFAULT_URL, excludeUserId = null, tag = 'svoydom-crm-all', type = 'broadcast' }) {
   console.log('[Push] sendPushToAll called', { title, type, excludeUserId });
   await ensureSchema();
+  await pushDebugLog('sendPushToAll:called', { data: { title, type, excludeUserId } });
+
   const sql = getSql();
   const rows = excludeUserId
     ? await sql`
@@ -173,8 +181,18 @@ export async function sendPushToAll({ title, body, url = DEFAULT_URL, excludeUse
       `
     : await sql`SELECT id, endpoint, subscription FROM push_subscriptions`;
 
+  await pushDebugLog('sendPushToAll:rows_loaded', { data: { count: rows.length } });
+
   const payload = buildPushPayload({ title, body, url, tag, type });
-  return sendPushRows(rows, payload, { label: 'broadcast' });
+  let result;
+  try {
+    result = await sendPushRows(rows, payload, { label: 'broadcast' });
+  } catch (e) {
+    await pushDebugLog('sendPushToAll:error', { error: `${e.message}\n${e.stack || ''}` });
+    throw e;
+  }
+  await pushDebugLog('sendPushToAll:done', { data: { sent: result.sent, failed: result.failed, total: result.total } });
+  return result;
 }
 
 export async function sendPushToUsers({ userIds, title, body, url = DEFAULT_URL, tag = null, type = 'user' }) {

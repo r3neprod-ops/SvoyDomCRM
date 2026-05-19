@@ -308,6 +308,20 @@ export async function ensureSchema() {
     )
   `;
   await sql`CREATE INDEX IF NOT EXISTS lead_events_lead_id_created_at_idx ON lead_events (lead_id, created_at DESC)`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS push_debug_log (
+      id               SERIAL PRIMARY KEY,
+      created_at       TIMESTAMPTZ DEFAULT NOW(),
+      stage            TEXT NOT NULL,
+      lead_id          INTEGER,
+      subscription_id  INTEGER,
+      data             JSONB,
+      error            TEXT
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS push_debug_log_created_at_idx ON push_debug_log (created_at DESC)`;
+
   await dropLeadAssignmentTriggers(sql);
   await clearAutoAssignedNewLeads(sql);
   await installLeadAssignmentGuard(sql);
@@ -326,4 +340,22 @@ export async function ensureSchema() {
   }
 
   initialized = true;
+}
+
+export async function pushDebugLog(stage, { leadId = null, subscriptionId = null, data = null, error = null } = {}) {
+  try {
+    const s = getSql();
+    await s`
+      INSERT INTO push_debug_log (stage, lead_id, subscription_id, data, error)
+      VALUES (
+        ${stage},
+        ${leadId ?? null},
+        ${subscriptionId ?? null},
+        ${data != null ? s.json(data) : null},
+        ${error ?? null}
+      )
+    `;
+  } catch {
+    // best-effort: never let debug logging break push delivery
+  }
 }
