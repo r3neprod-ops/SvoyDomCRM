@@ -4,6 +4,58 @@ import bcrypt from 'bcryptjs';
 let sql;
 let initialized = false;
 
+async function dropLeadAssignmentTriggers(sql) {
+  let triggers = [];
+  try {
+    triggers = await sql`
+      SELECT
+        t.tgname,
+        pg_get_triggerdef(t.oid) AS trigger_def,
+        COALESCE(p.prosrc, '') AS function_body
+      FROM pg_trigger t
+      JOIN pg_proc p ON p.oid = t.tgfoid
+      WHERE t.tgrelid = 'leads'::regclass
+        AND NOT t.tgisinternal
+    `;
+  } catch (error) {
+    console.warn('[db] Could not inspect lead triggers:', error.message);
+    return;
+  }
+
+  for (const trigger of triggers) {
+    const source = `${trigger.trigger_def}\n${trigger.function_body}`.toLowerCase();
+    const touchesAssignment =
+      source.includes('assigned_to') ||
+      source.includes('leads_count') ||
+      source.includes('last_assigned_at');
+
+    if (!touchesAssignment) continue;
+
+    await sql`DROP TRIGGER IF EXISTS ${sql(trigger.tgname)} ON leads`;
+    console.warn(`[db] Dropped lead assignment trigger: ${trigger.tgname}`);
+  }
+}
+
+async function clearAutoAssignedNewLeads(sql) {
+  const rows = await sql`
+    UPDATE leads l
+    SET assigned_to = NULL
+    WHERE l.status = 'new'
+      AND l.assigned_to IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1
+        FROM lead_events le
+        WHERE le.lead_id = l.id
+          AND le.type = 'assigned'
+      )
+    RETURNING l.id
+  `;
+
+  if (rows.length) {
+    console.warn(`[db] Cleared auto-assigned new leads: ${rows.map((row) => row.id).join(', ')}`);
+  }
+}
+
 export function getSql() {
   if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL environment variable is not set');
@@ -199,6 +251,8 @@ export async function ensureSchema() {
     )
   `;
   await sql`CREATE INDEX IF NOT EXISTS lead_events_lead_id_created_at_idx ON lead_events (lead_id, created_at DESC)`;
+  await dropLeadAssignmentTriggers(sql);
+  await clearAutoAssignedNewLeads(sql);
 
   // Ensure admin account always exists — but never overwrite an existing password.
   // This runs on every cold start; ON CONFLICT DO NOTHING guarantees idempotency.

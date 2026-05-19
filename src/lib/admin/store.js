@@ -4,11 +4,11 @@ import { addLeadEvent } from './leadEvents';
 function buildMessage(answers) {
   if (!answers || typeof answers !== 'object') return '';
   const parts = [];
-  if (answers.propertyType)    parts.push(`Тип: ${answers.propertyType}`);
-  if (answers.apartmentType)   parts.push(`Планировка: ${answers.apartmentType}`);
-  if (answers.budgetPreset)    parts.push(`Бюджет: ${answers.budgetPreset}`);
+  if (answers.propertyType) parts.push(`Тип: ${answers.propertyType}`);
+  if (answers.apartmentType) parts.push(`Планировка: ${answers.apartmentType}`);
+  if (answers.budgetPreset) parts.push(`Бюджет: ${answers.budgetPreset}`);
   if (answers.downPaymentType) parts.push(`Взнос: ${answers.downPaymentType}`);
-  if (answers.telegram)        parts.push(`Telegram: ${answers.telegram}`);
+  if (answers.telegram) parts.push(`Telegram: ${answers.telegram}`);
   return parts.join(', ');
 }
 
@@ -16,23 +16,35 @@ export async function addLead(payload) {
   await ensureSchema();
   const sql = getSql();
   const answers = payload?.answers && typeof payload.answers === 'object' ? payload.answers : {};
-  const name    = payload?.name  || answers?.name  || '';
-  const phone   = payload?.phone || answers?.phone || '';
+  const name = payload?.name || answers?.name || '';
+  const phone = payload?.phone || answers?.phone || '';
   const message = buildMessage(answers);
 
-  const [row] = await sql`
-    INSERT INTO leads (name, phone, message, status, assigned_to)
-    VALUES (${name}, ${phone}, ${message}, 'new', NULL)
-    RETURNING id
-  `;
-  await addLeadEvent(sql, {
-    leadId: row.id,
-    type: 'created',
-    message: 'Лид создан',
-    meta: { source: payload?.pageUrl || null },
+  const row = await sql.begin(async (tx) => {
+    const [inserted] = await tx`
+      INSERT INTO leads (name, phone, message, status, assigned_to)
+      VALUES (${name}, ${phone}, ${message}, 'new', NULL)
+      RETURNING id
+    `;
+
+    const [lead] = await tx`
+      UPDATE leads
+      SET status = 'new', assigned_to = NULL
+      WHERE id = ${inserted.id}
+      RETURNING id, name, phone, message, status, assigned_to
+    `;
+
+    await addLeadEvent(tx, {
+      leadId: lead.id,
+      type: 'created',
+      message: 'Лид создан',
+      meta: { source: payload?.pageUrl || null },
+    });
+
+    return lead;
   });
 
-  return { id: row.id, name, phone, message, status: 'new' };
+  return row;
 }
 
 export async function getLeads() {
