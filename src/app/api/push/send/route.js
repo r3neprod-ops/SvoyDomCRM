@@ -10,7 +10,6 @@ export async function POST(request) {
   const { title, body } = await request.json().catch(() => ({}));
   if (!title) return NextResponse.json({ ok: false, message: 'title required' }, { status: 400 });
 
-  console.log(`[Push/send] Triggered by admin user ${user.id}, title="${title}"`);
-  await sendPushToAll({ title, body });
-  return NextResponse.json({ ok: true });
+  const result = await sendPushToAll({ title, body });
+  return NextResponse.json({ ok: result.ok, result }, { status: result.ok ? 200 : 502 });
 }

@@ -95,6 +95,30 @@ function buildLeadPushBody(payload) {
   return parts.length > 0 ? `${name} — ${parts.join(', ')}` : name;
 }
 
+function buildReadableLeadPushBody(payload) {
+  const answers = asRecord(payload?.answers);
+  const name = payload?.name || answers.name || 'Новый клиент';
+  const apartmentMap = {
+    studio: 'Студия',
+    '1room': '1-комнатная',
+    '2rooms': '2-комнатная',
+    '3rooms': '3-комнатная',
+    '4plus': '4+ комнат',
+    choosing: 'Еще выбираю',
+  };
+  const budgetMap = {
+    '5_to_7': '5-7 млн',
+    '7_to_10': '7-10 млн',
+    '10_plus': '10+ млн',
+  };
+  const parts = [];
+  if (answers.apartmentType) parts.push(apartmentMap[answers.apartmentType] || humanizeFallback(answers.apartmentType));
+  if (answers.budgetPreset) parts.push(`бюджет ${budgetMap[answers.budgetPreset] || humanizeFallback(answers.budgetPreset)}`);
+  if (payload?.phone) parts.push(`тел. ${payload.phone}`);
+  if (answers.telegram) parts.push(`Telegram: ${answers.telegram}`);
+  return parts.length ? `${name}: ${parts.join(', ')}` : name;
+}
+
 function humanizeFallback(value) {
   const text = String(value ?? '').trim();
   if (!text) return '';
@@ -313,7 +337,7 @@ export async function POST(request) {
       const lead = await addLead(safePayload);
       leadId = lead.id;
       revalidateTag('leads');
-      const pushBody = buildLeadPushBody(safePayload);
+      const pushBody = buildReadableLeadPushBody(safePayload);
       sendPushToAll({
         title: 'Новый лид!',
         body: pushBody,

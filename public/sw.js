@@ -1,4 +1,4 @@
-const CACHE_NAME = 'svoydom-crm-static-v4';
+const CACHE_NAME = 'svoydom-crm-static-v6';
 const PRECACHE_URLS = ['/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
@@ -10,11 +10,13 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    Promise.all([
+      caches.keys().then((keys) =>
+        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+      ),
+      self.clients.claim(),
+    ])
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
@@ -29,56 +31,86 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Push notifications
-self.addEventListener('push', (event) => {
-  console.log('[SW] push event received', event.data?.text?.() ?? '(no data)');
-  let data = {};
+function readPushPayload(event) {
+  if (!event.data) return {};
   try {
-    data = event.data?.json() ?? {};
-  } catch (err) {
-    console.error('[SW] Failed to parse push payload as JSON:', err, event.data?.text?.());
+    return event.data.json();
+  } catch (error) {
+    try {
+      return { body: event.data.text() };
+    } catch {
+      return {};
+    }
   }
-  console.log('[SW] push data:', data);
+}
+
+async function setBadge(count = 1) {
+  try {
+    if (self.navigator?.setAppBadge) {
+      await self.navigator.setAppBadge(count);
+    }
+  } catch {
+    // Badge support is browser-specific. Push delivery must not depend on it.
+  }
+}
+
+async function clearBadge() {
+  try {
+    if (self.navigator?.clearAppBadge) {
+      await self.navigator.clearAppBadge();
+    }
+  } catch {
+    // Ignore unsupported badge API.
+  }
+}
+
+self.addEventListener('push', (event) => {
+  const data = readPushPayload(event);
+  const title = data.title || 'СвойДом CRM';
   const targetUrl = data.url || '/admin/dashboard';
+  const badgeCount = Number(data.badgeCount || 1);
   const actions = self.Notification?.maxActions > 0
     ? [{ action: 'open', title: 'Открыть CRM' }]
     : [];
 
-  event.waitUntil(
-    self.registration.showNotification(data.title || 'СвойДом CRM', {
+  event.waitUntil((async () => {
+    await setBadge(badgeCount);
+    await self.registration.showNotification(title, {
       body: data.body || 'Новое событие в CRM',
       icon: data.icon || '/icon-192.png',
       badge: data.badge || '/favicon-96x96.png',
       image: data.image,
-      tag: data.tag || 'svoydom-crm',
-      renotify: true,
-      vibrate: [200, 100, 200],
-      requireInteraction: false,
+      tag: data.tag || `svoydom-crm-${Date.now()}`,
+      renotify: Boolean(data.tag),
+      vibrate: [180, 80, 180],
+      requireInteraction: Boolean(data.requireInteraction),
       timestamp: data.timestamp || Date.now(),
       actions,
-      data: { url: targetUrl, type: data.type || 'crm' },
-    }).then(() => {
-      console.log('[SW] Notification shown successfully');
-    }).catch((err) => {
-      console.error('[SW] showNotification failed:', err);
-    })
-  );
+      data: {
+        url: targetUrl,
+        type: data.type || 'crm',
+      },
+    });
+  })());
 });
 
 self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] notificationclick', event.notification.data);
   event.notification.close();
   const targetUrl = new URL(event.notification.data?.url || '/admin/dashboard', self.location.origin).href;
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      for (const client of windowClients) {
-        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
-          console.log('[SW] Focusing existing window');
-          return client.focus().then((focused) => focused.navigate ? focused.navigate(targetUrl) : focused);
-        }
+
+  event.waitUntil((async () => {
+    await clearBadge();
+    const windowClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of windowClients) {
+      if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+        await client.focus();
+        return 'navigate' in client ? client.navigate(targetUrl) : client;
       }
-      console.log('[SW] Opening new window:', targetUrl);
-      return clients.openWindow(targetUrl);
-    })
-  );
+    }
+    return clients.openWindow(targetUrl);
+  })());
+});
+
+self.addEventListener('notificationclose', (event) => {
+  event.waitUntil(clearBadge());
 });

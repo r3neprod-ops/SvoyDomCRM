@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/admin/auth';
 import { ensureSchema, getSql } from '@/lib/admin/db';
-import { getVapidKeys } from '@/lib/admin/pushConfig';
+import { getVapidDiagnostics } from '@/lib/admin/pushConfig';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,12 +15,22 @@ export async function GET() {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
-  const { publicKey, privateKey } = getVapidKeys();
+  const vapid = getVapidDiagnostics();
   const diagnostics = {
-    vapidPublicKey: { ok: Boolean(publicKey), label: publicKey ? 'configured' : 'missing' },
-    vapidPrivateKey: { ok: Boolean(privateKey), label: privateKey ? 'configured' : 'missing' },
+    vapidPublicKey: {
+      ok: Boolean(vapid.publicKey),
+      label: vapid.publicKey ? `configured (${vapid.publicKeyLength} chars)` : 'missing',
+    },
+    vapidPrivateKey: {
+      ok: Boolean(vapid.privateKey),
+      label: vapid.privateKey ? `configured (${vapid.privateKeyLength} chars)` : 'missing',
+    },
+    vapidSubject: {
+      ok: Boolean(vapid.subject),
+      label: vapid.subject || 'missing',
+    },
     database: { ok: false, label: 'not_checked' },
-    subscriptions: { ok: false, count: 0, items: [] },
+    subscriptions: { ok: false, count: 0, allCount: 0, items: [] },
   };
 
   try {
@@ -28,21 +38,41 @@ export async function GET() {
     const sql = getSql();
     diagnostics.database = { ok: true, label: 'connected' };
 
+    const [{ count: allCount }] = await sql`
+      SELECT COUNT(*)::int AS count FROM push_subscriptions
+    `;
+
     const subscriptions = await sql`
-      SELECT id, endpoint, created_at
+      SELECT
+        id,
+        endpoint,
+        platform,
+        created_at,
+        updated_at,
+        last_success_at,
+        last_error_at,
+        last_status_code,
+        last_error
       FROM push_subscriptions
       WHERE user_id = ${user.id}
-      ORDER BY created_at DESC
-      LIMIT 5
+      ORDER BY updated_at DESC NULLS LAST, created_at DESC
+      LIMIT 10
     `;
 
     diagnostics.subscriptions = {
       ok: subscriptions.length > 0,
       count: subscriptions.length,
+      allCount,
       items: subscriptions.map((row) => ({
         id: row.id,
         endpoint: maskEndpoint(row.endpoint),
+        platform: row.platform || 'unknown',
         created_at: row.created_at,
+        updated_at: row.updated_at,
+        last_success_at: row.last_success_at,
+        last_error_at: row.last_error_at,
+        last_status_code: row.last_status_code,
+        last_error: row.last_error,
       })),
     };
   } catch (err) {

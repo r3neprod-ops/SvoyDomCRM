@@ -187,6 +187,13 @@ export async function ensureSchema() {
   await sql`ALTER TABLE leads ALTER COLUMN assigned_to DROP DEFAULT`;
   await sql`ALTER TABLE leads ALTER COLUMN status SET DEFAULT 'new'`;
   await sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`;
+  await sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS user_agent TEXT`;
+  await sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS platform TEXT`;
+  await sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS last_success_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS last_error_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS last_status_code INTEGER`;
+  await sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS last_error TEXT`;
+  await sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`;
   await sql`CREATE INDEX IF NOT EXISTS push_subscriptions_user_id_idx ON push_subscriptions (user_id)`;
 
   await sql`

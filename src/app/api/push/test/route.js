@@ -1,82 +1,73 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/admin/auth';
 import { getSql, ensureSchema } from '@/lib/admin/db';
-import { getVapidKeys } from '@/lib/admin/pushConfig';
-import webpush from 'web-push';
+import { getVapidDiagnostics } from '@/lib/admin/pushConfig';
+import { buildPushPayload, sendPushRows } from '@/lib/admin/push';
+
+export const dynamic = 'force-dynamic';
+
+function maskEndpoint(endpoint = '') {
+  if (!endpoint) return '';
+  if (endpoint.length <= 30) return endpoint;
+  return `${endpoint.slice(0, 18)}...${endpoint.slice(-8)}`;
+}
 
 export async function POST() {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
-  const { publicKey: vapidPublic, privateKey: vapidPrivate } = getVapidKeys();
-
-  console.log(`[Push/test] user=${user.id}, VAPID_PUBLIC_KEY=${vapidPublic ? vapidPublic.slice(0, 20) + '…' : 'NOT SET'}, VAPID_PRIVATE_KEY=${vapidPrivate ? 'SET' : 'NOT SET'}`);
-
-  if (!vapidPublic || !vapidPrivate) {
-    console.error('[Push/test] VAPID keys are not configured! Set VAPID_PUBLIC_KEY/NEXT_PUBLIC_VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in .env');
+  const vapid = getVapidDiagnostics();
+  if (!vapid.ok) {
     return NextResponse.json({
       ok: false,
       code: 'vapid_keys_missing',
-      message: 'VAPID keys not configured',
+      message: 'На сервере не настроены VAPID_PUBLIC_KEY и VAPID_PRIVATE_KEY',
+      vapid: {
+        publicKey: Boolean(vapid.publicKey),
+        privateKey: Boolean(vapid.privateKey),
+        subject: Boolean(vapid.subject),
+      },
     }, { status: 500 });
   }
-
-  webpush.setVapidDetails('mailto:r3neprod@gmail.com', vapidPublic, vapidPrivate);
 
   await ensureSchema();
   const sql = getSql();
   const rows = await sql`
-    SELECT id, endpoint, subscription FROM push_subscriptions WHERE user_id = ${user.id}
+    SELECT id, endpoint, subscription
+    FROM push_subscriptions
+    WHERE user_id = ${user.id}
+    ORDER BY updated_at DESC NULLS LAST, created_at DESC
   `;
 
-  console.log(`[Push/test] Found ${rows.length} subscription(s) for user ${user.id}`);
-
   if (!rows.length) {
-    console.warn('[Push/test] No subscriptions found — user has not subscribed or subscription was deleted');
-    return NextResponse.json({ ok: false, message: 'No subscriptions found for this user' }, { status: 404 });
+    return NextResponse.json({
+      ok: false,
+      code: 'no_subscriptions',
+      message: 'Для этого пользователя нет сохраненной push-подписки',
+    }, { status: 404 });
   }
 
-  rows.forEach((row, i) => {
-    console.log(`[Push/test] Subscription ${i + 1}: id=${row.id}, endpoint=${row.endpoint}`);
-  });
-
-  const payload = JSON.stringify({
-    title: 'Тест уведомлений',
-    body: 'Если вы это видите — push-уведомления CRM работают.',
+  const payload = buildPushPayload({
+    title: 'СвойДом CRM',
+    body: 'Тестовое уведомление доставлено. Push работает.',
     url: '/admin/dashboard',
-    tag: 'svoydom-crm-test',
+    tag: `svoydom-crm-test-${user.id}-${Date.now()}`,
     type: 'test',
-    icon: '/icon-192.png',
-    badge: '/favicon-96x96.png',
-    timestamp: Date.now(),
+    requireInteraction: false,
   });
 
-  const results = await Promise.allSettled(
-    rows.map((row) => webpush.sendNotification(row.subscription, payload))
-  );
+  const result = await sendPushRows(rows, payload, { label: `test:user:${user.id}` });
 
-  const expiredIds = [];
-  let successCount = 0;
-  results.forEach((result, i) => {
-    if (result.status === 'fulfilled') {
-      successCount++;
-      console.log(`[Push/test] OK subscription ${rows[i].id}, statusCode=${result.value?.statusCode}`);
-    } else {
-      const code = result.reason?.statusCode;
-      const body = result.reason?.body ?? result.reason?.message;
-      console.error(`[Push/test] FAILED subscription ${rows[i].id}: statusCode=${code}, body=${body}`);
-      if (code === 401) console.error('[Push/test] 401 = Invalid VAPID keys — regenerate and update env vars');
-      if (code === 410 || code === 404) {
-        console.warn(`[Push/test] ${code} = Expired subscription, removing`);
-        expiredIds.push(rows[i].id);
-      }
-    }
-  });
-
-  if (expiredIds.length > 0) {
-    await sql`DELETE FROM push_subscriptions WHERE id = ANY(${expiredIds})`;
-    console.log(`[Push/test] Removed ${expiredIds.length} expired subscription(s)`);
-  }
-
-  return NextResponse.json({ ok: successCount > 0, sent: successCount, total: rows.length });
+  return NextResponse.json({
+    ok: result.ok,
+    code: result.ok ? 'sent' : 'send_failed',
+    sent: result.sent,
+    failed: result.failed,
+    total: result.total,
+    removedExpired: result.removedExpired,
+    results: result.results.map((item) => ({
+      ...item,
+      endpoint: maskEndpoint(item.endpoint),
+    })),
+  }, { status: result.ok ? 200 : 502 });
 }

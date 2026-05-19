@@ -1804,6 +1804,17 @@ export default function DashboardClient({ user }) {
                       <p>{pushDiagnostics.server?.vapidPrivateKey?.ok ? '✓' : '×'} VAPID private key</p>
                       <p>{pushDiagnostics.server?.database?.ok ? '✓' : '×'} База данных: {pushDiagnostics.server?.database?.label}</p>
                       <p>{pushDiagnostics.server?.subscriptions?.ok ? '✓' : '×'} Подписки на сервере: {pushDiagnostics.server?.subscriptions?.count || 0}</p>
+                      {pushDiagnostics.server?.subscriptions?.items?.length > 0 && (
+                        <div className="mt-2 space-y-1 rounded-lg bg-white px-2 py-2">
+                          {pushDiagnostics.server.subscriptions.items.map((item) => (
+                            <div key={item.id} className="border-b border-slate-100 pb-1 last:border-0 last:pb-0">
+                              <p>#{item.id} {item.platform || 'unknown'} · {item.endpoint}</p>
+                              {item.last_success_at && <p className="text-green-700">Последняя доставка: {new Date(item.last_success_at).toLocaleString('ru-RU')}</p>}
+                              {item.last_error && <p className="text-red-700">Ошибка {item.last_status_code || ''}: {item.last_error}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
