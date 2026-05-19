@@ -101,7 +101,7 @@ export async function sendPushRows(rows, payload, { label = 'push' } = {}) {
     rows.map((row) => {
       const subscription = normalizeStoredSubscription(row.subscription);
       if (!subscription?.endpoint) {
-        throw new Error('Stored push subscription is missing endpoint');
+        return Promise.reject(new Error('Stored push subscription is missing endpoint'));
       }
       return webpush.sendNotification(subscription, payload, { TTL: 60 * 60 });
     })
@@ -132,6 +132,18 @@ export async function sendPushRows(rows, payload, { label = 'push' } = {}) {
     console.error(`[Push] ${label}: failed subscription ${row.id}`, statusCode, message);
 
     if ([404, 410].includes(statusCode)) expiredIds.push(row.id);
+  }
+
+  if (failed > 0) {
+    const failedDetails = results
+      .filter((r) => !r.ok)
+      .map((r) => ({
+        id: r.id,
+        statusCode: r.statusCode,
+        error: r.error,
+        endpoint: r.endpoint ? `${String(r.endpoint).slice(0, 24)}…` : 'missing',
+      }));
+    console.warn(`[Push] ${label}: summary — sent:${sent} failed:${failed} total:${rows.length}`, JSON.stringify(failedDetails));
   }
 
   if (expiredIds.length > 0) {

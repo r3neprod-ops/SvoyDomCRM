@@ -200,6 +200,13 @@ export async function ensureSchema() {
     WHERE jsonb_typeof(subscription) = 'string'
       AND (subscription #>> '{}') LIKE '{%'
   `;
+  await sql`
+    DELETE FROM push_subscriptions
+    WHERE (subscription->>'endpoint') IS NULL
+       OR (subscription->>'endpoint') = ''
+       OR (subscription->'keys'->>'p256dh') IS NULL
+       OR (subscription->'keys'->>'auth') IS NULL
+  `;
   await sql`CREATE INDEX IF NOT EXISTS push_subscriptions_user_id_idx ON push_subscriptions (user_id)`;
 
   await sql`
