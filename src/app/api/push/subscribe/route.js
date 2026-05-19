@@ -40,7 +40,7 @@ export async function POST(request) {
 
   const [row] = await sql`
     INSERT INTO push_subscriptions (endpoint, subscription, user_id, user_agent, platform, updated_at)
-    VALUES (${subscription.endpoint}, ${JSON.stringify(subscription)}, ${user.id}, ${userAgent}, ${platform}, NOW())
+    VALUES (${subscription.endpoint}, ${sql.json(subscription)}, ${user.id}, ${userAgent}, ${platform}, NOW())
     ON CONFLICT (endpoint) DO UPDATE SET
       subscription = EXCLUDED.subscription,
       user_id = EXCLUDED.user_id,

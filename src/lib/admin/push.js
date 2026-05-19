@@ -49,6 +49,17 @@ function summarizeFailure(error) {
   return raw.length > 500 ? raw.slice(0, 500) : raw;
 }
 
+function normalizeStoredSubscription(subscription) {
+  if (typeof subscription === 'string') {
+    try {
+      return JSON.parse(subscription);
+    } catch {
+      return null;
+    }
+  }
+  return subscription && typeof subscription === 'object' ? subscription : null;
+}
+
 async function markSuccess(sql, id, statusCode) {
   await sql`
     UPDATE push_subscriptions
@@ -87,7 +98,13 @@ export async function sendPushRows(rows, payload, { label = 'push' } = {}) {
   }
 
   const settled = await Promise.allSettled(
-    rows.map((row) => webpush.sendNotification(row.subscription, payload, { TTL: 60 * 60 }))
+    rows.map((row) => {
+      const subscription = normalizeStoredSubscription(row.subscription);
+      if (!subscription?.endpoint) {
+        throw new Error('Stored push subscription is missing endpoint');
+      }
+      return webpush.sendNotification(subscription, payload, { TTL: 60 * 60 });
+    })
   );
 
   const expiredIds = [];

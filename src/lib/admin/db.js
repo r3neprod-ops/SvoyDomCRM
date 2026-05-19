@@ -194,6 +194,12 @@ export async function ensureSchema() {
   await sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS last_status_code INTEGER`;
   await sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS last_error TEXT`;
   await sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`;
+  await sql`
+    UPDATE push_subscriptions
+    SET subscription = (subscription #>> '{}')::jsonb
+    WHERE jsonb_typeof(subscription) = 'string'
+      AND (subscription #>> '{}') LIKE '{%'
+  `;
   await sql`CREATE INDEX IF NOT EXISTS push_subscriptions_user_id_idx ON push_subscriptions (user_id)`;
 
   await sql`
