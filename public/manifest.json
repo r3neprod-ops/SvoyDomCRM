@@ -2,12 +2,15 @@
   "name": "СвойДом CRM",
   "short_name": "СвойДом CRM",
   "description": "Панель управления лидами СвойДом",
+  "id": "/admin/login",
   "start_url": "/admin/login",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
+  "categories": ["business", "productivity"],
   "icons": [
     {
       "src": "/icon-192.png",

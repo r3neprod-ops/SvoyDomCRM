@@ -93,6 +93,22 @@ function subscriptionUsesPublicKey(subscription, publicKey) {
   return uint8ArrayToBase64Url(currentKey) === publicKey.replace(/=+$/, '');
 }
 
+function isIosDevice() {
+  if (typeof navigator === 'undefined') return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function isStandaloneApp() {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true;
+}
+
+function getIosInstallMessage() {
+  return 'На iPhone push включаются только в установленном PWA: откройте CRM в Safari, нажмите «Поделиться» → «На экран Домой», затем запустите CRM с иконки и включите уведомления там.';
+}
+
 function getInitials(name) {
   return String(name || '?')
     .trim()
@@ -234,9 +250,19 @@ export default function DashboardClient({ user }) {
   }, []);
 
   const refreshNotificationStatus = useCallback(async () => {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
+    if (typeof window === 'undefined') return;
+
+    const ios = isIosDevice();
+    const standalone = isStandaloneApp();
+    if (ios && !standalone) {
+      setNotificationError(getIosInstallMessage());
+      setNotifStatus('ios_install_required');
+      return;
+    }
+
+    if (!('Notification' in window)) {
       setNotificationError('');
-      setNotifStatus('unsupported');
+      setNotifStatus(ios ? 'unsupported_ios' : 'unsupported');
       return;
     }
     if (Notification.permission !== 'granted') {
@@ -245,8 +271,8 @@ export default function DashboardClient({ user }) {
       return;
     }
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      setNotificationError('');
-      setNotifStatus('unsupported');
+      setNotificationError(ios ? 'Нужен iOS 16.4 или новее и запуск CRM с иконки на экране Домой.' : '');
+      setNotifStatus(ios ? 'unsupported_ios' : 'unsupported');
       return;
     }
 
@@ -324,14 +350,26 @@ export default function DashboardClient({ user }) {
   }, [comments]);
 
   const enableNotifications = async () => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      console.warn('[Push] ServiceWorker or PushManager not supported');
-      setNotificationError('');
-      setNotifStatus('unsupported');
+    const ios = isIosDevice();
+    if (ios && !isStandaloneApp()) {
+      setNotificationError(getIosInstallMessage());
+      setNotifStatus('ios_install_required');
       return;
     }
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-      || (navigator.standalone === true);
+
+    if (!('Notification' in window)) {
+      setNotificationError(ios ? 'Нужен iOS 16.4 или новее и запуск CRM с иконки на экране Домой.' : '');
+      setNotifStatus(ios ? 'unsupported_ios' : 'unsupported');
+      return;
+    }
+
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      console.warn('[Push] ServiceWorker or PushManager not supported');
+      setNotificationError(ios ? 'Нужен iOS 16.4 или новее и запуск CRM с иконки на экране Домой.' : '');
+      setNotifStatus(ios ? 'unsupported_ios' : 'unsupported');
+      return;
+    }
+    const isStandalone = isStandaloneApp();
     console.log('[Push] Starting subscription, standalone:', isStandalone);
     setNotifStatus('loading');
     try {
@@ -422,6 +460,8 @@ export default function DashboardClient({ user }) {
         serviceWorker: typeof navigator !== 'undefined' && 'serviceWorker' in navigator,
         pushManager: typeof window !== 'undefined' && 'PushManager' in window,
         permission: typeof Notification !== 'undefined' ? Notification.permission : 'unsupported',
+        ios: isIosDevice(),
+        standalone: isStandaloneApp(),
         subscription: false,
         endpoint: '',
       };
@@ -909,6 +949,13 @@ export default function DashboardClient({ user }) {
     const data = await res.json();
     if (data.ok) {
       setEmployees((prev) => prev.filter((e) => e.id !== emp.id));
+      setLeads((prev) =>
+        prev.map((lead) =>
+          lead.assigned_to === emp.id
+            ? { ...lead, assigned_to: null, assigned_to_name: null, status: lead.status === 'in_progress' ? 'new' : lead.status }
+            : lead
+        )
+      );
     } else {
       alert(data.message || 'Ошибка удаления');
     }
@@ -961,6 +1008,10 @@ export default function DashboardClient({ user }) {
     ? 'Уведомления заблокированы'
     : notifStatus === 'unsupported'
     ? 'Push не поддерживается'
+    : notifStatus === 'unsupported_ios'
+    ? 'Push недоступен на этом iPhone'
+    : notifStatus === 'ios_install_required'
+    ? 'Установите CRM на экран Домой'
     : notifStatus === 'not_configured'
     ? 'Push-ключи не настроены'
     : notifStatus === 'loading'
@@ -970,11 +1021,13 @@ export default function DashboardClient({ user }) {
     : 'Включить уведомления';
   const notificationClass = notifStatus === 'granted'
     ? 'border-green-200 bg-green-50 text-green-700 hover:bg-red-50 hover:border-red-200 hover:text-red-700'
-    : notifStatus === 'denied' || notifStatus === 'unsupported' || notifStatus === 'not_configured'
+    : notifStatus === 'denied' || notifStatus === 'unsupported' || notifStatus === 'unsupported_ios' || notifStatus === 'ios_install_required' || notifStatus === 'not_configured'
     ? 'border-red-200 bg-red-50 text-red-600'
     : notifStatus === 'error'
     ? 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100'
     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100';
+
+  const notificationBlocked = ['denied', 'unsupported', 'unsupported_ios', 'ios_install_required', 'not_configured'].includes(notifStatus);
 
   const renderNavigation = () => (
     <div className="flex h-full flex-col">
@@ -1103,8 +1156,8 @@ export default function DashboardClient({ user }) {
           <span className="text-base">{theme === 'dark' ? '☀️' : '🌙'}</span>
         </button>
         <button
-          onClick={notifStatus === 'granted' ? disableNotifications : notifStatus === 'denied' || notifStatus === 'unsupported' || notifStatus === 'not_configured' ? undefined : enableNotifications}
-          disabled={notifStatus === 'loading' || notifStatus === 'denied' || notifStatus === 'unsupported' || notifStatus === 'not_configured'}
+          onClick={notifStatus === 'granted' ? disableNotifications : notificationBlocked ? undefined : enableNotifications}
+          disabled={notifStatus === 'loading' || notificationBlocked}
           className={`w-full rounded-xl border px-3 py-2 text-sm transition disabled:cursor-default ${notificationClass}`}
         >
           {notificationLabel}
@@ -1677,15 +1730,15 @@ export default function DashboardClient({ user }) {
                   onClick={disableNotifications}
                   className="w-full rounded-xl border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-700 transition hover:bg-red-50 hover:border-red-200 hover:text-red-700"
                 >
-                  Уведомления включены ✓
+                  {notificationLabel}
                 </button>
               ) : (
                 <button
-                  onClick={notifStatus === 'denied' || notifStatus === 'unsupported' || notifStatus === 'not_configured' ? undefined : enableNotifications}
-                  disabled={notifStatus === 'loading' || notifStatus === 'denied' || notifStatus === 'unsupported' || notifStatus === 'not_configured'}
-                  className={`w-full rounded-xl border px-4 py-2 text-sm transition disabled:cursor-default ${notifStatus === 'denied' || notifStatus === 'unsupported' || notifStatus === 'not_configured' ? 'border-red-200 bg-red-50 text-red-700' : notifStatus === 'error' ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100' : notifStatus === 'loading' ? 'border-slate-200 bg-slate-50 text-slate-500' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}
+                  onClick={notificationBlocked ? undefined : enableNotifications}
+                  disabled={notifStatus === 'loading' || notificationBlocked}
+                  className={`w-full rounded-xl border px-4 py-2 text-sm transition disabled:cursor-default ${notificationClass}`}
                 >
-                  {notifStatus === 'denied' ? 'Уведомления заблокированы' : notifStatus === 'unsupported' ? 'Push не поддерживается' : notifStatus === 'not_configured' ? 'Push-ключи не настроены' : notifStatus === 'loading' ? 'Подключение...' : notifStatus === 'error' ? 'Ошибка — попробовать снова' : 'Включить уведомления'}
+                  {notificationLabel}
                 </button>
               )}
               {notificationError && (
@@ -1718,6 +1771,9 @@ export default function DashboardClient({ user }) {
                       <p>{pushDiagnostics.browser?.notificationApi ? '✓' : '×'} Notification API: {pushDiagnostics.browser?.permission}</p>
                       <p>{pushDiagnostics.browser?.serviceWorker ? '✓' : '×'} Service Worker</p>
                       <p>{pushDiagnostics.browser?.pushManager ? '✓' : '×'} PushManager</p>
+                      {pushDiagnostics.browser?.ios && (
+                        <p>{pushDiagnostics.browser?.standalone ? '✓' : '×'} iPhone PWA: {pushDiagnostics.browser?.standalone ? 'запущено с экрана Домой' : 'нужно установить через Safari'}</p>
+                      )}
                       <p>{pushDiagnostics.browser?.subscription ? '✓' : '×'} Подписка в браузере{pushDiagnostics.browser?.endpoint ? `: ${pushDiagnostics.browser.endpoint}` : ''}</p>
                       <p>{pushDiagnostics.server?.vapidPublicKey?.ok ? '✓' : '×'} VAPID public key</p>
                       <p>{pushDiagnostics.server?.vapidPrivateKey?.ok ? '✓' : '×'} VAPID private key</p>

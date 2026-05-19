@@ -42,8 +42,13 @@ export async function POST() {
 
   const payload = JSON.stringify({
     title: 'Тест уведомлений',
-    body: 'Если вы это видите — push-уведомления работают!',
+    body: 'Если вы это видите — push-уведомления CRM работают.',
     url: '/admin/dashboard',
+    tag: 'svoydom-crm-test',
+    type: 'test',
+    icon: '/icon-192.png',
+    badge: '/favicon-96x96.png',
+    timestamp: Date.now(),
   });
 
   const results = await Promise.allSettled(

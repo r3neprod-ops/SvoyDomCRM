@@ -11,6 +11,19 @@ function initWebPush() {
   );
 }
 
+function buildPayload({ title, body, url = '/admin/dashboard', tag = 'svoydom-crm', type = 'crm' }) {
+  return JSON.stringify({
+    title: title || 'СвойДом CRM',
+    body: body || 'Новое событие в CRM',
+    url,
+    tag,
+    type,
+    icon: '/icon-192.png',
+    badge: '/favicon-96x96.png',
+    timestamp: Date.now(),
+  });
+}
+
 export async function sendPushToAll({ title, body, url = '/admin/dashboard', excludeUserId = null }) {
   const { publicKey, privateKey } = getVapidKeys();
   if (!publicKey || !privateKey) {
@@ -31,7 +44,7 @@ export async function sendPushToAll({ title, body, url = '/admin/dashboard', exc
   console.log(`[Push] sendPushToAll: ${rows.length} subscriptions, title="${title}"`);
   if (!rows.length) return;
 
-  const payload = JSON.stringify({ title, body, url });
+  const payload = buildPayload({ title, body, url, tag: 'svoydom-crm-all' });
   const results = await Promise.allSettled(
     rows.map((row) => webpush.sendNotification(row.subscription, payload))
   );
@@ -70,7 +83,7 @@ export async function sendPushToUsers({ userIds, title, body, url = '/admin/dash
   console.log(`[Push] sendPushToUsers: ${rows.length} subscriptions for ${userIds.length} users, title="${title}"`);
   if (!rows.length) return;
 
-  const payload = JSON.stringify({ title, body, url });
+  const payload = buildPayload({ title, body, url, tag: `svoydom-crm-users-${userIds.join('-')}` });
   const results = await Promise.allSettled(
     rows.map((row) => webpush.sendNotification(row.subscription, payload))
   );
@@ -109,7 +122,7 @@ export async function sendPushToUser({ userId, title, body, url = '/admin/dashbo
   console.log(`[Push] sendPushToUser ${userId}: ${rows.length} subscriptions, title="${title}"`);
   if (!rows.length) return;
 
-  const payload = JSON.stringify({ title, body, url });
+  const payload = buildPayload({ title, body, url, tag: `svoydom-crm-user-${userId}` });
   const results = await Promise.allSettled(
     rows.map((row) => webpush.sendNotification(row.subscription, payload))
   );

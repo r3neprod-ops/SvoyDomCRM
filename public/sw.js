@@ -1,4 +1,4 @@
-const CACHE_NAME = 'svoydom-crm-static-v2';
+const CACHE_NAME = 'svoydom-crm-static-v4';
 const PRECACHE_URLS = ['/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
@@ -39,16 +39,24 @@ self.addEventListener('push', (event) => {
     console.error('[SW] Failed to parse push payload as JSON:', err, event.data?.text?.());
   }
   console.log('[SW] push data:', data);
+  const targetUrl = data.url || '/admin/dashboard';
+  const actions = self.Notification?.maxActions > 0
+    ? [{ action: 'open', title: 'Открыть CRM' }]
+    : [];
 
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Уведомление', {
-      body: data.body || '',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
+    self.registration.showNotification(data.title || 'СвойДом CRM', {
+      body: data.body || 'Новое событие в CRM',
+      icon: data.icon || '/icon-192.png',
+      badge: data.badge || '/favicon-96x96.png',
+      image: data.image,
       tag: data.tag || 'svoydom-crm',
+      renotify: true,
       vibrate: [200, 100, 200],
       requireInteraction: false,
-      data: { url: data.url || '/admin/dashboard' },
+      timestamp: data.timestamp || Date.now(),
+      actions,
+      data: { url: targetUrl, type: data.type || 'crm' },
     }).then(() => {
       console.log('[SW] Notification shown successfully');
     }).catch((err) => {
@@ -60,13 +68,13 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   console.log('[SW] notificationclick', event.notification.data);
   event.notification.close();
-  const targetUrl = event.notification.data?.url || '/admin/dashboard';
+  const targetUrl = new URL(event.notification.data?.url || '/admin/dashboard', self.location.origin).href;
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
       for (const client of windowClients) {
-        if (client.url.includes(targetUrl) && 'focus' in client) {
+        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
           console.log('[SW] Focusing existing window');
-          return client.focus();
+          return client.focus().then((focused) => focused.navigate ? focused.navigate(targetUrl) : focused);
         }
       }
       console.log('[SW] Opening new window:', targetUrl);
