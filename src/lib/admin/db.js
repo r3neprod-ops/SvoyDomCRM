@@ -345,17 +345,18 @@ export async function ensureSchema() {
 export async function pushDebugLog(stage, { leadId = null, subscriptionId = null, data = null, error = null } = {}) {
   try {
     const s = getSql();
+    const dataJson = data != null ? JSON.stringify(data) : null;
     await s`
       INSERT INTO push_debug_log (stage, lead_id, subscription_id, data, error)
       VALUES (
         ${stage},
         ${leadId ?? null},
         ${subscriptionId ?? null},
-        ${data != null ? s.json(data) : null},
+        ${dataJson}::jsonb,
         ${error ?? null}
       )
     `;
-  } catch {
-    // best-effort: never let debug logging break push delivery
+  } catch (e) {
+    console.error('[pushDebugLog] INSERT failed:', e?.message);
   }
 }

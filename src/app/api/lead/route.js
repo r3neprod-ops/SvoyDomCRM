@@ -1,7 +1,7 @@
 import { revalidateTag } from 'next/cache';
 import { addLead } from '@/lib/admin/store';
 import { sendPushToAll } from '@/lib/admin/push';
-import { pushDebugLog } from '@/lib/admin/db';
+import { pushDebugLog, getSql } from '@/lib/admin/db';
 
 const DEDUPE_WINDOW_MS = 30 * 1000;
 const recentLeadStore = new Map();
@@ -338,6 +338,15 @@ export async function POST(request) {
       const lead = await addLead(safePayload);
       leadId = lead.id;
       revalidateTag('leads');
+
+      // Direct INSERT — bypass helper to confirm DB write works from this route
+      try {
+        const _sql = getSql();
+        await _sql`INSERT INTO push_debug_log (stage, lead_id) VALUES ('lead:route_reached', ${leadId})`;
+      } catch (e) {
+        console.error('[Lead] direct debug INSERT failed:', e?.message);
+      }
+
       await pushDebugLog('lead:created', { leadId });
       const pushBody = buildReadableLeadPushBody(safePayload);
       console.log('[Lead] triggering push for lead', leadId);
