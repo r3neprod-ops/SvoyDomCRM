@@ -148,7 +148,7 @@ export async function sendPushRows(rows, payload, { label = 'push' } = {}) {
   };
 }
 
-export async function sendPushToAll({ title, body, url = DEFAULT_URL, excludeUserId = null }) {
+export async function sendPushToAll({ title, body, url = DEFAULT_URL, excludeUserId = null, tag = 'svoydom-crm-all', type = 'broadcast' }) {
   await ensureSchema();
   const sql = getSql();
   const rows = excludeUserId
@@ -159,11 +159,11 @@ export async function sendPushToAll({ title, body, url = DEFAULT_URL, excludeUse
       `
     : await sql`SELECT id, endpoint, subscription FROM push_subscriptions`;
 
-  const payload = buildPushPayload({ title, body, url, tag: 'svoydom-crm-all', type: 'broadcast' });
+  const payload = buildPushPayload({ title, body, url, tag, type });
   return sendPushRows(rows, payload, { label: 'broadcast' });
 }
 
-export async function sendPushToUsers({ userIds, title, body, url = DEFAULT_URL }) {
+export async function sendPushToUsers({ userIds, title, body, url = DEFAULT_URL, tag = null, type = 'user' }) {
   const ids = [...new Set((userIds || []).map(Number).filter(Boolean))];
   if (!ids.length) {
     return { ok: false, code: 'no_users', sent: 0, failed: 0, total: 0, results: [] };
@@ -177,10 +177,10 @@ export async function sendPushToUsers({ userIds, title, body, url = DEFAULT_URL 
     WHERE user_id = ANY(${ids})
   `;
 
-  const payload = buildPushPayload({ title, body, url, tag: `svoydom-crm-users-${ids.join('-')}`, type: 'user' });
+  const payload = buildPushPayload({ title, body, url, tag: tag || `svoydom-crm-users-${ids.join('-')}`, type });
   return sendPushRows(rows, payload, { label: `users:${ids.join(',')}` });
 }
 
-export async function sendPushToUser({ userId, title, body, url = DEFAULT_URL }) {
-  return sendPushToUsers({ userIds: [userId], title, body, url });
+export async function sendPushToUser({ userId, title, body, url = DEFAULT_URL, tag = null, type = 'user' }) {
+  return sendPushToUsers({ userIds: [userId], title, body, url, tag, type });
 }

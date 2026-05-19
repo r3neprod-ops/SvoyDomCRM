@@ -93,12 +93,18 @@ export async function POST(request) {
     RETURNING id, text, media_url, media_type, media_mime, media_size, media_name, created_at
   `;
 
-  sendPushToAll({
-    title: `Новое сообщение от ${user.name || 'CRM'}`,
-    body: text.length > 120 ? `${text.slice(0, 117)}...` : text,
-    url: '/admin/dashboard',
-    excludeUserId: user.id,
-  }).catch((err) => console.error('Chat push notification error:', err));
+  try {
+    await sendPushToAll({
+      title: `Новое сообщение от ${user.name || 'CRM'}`,
+      body: text.length > 120 ? `${text.slice(0, 117)}...` : text,
+      url: '/admin/dashboard',
+      excludeUserId: user.id,
+      tag: `svoydom-crm-chat-${message.id}`,
+      type: 'chat',
+    });
+  } catch (pushError) {
+    console.error('Chat push notification error:', pushError);
+  }
 
   return NextResponse.json({
     ok: true,

@@ -110,12 +110,18 @@ export async function POST(request, { params }) {
   `;
   const memberIds = members.map((m) => m.user_id);
   if (memberIds.length > 0) {
-    sendPushToUsers({
-      userIds: memberIds,
-      title: `${room?.name || 'Канал'}: ${user.name}`,
-      body: text.length > 120 ? `${text.slice(0, 117)}...` : text,
-      url: '/admin/dashboard',
-    }).catch(console.error);
+    try {
+      await sendPushToUsers({
+        userIds: memberIds,
+        title: `${room?.name || 'Канал'}: ${user.name}`,
+        body: text.length > 120 ? `${text.slice(0, 117)}...` : text,
+        url: '/admin/dashboard',
+        tag: `svoydom-crm-room-${message.id}`,
+        type: 'room_chat',
+      });
+    } catch (pushError) {
+      console.error('Room chat push notification error:', pushError);
+    }
   }
 
   return NextResponse.json({

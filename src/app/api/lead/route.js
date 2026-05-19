@@ -338,11 +338,17 @@ export async function POST(request) {
       leadId = lead.id;
       revalidateTag('leads');
       const pushBody = buildReadableLeadPushBody(safePayload);
-      sendPushToAll({
-        title: 'Новый лид!',
-        body: pushBody,
-        url: '/admin/dashboard',
-      }).catch((err) => console.error('Push notification error:', err));
+      try {
+        await sendPushToAll({
+          title: 'Новый лид!',
+          body: pushBody,
+          url: '/admin/dashboard',
+          tag: `svoydom-crm-lead-${leadId}`,
+          type: 'lead',
+        });
+      } catch (pushError) {
+        console.error('Lead push notification error:', pushError);
+      }
     } catch (dbError) {
       console.error('Lead DB save error:', dbError);
       return jsonWithCors(

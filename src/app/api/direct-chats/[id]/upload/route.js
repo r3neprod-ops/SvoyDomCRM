@@ -82,12 +82,18 @@ export async function POST(request, { params }) {
       : requestedType === 'audio_note' ? 'Голосовое в личных сообщениях'
       : requestedType === 'file' ? 'Файл в личных сообщениях'
       : 'Фото в личных сообщениях';
-    sendPushToUser({
-      userId: otherId,
-      title: `Личное от ${user.name}`,
-      body: pushBody,
-      url: '/admin/dashboard',
-    }).catch(console.error);
+    try {
+      await sendPushToUser({
+        userId: otherId,
+        title: `Личное от ${user.name}`,
+        body: pushBody,
+        url: '/admin/dashboard',
+        tag: `svoydom-crm-dm-media-${message.id}`,
+        type: 'direct_chat_media',
+      });
+    } catch (pushError) {
+      console.error('Direct chat media push notification error:', pushError);
+    }
 
     return NextResponse.json({
       ok: true,

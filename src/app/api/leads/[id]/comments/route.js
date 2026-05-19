@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/admin/auth';
 import { getSql, ensureSchema } from '@/lib/admin/db';
 import { addLeadEvent } from '@/lib/admin/leadEvents';
+import { sendPushToAll } from '@/lib/admin/push';
 
 export async function GET(request, { params }) {
   const user = await getAuthUser();
@@ -68,6 +69,19 @@ export async function POST(request, { params }) {
     type: 'comment_added',
     message: 'Добавлен комментарий',
   });
+
+  try {
+    await sendPushToAll({
+      title: `Комментарий к лиду #${leadId}`,
+      body: `${user.name || 'CRM'}: ${text.length > 120 ? `${text.slice(0, 117)}...` : text}`,
+      url: '/admin/dashboard',
+      excludeUserId: user.id,
+      tag: `svoydom-crm-lead-comment-${leadId}-${Date.now()}`,
+      type: 'lead_comment',
+    });
+  } catch (pushError) {
+    console.error('Lead comment push notification error:', pushError);
+  }
 
   return NextResponse.json({ ok: true, comment: { ...comment, author_name: user.name }, event });
 }

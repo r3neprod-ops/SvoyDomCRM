@@ -3,6 +3,7 @@ import { revalidateTag } from 'next/cache';
 import { getAuthUser } from '@/lib/admin/auth';
 import { getSql, ensureSchema } from '@/lib/admin/db';
 import { addLeadEvent } from '@/lib/admin/leadEvents';
+import { sendPushToAll } from '@/lib/admin/push';
 
 const STATUS_LABELS = { new: 'Новый', in_progress: 'В работе', closed: 'Закрыт' };
 const VALID_STATUSES = new Set(['new', 'in_progress', 'closed']);
@@ -148,6 +149,29 @@ export async function PATCH(request, { params }) {
     });
   }
 
+  if (oldAssignee !== freshLead.assigned_to || oldStatus !== freshLead.status) {
+    const parts = [];
+    if (oldAssignee !== freshLead.assigned_to) {
+      parts.push(freshLead.assigned_to ? `назначен: ${freshLead.assigned_to_name || `#${freshLead.assigned_to}`}` : 'ответственный снят');
+    }
+    if (oldStatus !== freshLead.status) {
+      parts.push(`статус: ${STATUS_LABELS[freshLead.status] || freshLead.status}`);
+    }
+
+    try {
+      await sendPushToAll({
+        title: `Лид #${id} изменен`,
+        body: `${user.name || 'CRM'}: ${parts.join(', ')}`,
+        url: '/admin/dashboard',
+        excludeUserId: user.id,
+        tag: `svoydom-crm-lead-update-${id}-${Date.now()}`,
+        type: 'lead_update',
+      });
+    } catch (pushError) {
+      console.error('Lead update push notification error:', pushError);
+    }
+  }
+
   revalidateTag('leads');
   return NextResponse.json({ ok: true });
 }
@@ -163,7 +187,7 @@ export async function DELETE(request, { params }) {
   await ensureSchema();
   const sql = getSql();
   try {
-    const [lead] = await sql`SELECT id FROM leads WHERE id = ${id}`;
+    const [lead] = await sql`SELECT id, name, phone FROM leads WHERE id = ${id}`;
     if (!lead) return NextResponse.json({ ok: false, message: 'Лид не найден' }, { status: 404 });
 
     await sql.begin(async (tx) => {
@@ -171,6 +195,18 @@ export async function DELETE(request, { params }) {
       await tx`DELETE FROM lead_events WHERE lead_id = ${id}`;
       await tx`DELETE FROM leads WHERE id = ${id}`;
     });
+    try {
+      await sendPushToAll({
+        title: `Лид #${id} удален`,
+        body: `${user.name || 'CRM'} удалил лид${lead.name ? `: ${lead.name}` : ''}${lead.phone ? `, ${lead.phone}` : ''}`,
+        url: '/admin/dashboard',
+        excludeUserId: user.id,
+        tag: `svoydom-crm-lead-delete-${id}-${Date.now()}`,
+        type: 'lead_delete',
+      });
+    } catch (pushError) {
+      console.error('Lead delete push notification error:', pushError);
+    }
     revalidateTag('leads');
     return NextResponse.json({ ok: true });
   } catch (err) {

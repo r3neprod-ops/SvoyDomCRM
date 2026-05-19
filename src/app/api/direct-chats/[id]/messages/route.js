@@ -107,12 +107,18 @@ export async function POST(request, { params }) {
 
   const [chatRow] = await sql`SELECT user1_id, user2_id FROM direct_chats WHERE id = ${chatId}`;
   const otherId = chatRow.user1_id === user.id ? chatRow.user2_id : chatRow.user1_id;
-  sendPushToUser({
-    userId: otherId,
-    title: `Личное от ${user.name}`,
-    body: text.length > 120 ? `${text.slice(0, 117)}...` : text,
-    url: '/admin/dashboard',
-  }).catch(console.error);
+  try {
+    await sendPushToUser({
+      userId: otherId,
+      title: `Личное от ${user.name}`,
+      body: text.length > 120 ? `${text.slice(0, 117)}...` : text,
+      url: '/admin/dashboard',
+      tag: `svoydom-crm-dm-${message.id}`,
+      type: 'direct_chat',
+    });
+  } catch (pushError) {
+    console.error('Direct chat push notification error:', pushError);
+  }
 
   return NextResponse.json({
     ok: true,

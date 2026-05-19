@@ -72,12 +72,18 @@ export async function POST(request, { params }) {
         : requestedType === 'audio_note' ? 'Голосовое в канале'
         : requestedType === 'file' ? 'Файл в канале'
         : 'Фото в канале';
-      sendPushToUsers({
-        userIds: memberIds,
-        title: `${room?.name || 'Канал'}: ${user.name}`,
-        body: pushBody,
-        url: '/admin/dashboard',
-      }).catch(console.error);
+      try {
+        await sendPushToUsers({
+          userIds: memberIds,
+          title: `${room?.name || 'Канал'}: ${user.name}`,
+          body: pushBody,
+          url: '/admin/dashboard',
+          tag: `svoydom-crm-room-media-${message.id}`,
+          type: 'room_chat_media',
+        });
+      } catch (pushError) {
+        console.error('Room media push notification error:', pushError);
+      }
     }
 
     return NextResponse.json({
