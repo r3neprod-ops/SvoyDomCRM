@@ -289,14 +289,26 @@ export async function GET() {
     dbOk = true;
     const rows = await s`SELECT key, value FROM settings WHERE key LIKE '_dbg_%' ORDER BY key DESC LIMIT 20`;
     dbgRows = rows.map((r) => ({ key: r.key, value: r.value }));
-    const leads = await s`SELECT id, name, phone, created_at FROM leads ORDER BY id DESC LIMIT 5`;
+    const leads = await s`SELECT id, name, phone, created_at FROM leads ORDER BY id DESC LIMIT 10`;
     recentLeads = leads.map((r) => ({ id: r.id, name: r.name, phone: r.phone, created_at: r.created_at }));
+
+    // Check if addLead() was called for recent leads (store.js writes _dbg_addlead_<id> inside tx)
+    const addLeadDbgRows = await s`SELECT key, value FROM settings WHERE key LIKE '_dbg_addlead_%' ORDER BY key DESC LIMIT 10`;
+    const addLeadDbgKeys = addLeadDbgRows.map((r) => r.key);
+
+    // lead_events for the last 10 leads — source / meta tells where the lead came from
+    const leadIds = leads.map((r) => r.id);
+    const leadEvents = leadIds.length
+      ? await s`SELECT lead_id, type, message, meta, created_at FROM lead_events WHERE lead_id = ANY(${leadIds}) ORDER BY lead_id DESC, id DESC`
+      : [];
+
     const pdRows = await s`SELECT id, stage, lead_id, data, error, created_at FROM push_debug_log ORDER BY id DESC LIMIT 20`;
     pushDebugRows = pdRows.map((r) => ({ id: r.id, stage: r.stage, lead_id: r.lead_id, data: r.data, error: r.error, created_at: r.created_at }));
+    return Response.json({ revision: 'dbg-20260521-diag2', dbOk, dbError, probeKey, dbgRows, addLeadDbgKeys, recentLeads, leadEvents, pushDebugRows });
   } catch (e) {
     dbError = e?.message || String(e);
   }
-  return Response.json({ revision: 'dbg-20260521-diag', dbOk, dbError, probeKey, dbgRows, recentLeads, pushDebugRows });
+  return Response.json({ revision: 'dbg-20260521-diag2', dbOk, dbError, probeKey, dbgRows, recentLeads, pushDebugRows });
 }
 
 // Raw DB probe — writes to settings table (plain TEXT, no JSONB) to avoid any type issues
