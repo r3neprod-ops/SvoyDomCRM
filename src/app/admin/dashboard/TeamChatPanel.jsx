@@ -70,6 +70,7 @@ function sameGroup(msgs, i) {
 }
 const PALETTE = ['#E91E63','#9C27B0','#673AB7','#3F51B5','#2196F3','#00BCD4','#009688','#4CAF50','#FF9800','#FF5722'];
 const nameCol = (uid) => PALETTE[(uid ?? 0) % PALETTE.length];
+const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '😡', '🔥', '👏'];
 
 /* ─── Visual class helpers (presentation only) ─────────────────────────────── */
 const cx = (...parts) => parts.filter(Boolean).join(' ');
@@ -112,6 +113,8 @@ const IconSettings = () => <Ic><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 
 const IconPlus   = () => <Ic cls="h-3.5 w-3.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Ic>;
 const IconMenu   = () => <Ic><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></Ic>;
 const IconX      = () => <Ic cls="h-4 w-4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Ic>;
+const IconReply  = () => <Ic cls="h-4 w-4"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></Ic>;
+const IconSmile  = () => <Ic cls="h-4 w-4"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></Ic>;
 
 const SingleCheck = () => (
   <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
@@ -242,11 +245,31 @@ function LiveWave({ analyserRef: aRef }) {
 }
 
 /* ─── Bubble ─────────────────────────────────────────────────────────────────── */
-function Bubble({ msg, own, showAv, showName, isLast, isDm }) {
-  const isRead = own && (msg.readers?.length ?? 0) > 0;
-  const t = fmtTime(msg.created_at);
+function Bubble({ msg, own, showAv, showName, isLast, isDm, onReply, onReact, reactions = [], reactionPickerOpen, onOpenReactionPicker, onCloseReactionPicker }) {
+  const lpRef  = useRef(null);
+  const tsxRef = useRef(0);
+  const tsyRef = useRef(0);
+  const swpRef = useRef(false);
+
+  const isRead  = own && (msg.readers?.length ?? 0) > 0;
+  const t       = fmtTime(msg.created_at);
   const tailCls = isLast ? (own ? 'rounded-br-[4px]' : 'rounded-bl-[4px]') : '';
-  const isVid = msg.media_type === 'video_note';
+  const isVid   = msg.media_type === 'video_note';
+
+  const clearLP = () => clearTimeout(lpRef.current);
+  const onTouchStart = (e) => {
+    tsxRef.current = e.touches[0].clientX;
+    tsyRef.current = e.touches[0].clientY;
+    swpRef.current = false;
+    lpRef.current = setTimeout(() => onOpenReactionPicker?.(), 600);
+  };
+  const onTouchMove = (e) => {
+    const dx = e.touches[0].clientX - tsxRef.current;
+    const dy = e.touches[0].clientY - tsyRef.current;
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) clearLP();
+    if (dx > 50 && Math.abs(dy) < 35) swpRef.current = true;
+  };
+  const onTouchEnd = () => { clearLP(); if (swpRef.current) { swpRef.current = false; onReply?.(); } };
 
   const meta = (
     <span className={cx('inline-flex shrink-0 items-center gap-0.5', isVid && 'rounded-full bg-black/40 px-1.5 py-0.5 backdrop-blur-sm')}>
@@ -256,7 +279,8 @@ function Bubble({ msg, own, showAv, showName, isLast, isDm }) {
   );
 
   return (
-    <div className={`flex items-end gap-1.5 ${own ? 'flex-row-reverse' : 'flex-row'}`}>
+    <div className={cx('group flex items-end gap-1.5', own ? 'flex-row-reverse' : 'flex-row')}
+      onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
       <div className="w-8 shrink-0">
         {!own && showAv && (msg.author_avatar_url
           ? <img src={msg.author_avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
@@ -266,10 +290,39 @@ function Bubble({ msg, own, showAv, showName, isLast, isDm }) {
             </div>
         )}
       </div>
-      <div className={`flex max-w-[72%] flex-col ${own ? 'items-end' : 'items-start'}`}>
+
+      {/* Desktop reply button (opposite side from avatar) */}
+      <button onClick={() => onReply?.()}
+        aria-label="Ответить"
+        className="mb-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-crm-border bg-[var(--crm-surface-strong)] text-crm-muted opacity-0 shadow transition hover:border-crm-accent/40 hover:text-crm-accent group-hover:opacity-100 crm-focus-ring">
+        <IconReply />
+      </button>
+
+      <div className={cx('relative flex min-w-0 max-w-[68%] flex-col', own ? 'items-end' : 'items-start')}>
         {!own && showName && (
           <span className="mb-0.5 ml-1 text-[11px] font-semibold" style={{ color: nameCol(msg.user_id) }}>{msg.author_name}</span>
         )}
+
+        {/* Emoji picker popup */}
+        {reactionPickerOpen && (
+          <div className={cx(
+            'absolute -top-12 z-30 flex items-center gap-0.5 rounded-full border border-crm-border bg-[var(--crm-surface-strong)] p-1.5 shadow-crmCard backdrop-blur-xl',
+            own ? 'right-0' : 'left-0',
+          )}>
+            {EMOJIS.map((e) => (
+              <button key={e}
+                onClick={(ev) => { ev.stopPropagation(); onReact?.(e); }}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-lg transition hover:scale-125 hover:bg-crm-accent/15 crm-focus-ring">
+                {e}
+              </button>
+            ))}
+            <button onClick={(ev) => { ev.stopPropagation(); onCloseReactionPicker?.(); }}
+              className="ml-0.5 flex h-7 w-7 items-center justify-center rounded-full text-crm-muted transition hover:bg-crm-danger/10 hover:text-crm-danger crm-focus-ring">
+              <IconX />
+            </button>
+          </div>
+        )}
+
         <div className={cx(
           'relative shadow-crmCard',
           tailCls,
@@ -277,6 +330,20 @@ function Bubble({ msg, own, showAv, showName, isLast, isDm }) {
             ? 'bg-gradient-to-br from-crm-accent to-[var(--crm-accent-strong)] text-white'
             : 'crm-glass border border-crm-border bg-crm-surface/90'),
         )}>
+          {/* Reply quote */}
+          {msg.reply_to && (
+            <div className={cx('mb-1.5 rounded-lg px-2 py-1.5',
+              own ? 'border-l-2 border-white/50 bg-white/10' : 'border-l-2 border-crm-accent bg-crm-accent/10',
+            )}>
+              <p className={cx('text-[11px] font-semibold', own ? 'text-white/80' : 'text-crm-accent')}>
+                {msg.reply_to.author_name || 'Неизвестно'}
+              </p>
+              <p className={cx('mt-0.5 line-clamp-2 text-[11px] leading-snug', own ? 'text-white/65' : 'text-crm-muted')}>
+                {msg.reply_to.text || '[Медиа]'}
+              </p>
+            </div>
+          )}
+
           {msg.media_type === 'text' && msg.text && (
             <div><p className={cx('whitespace-pre-wrap break-words text-sm leading-relaxed', own ? 'text-white' : 'text-crm-text')}>{msg.text}</p><div className="mt-0.5 flex justify-end">{meta}</div></div>
           )}
@@ -310,6 +377,26 @@ function Bubble({ msg, own, showAv, showName, isLast, isDm }) {
             </div>
           )}
         </div>
+
+        {/* Reaction pills */}
+        {reactions.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {reactions.map((r) => (
+              <button key={r.emoji}
+                onClick={(e) => { e.stopPropagation(); onReact?.(r.emoji); }}
+                className={cx(
+                  'flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[13px] transition crm-focus-ring',
+                  r.has_mine
+                    ? 'border-crm-accent/50 bg-crm-accent/15 text-crm-accent'
+                    : 'border-crm-border bg-[var(--crm-surface-strong)] text-crm-muted hover:border-crm-accent/30 hover:text-crm-text',
+                )}>
+                <span>{r.emoji}</span>
+                <span className="ml-0.5 text-[11px] font-medium tabular-nums">{r.count}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {own && !isDm && msg.readers?.length > 0 && (
           <p className="mt-0.5 pr-1 text-right text-[10px] text-crm-muted">
             {readerLabel(msg.readers)}
@@ -365,6 +452,8 @@ export default function TeamChatPanel({
   const [pendingFiles, setPendingFiles] = useState([]);
   const [error,      setError]      = useState('');
   const [newMsgBadge, setNewMsgBadge] = useState(false);
+  const [replyTo,    setReplyTo]    = useState(null);
+  const [reactionPickerMsgId, setReactionPickerMsgId] = useState(null);
 
   /* ── Room management state ──────────────────────────────────────────────── */
   const [showManageRoom,   setShowManageRoom]   = useState(false);
@@ -460,6 +549,7 @@ export default function TeamChatPanel({
   useEffect(() => {
     setMessages([]); setLoading(true); lastMsgIdRef.current = 0;
     atBottomRef.current = true; setNewMsgBadge(false);
+    setReplyTo(null); setReactionPickerMsgId(null);
     fetchMessages();
     const pollId = setInterval(() => fetchMessages({ silent: true }), POLL_MS);
     let source = null;
@@ -616,16 +706,38 @@ export default function TeamChatPanel({
     const url = activeDmId ? `/api/direct-chats/${activeDmId}/messages`
       : activeRoomId ? `/api/rooms/${activeRoomId}/messages`
       : '/api/chat/messages';
+    const body = { text: v };
+    if (replyTo?.id) body.reply_to_id = replyTo.id;
     try {
-      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: v }) });
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!data.ok) { setError(data.message || 'Ошибка отправки'); return; }
-      append(data.message); setText('');
+      append(data.message); setText(''); setReplyTo(null);
       if (taRef.current) taRef.current.style.height = '36px';
       if (activeDmId) onDmSent?.();
       if (activeRoomId) onRoomSent?.();
     } catch { setError('Ошибка отправки'); }
     finally { setSending(false); }
+  };
+
+  const toggleReaction = async (msgId, emoji) => {
+    setReactionPickerMsgId(null);
+    const url = activeDmId
+      ? `/api/direct-chats/${activeDmId}/messages/${msgId}/reactions`
+      : activeRoomId
+      ? `/api/rooms/${activeRoomId}/messages/${msgId}/reactions`
+      : `/api/chat/messages/${msgId}/reactions`;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emoji }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setMessages((prev) => prev.map((m) => m.id === msgId ? { ...m, reactions: data.reactions } : m));
+      }
+    } catch {}
   };
 
   const uploadMedia = async (file, type, caption = '') => {
@@ -847,7 +959,7 @@ export default function TeamChatPanel({
 
         {/* Messages */}
         <div className="relative min-h-0 flex-1 overflow-hidden">
-          <div ref={listRef} onScroll={handleScroll} className="crm-scrollbar h-full overflow-y-auto overflow-x-hidden pb-2">
+          <div ref={listRef} onScroll={handleScroll} onClick={() => setReactionPickerMsgId(null)} className="crm-scrollbar h-full overflow-y-auto overflow-x-hidden pb-2">
             {loading ? (
               <div className="flex flex-col items-center justify-center gap-3 px-6 py-20">
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-crm-border border-t-crm-accent" aria-hidden />
@@ -876,7 +988,14 @@ export default function TeamChatPanel({
                         showAv={!own && isLastGroup}
                         showName={!own && first && !activeDmId}
                         isLast={isLastGroup}
-                        isDm={!!activeDmId} />
+                        isDm={!!activeDmId}
+                        onReply={() => { setReplyTo({ id: msg.id, text: msg.text, author_name: msg.author_name }); taRef.current?.focus(); }}
+                        onReact={(emoji) => toggleReaction(msg.id, emoji)}
+                        reactions={msg.reactions || []}
+                        reactionPickerOpen={reactionPickerMsgId === msg.id}
+                        onOpenReactionPicker={() => setReactionPickerMsgId(msg.id)}
+                        onCloseReactionPicker={() => setReactionPickerMsgId(null)}
+                      />
                     </div>
                   </div>
                 );
@@ -895,6 +1014,21 @@ export default function TeamChatPanel({
         {/* Input area */}
         <div className="crm-glass crm-mobile-safe-bottom relative z-10 shrink-0 border-t border-crm-border px-3 py-3">
           {error && <p className="mb-2 rounded-crmXl border border-crm-danger/30 bg-crm-danger/10 px-3 py-2 text-sm text-crm-danger">{error}</p>}
+
+          {replyTo && !isRec && (
+            <div className="mb-2 flex items-center gap-2 rounded-crmXl border border-crm-accent/30 bg-crm-accent/10 px-3 py-2">
+              <span className="shrink-0 text-crm-accent"><IconReply /></span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold text-crm-accent">{replyTo.author_name}</p>
+                <p className="truncate text-[11px] text-crm-muted">{replyTo.text || '[Медиа]'}</p>
+              </div>
+              <button onClick={() => setReplyTo(null)}
+                className="shrink-0 rounded-full p-1 text-crm-muted transition hover:text-crm-danger crm-focus-ring"
+                aria-label="Отменить ответ">
+                <IconX />
+              </button>
+            </div>
+          )}
 
           <div className={`mb-3 flex justify-center ${isRec && recMode === 'video' ? '' : 'hidden'}`}>
             <div className="overflow-hidden rounded-full border-4 border-crm-accent shadow-crmGlow" style={{ width: 120, height: 120 }}>
