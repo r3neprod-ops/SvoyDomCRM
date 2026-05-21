@@ -1532,7 +1532,13 @@ export default function DashboardClient({ user }) {
   );
 
   return (
-    <main className="crm-app-bg crm-mobile-safe-bottom min-h-screen min-w-0 overflow-x-hidden text-crm-text">
+    <main
+      className={`crm-app-bg crm-mobile-safe-bottom min-w-0 text-crm-text ${
+        activeTab === 'chat'
+          ? 'overflow-hidden'
+          : 'min-h-dvh overflow-x-hidden touch-pan-y'
+      }`}
+    >
       <aside className="crm-glass fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-crm-border shadow-crmCard md:block">
         {renderNavigation()}
       </aside>
@@ -1560,7 +1566,13 @@ export default function DashboardClient({ user }) {
         </div>
       )}
 
-      <section className="min-h-screen min-w-0 px-4 py-4 sm:px-6 md:pl-80 md:pr-8 md:py-5">
+      <section
+        className={
+          activeTab === 'chat'
+            ? 'min-w-0 px-4 py-4 sm:px-6 md:pl-80 md:pr-8 md:py-5'
+            : 'min-h-dvh min-w-0 overflow-x-hidden touch-pan-y px-4 py-4 sm:px-6 md:pl-80 md:pr-8 md:py-5'
+        }
+      >
         <div className="mx-auto max-w-7xl space-y-6">
           <header className="crm-glass -mx-4 mb-1 flex items-center justify-between gap-3 rounded-crmXl border border-crm-border px-3 py-2.5 shadow-crmCard sm:-mx-6 md:hidden">
             <button
@@ -1769,11 +1781,11 @@ export default function DashboardClient({ user }) {
               )}
             </div>
 
-            <div className="crm-glass hidden overflow-hidden rounded-crmXl border border-crm-border shadow-crmCard md:block">
+            <div className="crm-glass hidden rounded-crmXl border border-crm-border shadow-crmCard md:block">
               {loading ? (
                 <div className="crm-scrollbar overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
-                    <thead className="sticky top-0 z-10 border-b border-crm-border bg-crm-surface/95 text-xs uppercase tracking-wide text-crm-muted backdrop-blur-md">
+                    <thead className="border-b border-crm-border bg-crm-surface/95 text-xs uppercase tracking-wide text-crm-muted">
                       <tr>
                         <th className="p-3 font-semibold">Дата</th>
                         <th className="p-3 font-semibold">Имя</th>
@@ -1806,9 +1818,9 @@ export default function DashboardClient({ user }) {
                   <LeadsEmptyState>{searchEmptyText}</LeadsEmptyState>
                 </div>
               ) : (
-                <div className="crm-scrollbar max-h-[min(70vh,720px)] overflow-auto">
+                <div className="crm-scrollbar overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
-                    <thead className="sticky top-0 z-10 border-b border-crm-border bg-crm-surface/95 text-xs uppercase tracking-wide text-crm-muted backdrop-blur-md">
+                    <thead className="border-b border-crm-border bg-crm-surface/95 text-xs uppercase tracking-wide text-crm-muted">
                       <tr>
                         <th className="p-3 font-semibold">Дата</th>
                         <th className="p-3 font-semibold">Имя</th>
@@ -2410,11 +2422,11 @@ export default function DashboardClient({ user }) {
               )}
             </div>
 
-            <div className="crm-glass hidden overflow-hidden rounded-crmXl border border-crm-border shadow-crmCard md:block">
+            <div className="crm-glass hidden rounded-crmXl border border-crm-border shadow-crmCard md:block">
               {loading ? (
                 <div className="crm-scrollbar overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
-                    <thead className="sticky top-0 z-10 border-b border-crm-border bg-crm-surface/95 text-xs uppercase tracking-wide text-crm-muted backdrop-blur-md">
+                    <thead className="border-b border-crm-border bg-crm-surface/95 text-xs uppercase tracking-wide text-crm-muted">
                       <tr>
                         <th className="p-3 font-semibold">ID</th>
                         <th className="p-3 font-semibold">Имя</th>
@@ -2446,9 +2458,9 @@ export default function DashboardClient({ user }) {
                   <EmployeesEmptyState />
                 </div>
               ) : (
-                <div className="crm-scrollbar max-h-[min(70vh,720px)] overflow-auto">
+                <div className="crm-scrollbar overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
-                    <thead className="sticky top-0 z-10 border-b border-crm-border bg-crm-surface/95 text-xs uppercase tracking-wide text-crm-muted backdrop-blur-md">
+                    <thead className="border-b border-crm-border bg-crm-surface/95 text-xs uppercase tracking-wide text-crm-muted">
                       <tr>
                         <th className="p-3 font-semibold">ID</th>
                         <th className="p-3 font-semibold">Имя</th>
