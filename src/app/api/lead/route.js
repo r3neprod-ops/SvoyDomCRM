@@ -304,11 +304,11 @@ export async function GET() {
 
     const pdRows = await s`SELECT id, stage, lead_id, data, error, created_at FROM push_debug_log ORDER BY id DESC LIMIT 20`;
     pushDebugRows = pdRows.map((r) => ({ id: r.id, stage: r.stage, lead_id: r.lead_id, data: r.data, error: r.error, created_at: r.created_at }));
-    return Response.json({ revision: 'dbg-20260521-diag2', dbOk, dbError, probeKey, dbgRows, addLeadDbgKeys, recentLeads, leadEvents, pushDebugRows });
+    return Response.json({ revision: 'dbg-20260521-listener', dbOk, dbError, probeKey, dbgRows, addLeadDbgKeys, recentLeads, leadEvents, pushDebugRows });
   } catch (e) {
     dbError = e?.message || String(e);
   }
-  return Response.json({ revision: 'dbg-20260521-diag2', dbOk, dbError, probeKey, dbgRows, recentLeads, pushDebugRows });
+  return Response.json({ revision: 'dbg-20260521-listener', dbOk, dbError, probeKey, dbgRows, recentLeads, pushDebugRows });
 }
 
 // Raw DB probe — writes to settings table (plain TEXT, no JSONB) to avoid any type issues
