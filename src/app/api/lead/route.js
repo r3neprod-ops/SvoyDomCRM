@@ -281,16 +281,22 @@ export async function GET() {
   let dbOk = false;
   let dbError = null;
   let dbgRows = [];
+  let recentLeads = [];
+  let pushDebugRows = [];
   try {
     const s = getSql();
     await s`INSERT INTO settings (key, value) VALUES (${probeKey}, ${'get_probe'}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
     dbOk = true;
     const rows = await s`SELECT key, value FROM settings WHERE key LIKE '_dbg_%' ORDER BY key DESC LIMIT 20`;
     dbgRows = rows.map((r) => ({ key: r.key, value: r.value }));
+    const leads = await s`SELECT id, name, phone, created_at FROM leads ORDER BY id DESC LIMIT 5`;
+    recentLeads = leads.map((r) => ({ id: r.id, name: r.name, phone: r.phone, created_at: r.created_at }));
+    const pdRows = await s`SELECT id, stage, lead_id, data, error, created_at FROM push_debug_log ORDER BY id DESC LIMIT 20`;
+    pushDebugRows = pdRows.map((r) => ({ id: r.id, stage: r.stage, lead_id: r.lead_id, data: r.data, error: r.error, created_at: r.created_at }));
   } catch (e) {
     dbError = e?.message || String(e);
   }
-  return Response.json({ revision: 'dbg-20260519-2007', dbOk, dbError, probeKey, dbgRows });
+  return Response.json({ revision: 'dbg-20260521-diag', dbOk, dbError, probeKey, dbgRows, recentLeads, pushDebugRows });
 }
 
 // Raw DB probe — writes to settings table (plain TEXT, no JSONB) to avoid any type issues
