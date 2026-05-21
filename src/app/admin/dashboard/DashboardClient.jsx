@@ -1569,11 +1569,11 @@ export default function DashboardClient({ user }) {
       <section
         className={
           activeTab === 'chat'
-            ? 'min-w-0 px-4 py-4 sm:px-6 md:pl-80 md:pr-8 md:py-5'
-            : 'min-h-dvh min-w-0 overflow-x-hidden touch-pan-y px-4 py-4 sm:px-6 md:pl-80 md:pr-8 md:py-5'
+            ? 'min-w-0 px-4 py-4 md:ml-72 md:px-8 md:py-5'
+            : 'min-h-dvh min-w-0 overflow-x-hidden touch-pan-y px-4 py-4 md:ml-72 md:px-8 md:py-5'
         }
       >
-        <div className="mx-auto max-w-7xl space-y-6">
+        <div className="w-full min-w-0 space-y-6">
           <header className="crm-glass -mx-4 mb-1 flex items-center justify-between gap-3 rounded-crmXl border border-crm-border px-3 py-2.5 shadow-crmCard sm:-mx-6 md:hidden">
             <button
               onClick={() => setDrawerOpen(true)}
