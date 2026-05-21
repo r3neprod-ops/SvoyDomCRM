@@ -326,6 +326,31 @@ export async function ensureSchema() {
   await clearAutoAssignedNewLeads(sql);
   await installLeadAssignmentGuard(sql);
 
+  // NOTIFY trigger: fires on every INSERT into leads so the background listener
+  // can send a push notification even when the insert comes from an external source.
+  await sql`
+    CREATE OR REPLACE FUNCTION svoydom_notify_new_lead()
+    RETURNS trigger AS $$
+    BEGIN
+      PERFORM pg_notify(
+        'new_lead',
+        json_build_object(
+          'lead_id', NEW.id,
+          'name',    COALESCE(NEW.name, ''),
+          'phone',   COALESCE(NEW.phone, '')
+        )::text
+      );
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql
+  `;
+  await sql`DROP TRIGGER IF EXISTS trg_svoydom_notify_new_lead ON leads`;
+  await sql`
+    CREATE TRIGGER trg_svoydom_notify_new_lead
+    AFTER INSERT ON leads
+    FOR EACH ROW EXECUTE FUNCTION svoydom_notify_new_lead()
+  `;
+
   // Ensure admin account always exists — but never overwrite an existing password.
   // This runs on every cold start; ON CONFLICT DO NOTHING guarantees idempotency.
   const [adminRow] = await sql`SELECT id FROM users WHERE username = 'admin' LIMIT 1`;

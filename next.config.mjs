@@ -4,6 +4,7 @@ const nextConfig = {
   compress: true,
   experimental: {
     optimizeCss: true,
+    instrumentationHook: true,
   },
   images: {
     formats: ['image/webp'],
