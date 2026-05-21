@@ -6,6 +6,31 @@ const nextConfig = {
     optimizeCss: true,
     instrumentationHook: true,
   },
+  webpack(config, { isServer, nextRuntime }) {
+    // web-push and pg use Node.js built-ins (http, https, net, tls).
+    // For client and edge-runtime bundles these aren't available, so
+    // tell webpack to skip them (the actual code path is guarded by
+    // NEXT_RUNTIME check at runtime and never runs in those envs).
+    if (!isServer || nextRuntime === 'edge') {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        net: false,
+        tls: false,
+        http: false,
+        https: false,
+        fs: false,
+        stream: false,
+        crypto: false,
+        os: false,
+        perf_hooks: false,
+        dns: false,
+        path: false,
+        zlib: false,
+        child_process: false,
+      };
+    }
+    return config;
+  },
   images: {
     formats: ['image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
