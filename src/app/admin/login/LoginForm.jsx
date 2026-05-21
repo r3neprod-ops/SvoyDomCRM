@@ -3,10 +3,35 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+function EyeIcon({ open }) {
+  if (open) {
+    return (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-5 w-5" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+      </svg>
+    );
+  }
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-5 w-5" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-2.228-2.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+    </svg>
+  );
+}
+
+function ShieldIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4 shrink-0 text-crm-accent" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
+    </svg>
+  );
+}
+
 export default function LoginForm() {
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -33,46 +58,136 @@ export default function LoginForm() {
     }
   };
 
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">Вход в панель</h1>
-        <p className="mt-1 text-sm text-slate-500">SvoyDom CRM</p>
+  const inputClassName =
+    'crm-focus-ring w-full rounded-crmXl border border-crm-border bg-crm-surface/60 px-4 text-base text-crm-text placeholder:text-crm-muted outline-none transition-colors duration-200 focus:border-crm-accent/50 h-[48px]';
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Логин</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-              placeholder="admin"
-              required
-              autoComplete="username"
-            />
+  return (
+    <main className="crm-app-bg crm-mobile-safe-bottom relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+      {/* Decorative gradient blobs */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <div className="absolute -left-24 top-[-10%] h-[420px] w-[420px] rounded-full bg-crm-accent/[0.12] blur-[100px]" />
+        <div className="absolute -right-20 top-[20%] h-[360px] w-[360px] rounded-full bg-[#0b88d8]/[0.14] blur-[90px]" />
+        <div className="absolute bottom-[-8%] left-[30%] h-[320px] w-[320px] rounded-full bg-crm-accent/[0.08] blur-[80px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(19,216,232,0.06),transparent_55%)]" />
+      </div>
+
+      <div className="relative z-10 w-full max-w-[420px] min-w-0">
+        {/* Brand mark */}
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-crmXl border border-crm-border bg-crm-surface/50 shadow-crmGlow backdrop-blur-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden="true">
+              <path
+                d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5Z"
+                stroke="url(#loginLogoGradient)"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+              />
+              <defs>
+                <linearGradient id="loginLogoGradient" x1="3" y1="4" x2="21" y2="21" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#13d8e8" />
+                  <stop offset="1" stopColor="#0b88d8" />
+                </linearGradient>
+              </defs>
+            </svg>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Пароль</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-              placeholder="••••••••"
-              required
-              autoComplete="current-password"
-            />
+          <p className="text-sm font-medium tracking-wide text-crm-muted">СвойДом CRM</p>
+        </div>
+
+        {/* Login card */}
+        <div className="crm-glass rounded-crm2xl border border-crm-border p-6 shadow-crmCard sm:p-8">
+          <div className="mb-8">
+            <h1 className="text-[1.625rem] font-semibold leading-tight tracking-tight text-crm-text sm:text-[1.75rem]">
+              Добро пожаловать
+              <span className="block crm-gradient-text">в СвойДом CRM</span>
+            </h1>
+            <p className="mt-3 text-sm leading-relaxed text-crm-muted">
+              Единое пространство для управления лидами, сотрудниками и коммуникацией
+            </p>
           </div>
-          {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-xl bg-slate-900 py-3 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-60"
-          >
-            {loading ? 'Вход...' : 'Войти'}
-          </button>
-        </form>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label htmlFor="username" className="mb-2 block text-sm font-medium text-crm-text">
+                Логин
+              </label>
+              <input
+                id="username"
+                type="text"
+                name="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className={inputClassName}
+                placeholder="Введите логин"
+                required
+                autoComplete="username"
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="mb-2 block text-sm font-medium text-crm-text">
+                Пароль
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={`${inputClassName} pr-12`}
+                  placeholder="Введите пароль"
+                  required
+                  autoComplete="current-password"
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="crm-focus-ring absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-crmLg text-crm-muted transition-colors hover:text-crm-text"
+                  aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                  tabIndex={-1}
+                >
+                  <EyeIcon open={showPassword} />
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <div
+                role="alert"
+                className="rounded-crmXl border border-crm-danger/30 bg-crm-danger/10 px-4 py-3 text-sm text-crm-danger"
+              >
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="crm-focus-ring flex min-h-[48px] w-full items-center justify-center rounded-crmXl bg-gradient-to-r from-crm-accent to-[#0b88d8] px-4 text-base font-semibold text-[#030913] shadow-crmGlow transition-all duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Вход...
+                </span>
+              ) : (
+                'Войти'
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 flex items-start gap-2.5 rounded-crmXl border border-crm-border/60 bg-crm-surface/40 px-4 py-3">
+            <ShieldIcon />
+            <p className="text-xs leading-relaxed text-crm-muted">
+              Ваши данные защищены. Безопасный вход по современным стандартам.
+            </p>
+          </div>
+        </div>
       </div>
     </main>
   );

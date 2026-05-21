@@ -147,6 +147,55 @@ function AvatarCircle({ profile, size = 'md' }) {
   );
 }
 
+function NavIcon({ name, className = 'h-5 w-5 shrink-0' }) {
+  const props = { className, fill: 'none', stroke: 'currentColor', strokeWidth: 1.75, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true };
+  switch (name) {
+    case 'leads':
+      return (
+        <svg viewBox="0 0 24 24" {...props}>
+          <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+          <rect x="9" y="3" width="6" height="4" rx="1" />
+          <path d="M9 12h6M9 16h4" />
+        </svg>
+      );
+    case 'employees':
+      return (
+        <svg viewBox="0 0 24 24" {...props}>
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      );
+    case 'chat':
+      return (
+        <svg viewBox="0 0 24 24" {...props}>
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      );
+    case 'profile':
+      return (
+        <svg viewBox="0 0 24 24" {...props}>
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
+function shellNavItemClass(isActive) {
+  return isActive
+    ? 'border border-crm-accent/35 bg-crm-accent/12 text-crm-accent shadow-crmGlow'
+    : 'border border-transparent text-crm-muted hover:bg-white/[0.04] hover:text-crm-text';
+}
+
+function shellChatSubItemClass(isActive) {
+  return isActive
+    ? 'bg-crm-accent/10 font-medium text-crm-accent'
+    : 'text-crm-muted hover:bg-white/[0.04] hover:text-crm-text';
+}
+
 export default function DashboardClient({ user }) {
   const router = useRouter();
   const isAdmin = user.role === 'admin';
@@ -1020,12 +1069,12 @@ export default function DashboardClient({ user }) {
     : 'У вас пока нет лидов.';
   const searchEmptyText = leadSearch.trim() ? 'По этому поиску лидов нет.' : emptyLeadsText;
   const navItems = [
-    { key: 'leads', label: 'Лиды', icon: '📋' },
+    { key: 'leads', label: 'Лиды', icon: 'leads' },
     ...(isAdmin ? [
-      { key: 'employees', label: 'Сотрудники', icon: '👥' },
+      { key: 'employees', label: 'Сотрудники', icon: 'employees' },
     ] : []),
-    { key: 'chat', label: 'Общий чат', icon: '💬', badge: chatUnread },
-    { key: 'profile', label: 'Профиль', icon: '👤' },
+    { key: 'chat', label: 'Общий чат', icon: 'chat', badge: chatUnread },
+    { key: 'profile', label: 'Профиль', icon: 'profile' },
   ];
   const notificationLabel = notifStatus === 'granted'
     ? 'Уведомления включены ✓'
@@ -1045,69 +1094,65 @@ export default function DashboardClient({ user }) {
     ? 'Ошибка, попробуйте снова'
     : 'Включить уведомления';
   const notificationClass = notifStatus === 'granted'
-    ? 'border-green-200 bg-green-50 text-green-700 hover:bg-red-50 hover:border-red-200 hover:text-red-700'
+    ? 'border-crm-success/30 bg-crm-success/10 text-crm-success hover:border-crm-danger/30 hover:bg-crm-danger/10 hover:text-crm-danger'
     : notifStatus === 'denied' || notifStatus === 'unsupported' || notifStatus === 'unsupported_ios' || notifStatus === 'ios_install_required' || notifStatus === 'not_configured'
-    ? 'border-red-200 bg-red-50 text-red-600'
+    ? 'border-crm-danger/30 bg-crm-danger/10 text-crm-danger'
     : notifStatus === 'error'
-    ? 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100'
-    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100';
+    ? 'border-crm-warning/30 bg-crm-warning/10 text-crm-warning hover:bg-crm-warning/15'
+    : 'border-crm-border bg-crm-surface/60 text-crm-muted hover:border-white/[0.14] hover:bg-crm-surfaceStrong hover:text-crm-text';
 
   const notificationBlocked = ['denied', 'unsupported', 'unsupported_ios', 'ios_install_required', 'not_configured'].includes(notifStatus);
 
   const renderNavigation = () => (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <button
         onClick={() => selectTab('profile')}
-        className="flex items-center gap-3 border-b border-slate-100 px-5 py-5 text-left transition hover:bg-slate-50"
+        className="crm-focus-ring group flex items-center gap-3 border-b border-crm-border px-4 py-4 text-left transition hover:bg-white/[0.03] sm:px-5 sm:py-5"
       >
-        <AvatarCircle profile={profile} size="lg" />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-slate-900">{profile.name}</p>
-          <p className="truncate text-xs text-slate-500">
+        <div className="rounded-full ring-2 ring-crm-border transition group-hover:ring-crm-accent/35">
+          <AvatarCircle profile={profile} size="lg" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-crm-text">{profile.name}</p>
+          <p className="truncate text-xs text-crm-muted">
             {profile.status_text || (isAdmin ? 'Администратор' : 'Сотрудник')}
           </p>
         </div>
       </button>
 
-      <nav className="flex-1 overflow-y-auto space-y-1 px-3 py-4">
+      <nav className="crm-scrollbar flex-1 space-y-0.5 overflow-y-auto px-2 py-3 sm:px-3 sm:py-4">
         {navItems.map((item) => (
           <div key={item.key}>
             <button
               onClick={() => selectTab(item.key)}
-              className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition ${
-                activeTab === item.key
-                  ? 'bg-slate-900 text-white'
-                  : 'text-slate-700 hover:bg-slate-100'
-              }`}
+              className={`crm-focus-ring flex w-full items-center gap-3 rounded-crmXl px-3 py-2.5 text-left text-sm transition ${shellNavItemClass(activeTab === item.key)}`}
             >
-              <span className="w-6 text-center text-base">{item.icon}</span>
+              <NavIcon name={item.icon} />
               <span className="flex-1">{item.label}</span>
               {item.badge > 0 && (
-                <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold text-white">
+                <span className="rounded-full bg-crm-danger px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
                   {item.badge > 99 ? '99+' : item.badge}
                 </span>
               )}
             </button>
 
             {item.key === 'chat' && activeTab === 'chat' && (
-              <div className="mt-1 space-y-0.5 pb-1">
+              <div className="mt-1 space-y-0.5 border-l border-crm-border/60 pb-1 pl-2 ml-4">
                 <button
                   onClick={() => { openChatGeneral(); setDrawerOpen(false); }}
-                  className={`flex w-full items-center gap-2 rounded-xl py-1.5 pl-9 pr-3 text-left text-xs transition ${
-                    !activeDmId && !activeRoomId ? 'bg-blue-50 font-medium text-blue-700' : 'text-slate-600 hover:bg-slate-100'
-                  }`}
+                  className={`crm-focus-ring flex w-full items-center gap-2 rounded-crmLg py-1.5 pl-5 pr-3 text-left text-xs transition ${shellChatSubItemClass(!activeDmId && !activeRoomId)}`}
                 >
                   <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[8px] font-bold text-white"
-                    style={{ background: 'linear-gradient(135deg, #2196F3, #00BCD4)' }}>CRM</div>
+                    style={{ background: 'linear-gradient(135deg, #13d8e8, #0b88d8)' }}>CRM</div>
                   <span className="flex-1 truncate">Общий чат</span>
                   {chatGenUnread > 0 && (
-                    <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                    <span className="rounded-full bg-crm-danger px-1.5 py-0.5 text-[10px] font-semibold text-white">
                       {chatGenUnread > 99 ? '99+' : chatGenUnread}
                     </span>
                   )}
                 </button>
 
-                <p className="px-3 pb-0.5 pt-2 text-[9px] font-semibold uppercase tracking-wider text-slate-400">Сотрудники</p>
+                <p className="px-3 pb-0.5 pt-2 text-[9px] font-semibold uppercase tracking-wider text-crm-muted">Сотрудники</p>
                 {chatNavUsers.filter((u) => u.id !== user.id).map((emp) => {
                   const dmEntry  = dmList.find((c) => c.other_user_id === emp.id);
                   const dmUnread = dmEntry?.unread_count || 0;
@@ -1115,18 +1160,16 @@ export default function DashboardClient({ user }) {
                   return (
                     <button key={emp.id}
                       onClick={() => { handleOpenChatDm(emp); setDrawerOpen(false); }}
-                      className={`flex w-full items-center gap-2 rounded-xl py-1.5 pl-9 pr-3 text-left text-xs transition ${
-                        isActive ? 'bg-blue-50 font-medium text-blue-700' : 'text-slate-600 hover:bg-slate-100'
-                      }`}
+                      className={`crm-focus-ring flex w-full items-center gap-2 rounded-crmLg py-1.5 pl-5 pr-3 text-left text-xs transition ${shellChatSubItemClass(isActive)}`}
                     >
                       {emp.avatar_url
-                        ? <img src={emp.avatar_url} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
+                        ? <img src={emp.avatar_url} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover ring-1 ring-crm-border" />
                         : <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[8px] font-bold text-white"
                             style={{ background: chatColor(emp.id) }}>{chatInitials(emp.name)}</div>
                       }
                       <span className="min-w-0 flex-1 truncate">{emp.name}</span>
                       {dmUnread > 0 && (
-                        <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        <span className="rounded-full bg-crm-danger px-1.5 py-0.5 text-[10px] font-semibold text-white">
                           {dmUnread > 99 ? '99+' : dmUnread}
                         </span>
                       )}
@@ -1135,9 +1178,9 @@ export default function DashboardClient({ user }) {
                 })}
 
                 <div className="flex items-center px-3 pb-0.5 pt-2">
-                  <span className="flex-1 text-[9px] font-semibold uppercase tracking-wider text-slate-400">Каналы</span>
+                  <span className="flex-1 text-[9px] font-semibold uppercase tracking-wider text-crm-muted">Каналы</span>
                   <button onClick={() => setShowCreateRoom(true)}
-                    className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 text-slate-500 transition hover:bg-blue-100 hover:text-blue-600"
+                    className="crm-focus-ring flex h-5 w-5 items-center justify-center rounded-full border border-crm-border bg-crm-surface/60 text-crm-muted transition hover:border-crm-accent/35 hover:bg-crm-accent/10 hover:text-crm-accent"
                     title="Создать канал">
                     <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3">
                       <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -1145,14 +1188,12 @@ export default function DashboardClient({ user }) {
                   </button>
                 </div>
                 {roomList.length === 0 && (
-                  <p className="pl-9 pr-3 text-[11px] text-slate-400">Нет каналов</p>
+                  <p className="pl-5 pr-3 text-[11px] text-crm-muted">Нет каналов</p>
                 )}
                 {roomList.map((room) => (
                   <button key={room.id}
                     onClick={() => { openChatRoom(room.id, room); setDrawerOpen(false); }}
-                    className={`flex w-full items-center gap-2 rounded-xl py-1.5 pl-9 pr-3 text-left text-xs transition ${
-                      activeRoomId === room.id ? 'bg-blue-50 font-medium text-blue-700' : 'text-slate-600 hover:bg-slate-100'
-                    }`}
+                    className={`crm-focus-ring flex w-full items-center gap-2 rounded-crmLg py-1.5 pl-5 pr-3 text-left text-xs transition ${shellChatSubItemClass(activeRoomId === room.id)}`}
                   >
                     <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[8px] font-bold text-white"
                       style={{ background: chatColor(room.id + 5) }}>
@@ -1160,7 +1201,7 @@ export default function DashboardClient({ user }) {
                     </div>
                     <span className="min-w-0 flex-1 truncate">{room.name}</span>
                     {room.unread_count > 0 && (
-                      <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                      <span className="rounded-full bg-crm-danger px-1.5 py-0.5 text-[10px] font-semibold text-white">
                         {room.unread_count > 99 ? '99+' : room.unread_count}
                       </span>
                     )}
@@ -1172,29 +1213,29 @@ export default function DashboardClient({ user }) {
         ))}
       </nav>
 
-      <div className="space-y-2 border-t border-slate-100 p-4">
+      <div className="crm-mobile-safe-bottom space-y-2 border-t border-crm-border p-3 sm:p-4">
         <button
           onClick={toggleTheme}
-          className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
+          className="crm-focus-ring flex w-full items-center justify-between rounded-crmLg border border-crm-border bg-crm-surface/60 px-3 py-2 text-sm text-crm-muted transition hover:border-white/[0.14] hover:bg-crm-surfaceStrong hover:text-crm-text"
         >
           <span>{theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}</span>
-          <span className="text-base">{theme === 'dark' ? '☀️' : '🌙'}</span>
+          <span className="text-crm-accent">{theme === 'dark' ? '☀️' : '🌙'}</span>
         </button>
         <button
           onClick={notifStatus === 'granted' ? disableNotifications : notificationBlocked ? undefined : enableNotifications}
           disabled={notifStatus === 'loading' || notificationBlocked}
-          className={`w-full rounded-xl border px-3 py-2 text-sm transition disabled:cursor-default ${notificationClass}`}
+          className={`crm-focus-ring w-full rounded-crmLg border px-3 py-2 text-sm transition disabled:cursor-default ${notificationClass}`}
         >
           {notificationLabel}
         </button>
         {notificationError && (
-          <p className="rounded-lg bg-red-50 px-3 py-2 text-xs leading-snug text-red-700">
+          <p className="rounded-crmLg border border-crm-danger/20 bg-crm-danger/10 px-3 py-2 text-xs leading-snug text-crm-danger">
             {notificationError}
           </p>
         )}
         <button
           onClick={logout}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
+          className="crm-focus-ring w-full rounded-crmLg border border-crm-border bg-crm-surface/60 px-3 py-2 text-sm text-crm-muted transition hover:border-crm-danger/30 hover:bg-crm-danger/10 hover:text-crm-danger"
         >
           Выйти
         </button>
@@ -1203,8 +1244,8 @@ export default function DashboardClient({ user }) {
   );
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-slate-200 bg-white shadow-sm md:block">
+    <main className="crm-app-bg crm-mobile-safe-bottom min-h-screen min-w-0 overflow-x-hidden text-crm-text">
+      <aside className="crm-glass fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-crm-border shadow-crmCard md:block">
         {renderNavigation()}
       </aside>
 
@@ -1212,30 +1253,42 @@ export default function DashboardClient({ user }) {
         <div className="fixed inset-0 z-40 md:hidden">
           <button
             aria-label="Закрыть меню"
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-[#030913]/65 backdrop-blur-sm"
             onClick={() => setDrawerOpen(false)}
           />
-          <aside className="relative h-full w-80 max-w-[86vw] bg-white shadow-2xl">
+          <aside className="crm-glass crm-mobile-safe-bottom relative flex h-full w-[min(20rem,86vw)] flex-col border-r border-crm-border shadow-crmCard">
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(false)}
+              aria-label="Закрыть меню"
+              className="crm-focus-ring absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-crmLg border border-crm-border bg-crm-surfaceStrong/90 text-crm-muted transition hover:border-white/[0.14] hover:text-crm-text"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
             {renderNavigation()}
           </aside>
         </div>
       )}
 
-      <section className="min-h-screen px-4 py-5 sm:px-6 md:pl-80 md:pr-8">
+      <section className="min-h-screen min-w-0 px-4 py-4 sm:px-6 md:pl-80 md:pr-8 md:py-5">
         <div className="mx-auto max-w-7xl space-y-6">
-          <header className="flex items-center justify-between gap-3 md:hidden">
+          <header className="crm-glass -mx-4 mb-1 flex items-center justify-between gap-3 rounded-crmXl border border-crm-border px-3 py-2.5 shadow-crmCard sm:-mx-6 md:hidden">
             <button
               onClick={() => setDrawerOpen(true)}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xl leading-none shadow-sm"
+              className="crm-focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-crmLg border border-crm-border bg-crm-surface/60 text-crm-text transition hover:border-crm-accent/35 hover:bg-crm-accent/10 hover:text-crm-accent"
               aria-label="Открыть меню"
             >
-              ☰
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             </button>
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-xl font-semibold">CRM</h1>
-              <p className="truncate text-sm text-slate-500">{profile.name}</p>
+              <h1 className="truncate text-base font-semibold crm-gradient-text">СвойДом CRM</h1>
+              <p className="truncate text-xs text-crm-muted">{profile.name}</p>
             </div>
-            <button onClick={() => selectTab('profile')} className="shrink-0">
+            <button onClick={() => selectTab('profile')} className="crm-focus-ring shrink-0 rounded-full ring-2 ring-crm-border transition hover:ring-crm-accent/35">
               <AvatarCircle profile={profile} />
             </button>
           </header>

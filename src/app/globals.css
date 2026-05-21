@@ -20,9 +20,51 @@
   --shadowHover: 0 22px 70px rgba(31, 41, 55, 0.16);
 }
 
+/* ═══════════════════════════════════════════════════════════
+   CRM Design Tokens (Stage 1)
+   Separate token block — does not override legacy landing vars.
+   ═══════════════════════════════════════════════════════════ */
+:root {
+  --crm-bg: #07111f;
+  --crm-bg-deep: #030913;
+  --crm-surface: rgba(15, 29, 48, 0.82);
+  --crm-surface-strong: rgba(20, 36, 58, 0.95);
+  --crm-surface-soft: rgba(15, 29, 48, 0.55);
+  --crm-border: rgba(255, 255, 255, 0.08);
+  --crm-border-strong: rgba(255, 255, 255, 0.14);
+  --crm-border-accent: rgba(19, 216, 232, 0.35);
+  --crm-text: #f4f7fb;
+  --crm-text-secondary: #aeb9c8;
+  --crm-text-muted: rgba(174, 185, 200, 0.62);
+  --crm-accent: #13d8e8;
+  --crm-accent-strong: #0b88d8;
+  --crm-accent-soft: rgba(19, 216, 232, 0.14);
+  --crm-success: #34d399;
+  --crm-warning: #fbbf24;
+  --crm-danger: #f87171;
+  --crm-info: #38bdf8;
+  --crm-radius-sm: 0.5rem;
+  --crm-radius-md: 0.75rem;
+  --crm-radius-lg: 1rem;
+  --crm-radius-xl: 1.25rem;
+  --crm-shadow-card: 0 18px 48px rgba(3, 9, 19, 0.55), 0 2px 8px rgba(3, 9, 19, 0.35);
+  --crm-shadow-soft: 0 8px 24px rgba(3, 9, 19, 0.35);
+  --crm-shadow-glow: 0 0 32px rgba(19, 216, 232, 0.18);
+  --crm-gradient-app: linear-gradient(165deg, #07111f 0%, #030913 100%);
+  --crm-gradient-card: linear-gradient(155deg, rgba(20, 36, 58, 0.92) 0%, rgba(15, 29, 48, 0.78) 100%);
+  --crm-gradient-primary: linear-gradient(135deg, #13d8e8 0%, #0b88d8 100%);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html {
   scroll-behavior: smooth;
   overscroll-behavior: none;
+  overflow-x: hidden;
 }
 
 /* Prevent iOS Safari from zooming on input focus (requires font-size >= 16px) */
@@ -35,6 +77,7 @@ select {
 body {
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
+  overflow-x: hidden;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif;
@@ -114,6 +157,75 @@ body {
   .slot-box-with-image {
     @apply h-full w-full rounded-2xl;
     background: none;
+  }
+
+  /* CRM utility classes (Stage 1 — create only, do not apply to pages yet) */
+  .crm-app-bg {
+    background: var(--crm-gradient-app);
+    color: var(--crm-text);
+  }
+
+  .crm-card {
+    background: var(--crm-gradient-card);
+    border: 1px solid var(--crm-border);
+    border-radius: var(--crm-radius-lg);
+    box-shadow: var(--crm-shadow-card);
+  }
+
+  .crm-card-strong {
+    background: var(--crm-surface-strong);
+    border: 1px solid var(--crm-border-strong);
+    border-radius: var(--crm-radius-lg);
+    box-shadow: var(--crm-shadow-card);
+  }
+
+  .crm-glass {
+    background: var(--crm-surface);
+    border: 1px solid var(--crm-border);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+  }
+
+  .crm-gradient-text {
+    background: var(--crm-gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .crm-focus-ring {
+    @apply outline-none transition-shadow duration-200;
+  }
+
+  .crm-focus-ring:focus-visible {
+    box-shadow: 0 0 0 3px var(--crm-accent-soft), 0 0 0 1px var(--crm-border-accent);
+  }
+
+  .crm-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(174, 185, 200, 0.35) transparent;
+  }
+
+  .crm-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .crm-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .crm-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(174, 185, 200, 0.35);
+    border-radius: 999px;
+  }
+
+  .crm-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(174, 185, 200, 0.55);
+  }
+
+  .crm-mobile-safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
 
