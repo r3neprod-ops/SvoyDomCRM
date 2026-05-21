@@ -767,7 +767,7 @@ export default function TeamChatPanel({
 
   /* ── Render ──────────────────────────────────────────────────────────────── */
   return (
-    <section className="fixed inset-0 z-20 flex flex-col overflow-hidden bg-[#f0f2f5] dark:bg-gray-900 md:left-72">
+    <section className="fixed top-0 left-0 right-0 h-dvh z-20 flex flex-col overflow-hidden bg-[#f0f2f5] dark:bg-gray-900 md:left-72">
 
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-white/50 bg-white/90 px-3 py-3 shadow-sm backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/95">
@@ -865,7 +865,7 @@ export default function TeamChatPanel({
         </div>
 
         {/* Input area */}
-        <div className="relative z-10 border-t border-white/40 bg-[#f0f4f7] px-3 py-3 dark:border-gray-700 dark:bg-gray-800">
+        <div className="relative z-10 shrink-0 border-t border-white/40 bg-[#f0f4f7] px-3 py-3 dark:border-gray-700 dark:bg-gray-800">
           {error && <p className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
           <div className={`mb-3 flex justify-center ${isRec && recMode === 'video' ? '' : 'hidden'}`}>
@@ -974,9 +974,10 @@ export default function TeamChatPanel({
               <textarea ref={taRef} value={text} onChange={onTAChange} onKeyDown={onTAKey}
                 onPaste={(e) => { const files = e.clipboardData?.files; if (!files?.length) return; e.preventDefault(); onFiles(files); }}
                 onClick={(e) => { setAttachOpen(false); refreshMent(e.currentTarget.value, e.currentTarget.selectionStart ?? text.length); }}
+                onFocus={() => { setTimeout(() => scrollToBottom('smooth'), 300); }}
                 placeholder={activeDmId ? `Сообщение для ${dmOtherUser?.name || ''}…` : activeRoomId ? `Сообщение в ${activeRoom?.name || 'канал'}…` : 'Сообщение...'}
-                rows={1} style={{ minHeight: 36, maxHeight: 120, overflowY: 'auto' }}
-                className="flex-1 resize-none rounded-2xl bg-white px-3.5 py-2 text-sm shadow-sm ring-1 ring-slate-200/80 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                rows={1} style={{ minHeight: 36, maxHeight: 120, overflowY: 'auto', fontSize: 16 }}
+                className="flex-1 resize-none rounded-2xl bg-white px-3.5 py-2 shadow-sm ring-1 ring-slate-200/80 focus:outline-none focus:ring-2 focus:ring-blue-400" />
               <div className="mb-[3px] flex shrink-0 items-center gap-1">
                 {!hasText && !hasPendingFiles && (
                   <button type="button" onClick={() => setRecMode((m) => m === 'audio' ? 'video' : 'audio')}

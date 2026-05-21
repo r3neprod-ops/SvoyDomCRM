@@ -22,9 +22,19 @@
 
 html {
   scroll-behavior: smooth;
+  overscroll-behavior: none;
+}
+
+/* Prevent iOS Safari from zooming on input focus (requires font-size >= 16px) */
+input:not([type="file"]):not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+  font-size: 16px !important;
 }
 
 body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif;
