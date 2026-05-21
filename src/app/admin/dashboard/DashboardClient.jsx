@@ -1536,7 +1536,7 @@ export default function DashboardClient({ user }) {
       className={`crm-app-bg crm-mobile-safe-bottom min-w-0 text-crm-text ${
         activeTab === 'chat'
           ? 'overflow-hidden'
-          : 'min-h-dvh overflow-x-hidden touch-pan-y'
+          : 'min-h-dvh touch-pan-y'
       }`}
     >
       <aside className="crm-glass fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-crm-border shadow-crmCard md:block">
@@ -1570,7 +1570,7 @@ export default function DashboardClient({ user }) {
         className={
           activeTab === 'chat'
             ? 'min-w-0 px-4 py-4 md:ml-72 md:px-8 md:py-5'
-            : 'min-h-dvh min-w-0 overflow-x-hidden touch-pan-y px-4 py-4 md:ml-72 md:px-8 md:py-5'
+            : 'min-h-dvh min-w-0 px-4 py-4 md:ml-72 md:px-8 md:py-5'
         }
       >
         <div className="w-full min-w-0 space-y-6">
