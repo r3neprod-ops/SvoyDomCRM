@@ -66,7 +66,7 @@ export default function LoginForm() {
       {/* Decorative gradient blobs */}
       <div className="pointer-events-none absolute inset-0" aria-hidden="true">
         <div className="absolute -left-24 top-[-10%] h-[420px] w-[420px] rounded-full bg-crm-accent/[0.12] blur-[100px]" />
-        <div className="absolute -right-20 top-[20%] h-[360px] w-[360px] rounded-full bg-[#0b88d8]/[0.14] blur-[90px]" />
+        <div className="absolute -right-20 top-[20%] h-[360px] w-[360px] rounded-full bg-[var(--crm-accent-strong)]/[0.14] blur-[90px]" />
         <div className="absolute bottom-[-8%] left-[30%] h-[320px] w-[320px] rounded-full bg-crm-accent/[0.08] blur-[80px]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(19,216,232,0.06),transparent_55%)]" />
       </div>
@@ -84,8 +84,8 @@ export default function LoginForm() {
               />
               <defs>
                 <linearGradient id="loginLogoGradient" x1="3" y1="4" x2="21" y2="21" gradientUnits="userSpaceOnUse">
-                  <stop stopColor="#13d8e8" />
-                  <stop offset="1" stopColor="#0b88d8" />
+                  <stop stopColor="var(--crm-accent)" />
+                  <stop offset="1" stopColor="var(--crm-accent-strong)" />
                 </linearGradient>
               </defs>
             </svg>
@@ -144,7 +144,7 @@ export default function LoginForm() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  className="crm-focus-ring absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-crmLg text-crm-muted transition-colors hover:text-crm-text"
+                  className="crm-focus-ring absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-crmLg text-crm-muted transition-colors hover:text-crm-text"
                   aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
                   tabIndex={-1}
                 >
@@ -165,7 +165,7 @@ export default function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="crm-focus-ring flex min-h-[48px] w-full items-center justify-center rounded-crmXl bg-gradient-to-r from-crm-accent to-[#0b88d8] px-4 text-base font-semibold text-[#030913] shadow-crmGlow transition-all duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+              className="crm-focus-ring flex min-h-[48px] w-full items-center justify-center rounded-crmXl bg-gradient-to-r from-crm-accent to-[var(--crm-accent-strong)] px-4 text-base font-semibold text-[var(--crm-bg-deep)] shadow-crmGlow transition-all duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? (
                 <span className="flex items-center gap-2">

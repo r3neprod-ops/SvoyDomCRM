@@ -47,6 +47,255 @@ function LeadsEmptyState({ children }) {
     </div>
   );
 }
+
+function EmployeesEmptyState() {
+  return (
+    <div className="crm-card flex flex-col items-center justify-center rounded-crmXl border border-dashed border-crm-border px-6 py-14 text-center shadow-crmCard">
+      <p className="text-sm font-medium text-crm-text">Сотрудники пока не добавлены</p>
+      <p className="mt-2 max-w-sm text-sm leading-relaxed text-crm-muted">
+        Добавьте первого сотрудника, чтобы распределять лиды
+      </p>
+    </div>
+  );
+}
+
+function employeeInputClass() {
+  return 'crm-focus-ring w-full min-h-11 rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2.5 text-sm text-crm-text placeholder:text-crm-muted';
+}
+
+function employeeActionButtonClass(variant) {
+  const base =
+    'crm-focus-ring inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-crmLg px-3 py-2 text-xs font-medium transition';
+  if (variant === 'edit') {
+    return `${base} border border-crm-accent/35 bg-crm-accent/10 text-crm-accent hover:bg-crm-accent/18`;
+  }
+  if (variant === 'delete') {
+    return `${base} border border-crm-danger/35 bg-crm-danger/10 text-crm-danger hover:bg-crm-danger/15`;
+  }
+  if (variant === 'save') {
+    return `${base} border border-crm-success/40 bg-crm-success/15 text-crm-success hover:bg-crm-success/22`;
+  }
+  if (variant === 'cancel') {
+    return `${base} border border-crm-border bg-crm-surface/40 text-crm-muted hover:bg-crm-surface/60 hover:text-crm-text`;
+  }
+  return base;
+}
+
+function employeeCardClass() {
+  return 'crm-card rounded-crmXl border border-crm-border p-4 shadow-crmCard transition hover:border-crm-accent/20';
+}
+
+function employeeStatusBadgeClass(isActive) {
+  return `inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+    isActive !== false
+      ? 'border border-crm-success/35 bg-crm-success/12 text-crm-success'
+      : 'border border-crm-border bg-crm-surface/60 text-crm-muted'
+  }`;
+}
+
+function profileInputClass() {
+  return 'crm-focus-ring w-full min-h-11 rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2.5 text-sm text-crm-text placeholder:text-crm-muted';
+}
+
+function profileTextareaClass() {
+  return 'crm-focus-ring w-full min-h-[5.5rem] resize-none rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2.5 text-sm text-crm-text placeholder:text-crm-muted';
+}
+
+function profileLabelClass() {
+  return 'mb-1.5 block text-xs font-medium uppercase tracking-wide text-crm-muted';
+}
+
+function profileHintClass() {
+  return 'mt-1.5 text-xs leading-relaxed text-crm-muted';
+}
+
+function settingsCardClass() {
+  return 'crm-glass overflow-hidden rounded-crmXl border border-crm-border shadow-crmCard';
+}
+
+function settingsCardHeaderClass() {
+  return 'border-b border-crm-border px-5 py-4 sm:px-6';
+}
+
+function settingsCardBodyClass() {
+  return 'px-5 py-5 sm:px-6';
+}
+
+function profileButtonClass(variant = 'primary') {
+  const base =
+    'crm-focus-ring inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-crmLg px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto';
+  if (variant === 'primary') {
+    return `${base} border border-crm-accent/40 bg-crm-accent/15 text-crm-accent shadow-crmGlow hover:bg-crm-accent/22`;
+  }
+  if (variant === 'secondary') {
+    return `${base} border border-crm-border bg-crm-surface/40 text-crm-text hover:border-crm-accent/30 hover:bg-crm-accent/8`;
+  }
+  if (variant === 'danger') {
+    return `${base} border border-crm-danger/35 bg-crm-danger/10 text-crm-danger hover:bg-crm-danger/15`;
+  }
+  if (variant === 'success') {
+    return `${base} border border-crm-success/35 bg-crm-success/10 text-crm-success hover:bg-crm-success/18`;
+  }
+  if (variant === 'test') {
+    return `${base} border border-crm-accent/30 bg-crm-accent/8 text-crm-accent hover:bg-crm-accent/15`;
+  }
+  return base;
+}
+
+function profileAlertClass(type) {
+  if (type === 'error') {
+    return 'rounded-crmLg border border-crm-danger/35 bg-crm-danger/10 px-3 py-2.5 text-sm text-crm-danger';
+  }
+  if (type === 'success') {
+    return 'rounded-crmLg border border-crm-success/35 bg-crm-success/10 px-3 py-2.5 text-sm text-crm-success';
+  }
+  return 'rounded-crmLg border border-crm-border bg-crm-surface/40 px-3 py-2.5 text-sm text-crm-muted';
+}
+
+function pushStatusPillClass(status) {
+  if (status === 'granted') {
+    return 'inline-flex shrink-0 items-center rounded-full border border-crm-success/35 bg-crm-success/12 px-2.5 py-1 text-xs font-medium text-crm-success';
+  }
+  if (status === 'error' || status === 'denied') {
+    return 'inline-flex shrink-0 items-center rounded-full border border-crm-danger/35 bg-crm-danger/12 px-2.5 py-1 text-xs font-medium text-crm-danger';
+  }
+  return 'inline-flex shrink-0 items-center rounded-full border border-crm-border bg-crm-surface/60 px-2.5 py-1 text-xs font-medium text-crm-muted';
+}
+
+function pushStatusLabel(status) {
+  if (status === 'granted') return 'Активны';
+  if (status === 'denied') return 'Заблокированы';
+  if (status === 'loading') return 'Подключение...';
+  if (status === 'error') return 'Ошибка';
+  if (status === 'unsupported' || status === 'unsupported_ios') return 'Недоступны';
+  if (status === 'ios_install_required') return 'Нужна установка';
+  if (status === 'not_configured') return 'Не настроены';
+  return 'Выключены';
+}
+
+function ProfileSectionIcon({ name }) {
+  const props = {
+    className: 'h-5 w-5 shrink-0 text-crm-accent',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.75,
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    'aria-hidden': true,
+  };
+  if (name === 'personal') {
+    return (
+      <svg viewBox="0 0 24 24" {...props}>
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+    );
+  }
+  if (name === 'security') {
+    return (
+      <svg viewBox="0 0 24 24" {...props}>
+        <rect x="3" y="11" width="18" height="11" rx="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      </svg>
+    );
+  }
+  if (name === 'notifications') {
+    return (
+      <svg viewBox="0 0 24 24" {...props}>
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      </svg>
+    );
+  }
+  return null;
+}
+
+function DiagnosticsMark({ ok }) {
+  if (ok) {
+    return (
+      <svg viewBox="0 0 24 24" className="inline h-3.5 w-3.5 shrink-0 text-crm-success" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M20 6 9 17l-5-5" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" className="inline h-3.5 w-3.5 shrink-0 text-crm-danger" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  );
+}
+
+function PasswordVisibilityToggle({ show, onToggle, label }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="crm-focus-ring absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-crmLg text-crm-muted transition hover:bg-crm-accent/10 hover:text-crm-accent"
+      aria-label={show ? `Скрыть ${label}` : `Показать ${label}`}
+    >
+      {show ? (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+          <path d="M1 1l22 22" />
+          <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+function EmployeeInitialCircle({ name, size = 'md' }) {
+  const sizeClass = size === 'sm' ? 'h-8 w-8 text-xs' : 'h-9 w-9 text-sm';
+  return (
+    <div
+      className={`${sizeClass} flex shrink-0 items-center justify-center rounded-full border border-crm-accent/25 bg-crm-accent/12 font-semibold text-crm-accent`}
+      aria-hidden="true"
+    >
+      {getInitials(name)}
+    </div>
+  );
+}
+
+function EmployeeEditIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+function EmployeeDeleteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 6h18" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </svg>
+  );
+}
+
+function EmployeeCheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+function EmployeeCloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  );
+}
 const STATUSES = ['new', 'in_progress', 'closed'];
 const FILTER_OPTIONS = [
   { value: '',            label: 'Все' },
@@ -283,6 +532,9 @@ export default function DashboardClient({ user }) {
   const [credSaving, setCredSaving] = useState(false);
   const [credError, setCredError] = useState('');
   const [credSaved, setCredSaved] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Comments modal
   const [commentModal, setCommentModal] = useState(null); // { leadId, leadName }
@@ -1179,7 +1431,7 @@ export default function DashboardClient({ user }) {
                   className={`crm-focus-ring flex w-full items-center gap-2 rounded-crmLg py-1.5 pl-5 pr-3 text-left text-xs transition ${shellChatSubItemClass(!activeDmId && !activeRoomId)}`}
                 >
                   <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[8px] font-bold text-white"
-                    style={{ background: 'linear-gradient(135deg, #13d8e8, #0b88d8)' }}>CRM</div>
+                    style={{ background: 'var(--crm-gradient-primary)' }}>CRM</div>
                   <span className="flex-1 truncate">Общий чат</span>
                   {chatGenUnread > 0 && (
                     <span className="rounded-full bg-crm-danger px-1.5 py-0.5 text-[10px] font-semibold text-white">
@@ -1216,8 +1468,8 @@ export default function DashboardClient({ user }) {
                 <div className="flex items-center px-3 pb-0.5 pt-2">
                   <span className="flex-1 text-[9px] font-semibold uppercase tracking-wider text-crm-muted">Каналы</span>
                   <button onClick={() => setShowCreateRoom(true)}
-                    className="crm-focus-ring flex h-5 w-5 items-center justify-center rounded-full border border-crm-border bg-crm-surface/60 text-crm-muted transition hover:border-crm-accent/35 hover:bg-crm-accent/10 hover:text-crm-accent"
-                    title="Создать канал">
+                    className="crm-focus-ring flex h-8 w-8 items-center justify-center rounded-full border border-crm-border bg-crm-surface/60 text-crm-muted transition hover:border-crm-accent/35 hover:bg-crm-accent/10 hover:text-crm-accent"
+                    aria-label="Создать канал">
                     <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3">
                       <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                     </svg>
@@ -1289,7 +1541,7 @@ export default function DashboardClient({ user }) {
         <div className="fixed inset-0 z-40 md:hidden">
           <button
             aria-label="Закрыть меню"
-            className="absolute inset-0 bg-[#030913]/65 backdrop-blur-sm"
+            className="absolute inset-0 bg-[var(--crm-bg-deep)]/65 backdrop-blur-sm"
             onClick={() => setDrawerOpen(false)}
           />
           <aside className="crm-glass crm-mobile-safe-bottom relative flex h-full w-[min(20rem,86vw)] flex-col border-r border-crm-border shadow-crmCard">
@@ -1297,7 +1549,7 @@ export default function DashboardClient({ user }) {
               type="button"
               onClick={() => setDrawerOpen(false)}
               aria-label="Закрыть меню"
-              className="crm-focus-ring absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-crmLg border border-crm-border bg-crm-surfaceStrong/90 text-crm-muted transition hover:border-white/[0.14] hover:text-crm-text"
+              className="crm-focus-ring absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-crmLg border border-crm-border bg-crm-surfaceStrong/90 text-crm-muted transition hover:border-white/[0.14] hover:text-crm-text"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                 <path d="M18 6 6 18M6 6l12 12" />
@@ -1411,7 +1663,7 @@ export default function DashboardClient({ user }) {
                   <button
                     type="button"
                     onClick={() => setLeadSearch('')}
-                    className="crm-focus-ring absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-crm-muted transition hover:bg-crm-accent/10 hover:text-crm-accent"
+                    className="crm-focus-ring absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-crm-muted transition hover:bg-crm-accent/10 hover:text-crm-accent"
                     aria-label="Очистить поиск"
                   >
                     ×
@@ -1693,358 +1945,593 @@ export default function DashboardClient({ user }) {
         {/* ── Profile tab ── */}
         {activeTab === 'profile' && (
           <div className="space-y-6">
-          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 px-5 py-4">
-              <h2 className="text-lg font-semibold">Профиль</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Личные данные видны в CRM и общем чате.
+            <div className="min-w-0">
+              <h2 className="text-2xl font-semibold tracking-tight crm-gradient-text">Профиль</h2>
+              <p className="mt-1 text-sm text-crm-muted">
+                Личные данные, безопасность и уведомления в одном месте
               </p>
             </div>
-            <form onSubmit={saveProfile} className="space-y-5 px-5 py-5">
-              <div className="flex flex-wrap items-center gap-4">
-                <AvatarCircle profile={profile} size="lg" />
-                <div>
-                  <p className="font-medium">{profile.name}</p>
-                  <p className="text-sm text-slate-500">@{profile.username}</p>
-                </div>
-              </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">Отображаемое имя</label>
-                  <input
-                    type="text"
-                    value={profileForm.name}
-                    onChange={(e) => setProfileForm((prev) => ({ ...prev, name: e.target.value }))}
-                    placeholder="Иван Иванов"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">Никнейм</label>
-                  <div className="flex rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-slate-400">
-                    <span className="flex items-center border-r border-slate-200 px-3 text-sm text-slate-400">@</span>
-                    <input
-                      type="text"
-                      value={profileForm.username}
-                      onChange={(e) => setProfileForm((prev) => ({ ...prev, username: e.target.value.replace(/^@+/, '') }))}
-                      placeholder="nickname"
-                      autoComplete="username"
-                      className="min-w-0 flex-1 rounded-r-xl px-3 py-2 text-sm focus:outline-none"
-                    />
+            <div className="crm-card crm-card-strong rounded-crm2xl border border-crm-border p-5 shadow-crmCard sm:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-4">
+                  <div className="rounded-full p-0.5 ring-2 ring-crm-accent/35 ring-offset-2 ring-offset-crm-bg">
+                    <AvatarCircle profile={profile} size="lg" />
                   </div>
-                  <p className="mt-1 text-xs text-slate-400">3-32 символа: латиница, цифры и _.</p>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">Телефон</label>
-                  <input
-                    type="tel"
-                    value={profileForm.phone}
-                    onChange={(e) => setProfileForm((prev) => ({ ...prev, phone: e.target.value }))}
-                    placeholder="+7 999 000-00-00"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">Аватар</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setProfileForm((prev) => ({ ...prev, avatar: e.target.files?.[0] || null }))}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:text-slate-700"
-                  />
-                  <p className="mt-1 text-xs text-slate-400">JPG/PNG/WebP до 5 МБ.</p>
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Статус</label>
-                <textarea
-                  value={profileForm.status_text}
-                  onChange={(e) => setProfileForm((prev) => ({ ...prev, status_text: e.target.value }))}
-                  maxLength={160}
-                  rows={3}
-                  placeholder="Например: на показах до 18:00"
-                  className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                />
-                <p className="mt-1 text-xs text-slate-400">{profileForm.status_text.length}/160</p>
-              </div>
-
-              {profileError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{profileError}</p>}
-              {profileSaved && <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">Профиль сохранён.</p>}
-
-              <button
-                type="submit"
-                disabled={profileSaving}
-                className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white transition hover:bg-slate-700 disabled:opacity-50"
-              >
-                {profileSaving ? 'Сохранение...' : 'Сохранить профиль'}
-              </button>
-            </form>
-          </section>
-
-          {/* ── Credentials section ── */}
-          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 px-5 py-4">
-              <h2 className="text-lg font-semibold">Безопасность</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Смена логина и пароля. Текущий пароль обязателен для любых изменений.
-              </p>
-            </div>
-            <form onSubmit={saveCredentials} className="space-y-4 px-5 py-5">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">Новый логин (необязательно)</label>
-                  <div className="flex rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-slate-400">
-                    <span className="flex items-center border-r border-slate-200 px-3 text-sm text-slate-400">@</span>
-                    <input
-                      type="text"
-                      value={credForm.new_username}
-                      onChange={(e) => setCredForm((f) => ({ ...f, new_username: e.target.value.replace(/^@+/, '') }))}
-                      placeholder={profile.username}
-                      autoComplete="off"
-                      className="min-w-0 flex-1 rounded-r-xl px-3 py-2 text-sm focus:outline-none"
-                    />
+                  <div className="min-w-0">
+                    <p className="truncate text-lg font-semibold text-crm-text">{profile.name || 'Без имени'}</p>
+                    <p className="truncate text-sm text-crm-muted">@{profile.username || '—'}</p>
+                    {profile.status_text ? (
+                      <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-crm-text/90">{profile.status_text}</p>
+                    ) : (
+                      <p className="mt-2 text-sm text-crm-muted">Статус не задан</p>
+                    )}
                   </div>
-                  <p className="mt-1 text-xs text-slate-400">При смене логина вы будете разлогинены.</p>
                 </div>
-
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">Текущий пароль *</label>
-                  <input
-                    type="password"
-                    value={credForm.current_password}
-                    onChange={(e) => setCredForm((f) => ({ ...f, current_password: e.target.value }))}
-                    placeholder="Введите текущий пароль"
-                    autoComplete="current-password"
-                    required
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">Новый пароль (необязательно)</label>
-                  <input
-                    type="password"
-                    value={credForm.new_password}
-                    onChange={(e) => setCredForm((f) => ({ ...f, new_password: e.target.value }))}
-                    placeholder="Минимум 4 символа"
-                    autoComplete="new-password"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">Повтор нового пароля</label>
-                  <input
-                    type="password"
-                    value={credForm.confirm_password}
-                    onChange={(e) => setCredForm((f) => ({ ...f, confirm_password: e.target.value }))}
-                    placeholder="Повторите новый пароль"
-                    autoComplete="new-password"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                  />
-                </div>
+                <span className="inline-flex shrink-0 self-start rounded-full border border-crm-accent/30 bg-crm-accent/10 px-3 py-1 text-xs font-medium text-crm-accent sm:self-center">
+                  {isAdmin ? 'Администратор' : 'Сотрудник'}
+                </span>
               </div>
-
-              {credError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{credError}</p>}
-              {credSaved && <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{credSaved}</p>}
-
-              <button
-                type="submit"
-                disabled={credSaving}
-                className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white transition hover:bg-slate-700 disabled:opacity-50"
-              >
-                {credSaving ? 'Сохранение...' : 'Обновить данные'}
-              </button>
-            </form>
-          </section>
-
-          {/* ── Notifications section ── */}
-          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 px-5 py-4">
-              <h2 className="text-lg font-semibold">Уведомления</h2>
-              <p className="mt-1 text-sm text-slate-500">Push-уведомления о новых лидах и сообщениях.</p>
             </div>
-            <div className="space-y-3 px-5 py-5">
-              {notifStatus === 'granted' ? (
-                <button
-                  onClick={disableNotifications}
-                  className="w-full rounded-xl border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-700 transition hover:bg-red-50 hover:border-red-200 hover:text-red-700"
-                >
-                  {notificationLabel}
-                </button>
-              ) : (
-                <button
-                  onClick={notificationBlocked ? undefined : enableNotifications}
-                  disabled={notifStatus === 'loading' || notificationBlocked}
-                  className={`w-full rounded-xl border px-4 py-2 text-sm transition disabled:cursor-default ${notificationClass}`}
-                >
-                  {notificationLabel}
-                </button>
-              )}
-              {notificationError && (
-                <p className="rounded-lg bg-red-50 px-3 py-2 text-xs leading-snug text-red-700">
-                  {notificationError}
-                </p>
-              )}
-              {notifStatus === 'granted' && (
-                <button
-                  onClick={sendTestPush}
-                  disabled={testPushStatus === 'loading'}
-                  className="w-full rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-700 transition hover:bg-blue-100 disabled:opacity-50"
-                >
-                  {testPushStatus === 'loading' ? 'Отправка...' : testPushStatus === 'sent' ? 'Отправлено!' : testPushStatus === 'error' ? 'Ошибка отправки' : 'Отправить тестовый пуш'}
-                </button>
-              )}
-              <button
-                onClick={runPushDiagnostics}
-                disabled={pushDiagnosticsLoading}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
-              >
-                {pushDiagnosticsLoading ? 'Проверка...' : 'Диагностика push'}
-              </button>
-              {pushDiagnostics && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
-                  {pushDiagnostics.error ? (
-                    <p className="text-red-600">{pushDiagnostics.error}</p>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <section className={settingsCardClass()}>
+                <div className={settingsCardHeaderClass()}>
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-crmLg border border-crm-accent/25 bg-crm-accent/10">
+                      <ProfileSectionIcon name="personal" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-lg font-semibold text-crm-text">Личные данные</h3>
+                      <p className="mt-1 text-sm text-crm-muted">
+                        Имя, контакты и аватар видны в CRM и общем чате
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <form onSubmit={saveProfile} className={`${settingsCardBodyClass()} space-y-5`}>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <label className={profileLabelClass()}>Отображаемое имя</label>
+                      <input
+                        type="text"
+                        value={profileForm.name}
+                        onChange={(e) => setProfileForm((prev) => ({ ...prev, name: e.target.value }))}
+                        placeholder="Иван Иванов"
+                        className={profileInputClass()}
+                      />
+                    </div>
+                    <div>
+                      <label className={profileLabelClass()}>Никнейм</label>
+                      <div className="crm-focus-ring flex min-h-11 overflow-hidden rounded-crmLg border border-crm-border bg-crm-surface/50 focus-within:ring-2">
+                        <span className="flex items-center border-r border-crm-border px-3 text-sm text-crm-muted">@</span>
+                        <input
+                          type="text"
+                          value={profileForm.username}
+                          onChange={(e) => setProfileForm((prev) => ({ ...prev, username: e.target.value.replace(/^@+/, '') }))}
+                          placeholder="nickname"
+                          autoComplete="username"
+                          className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm text-crm-text placeholder:text-crm-muted focus:outline-none"
+                        />
+                      </div>
+                      <p className={profileHintClass()}>3-32 символа: латиница, цифры и _.</p>
+                    </div>
+                    <div>
+                      <label className={profileLabelClass()}>Телефон</label>
+                      <input
+                        type="tel"
+                        value={profileForm.phone}
+                        onChange={(e) => setProfileForm((prev) => ({ ...prev, phone: e.target.value }))}
+                        placeholder="+7 999 000-00-00"
+                        className={profileInputClass()}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className={profileLabelClass()}>Аватар</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setProfileForm((prev) => ({ ...prev, avatar: e.target.files?.[0] || null }))}
+                        className={`${profileInputClass()} file:mr-3 file:rounded-crmLg file:border-0 file:bg-crm-accent/15 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-crm-accent hover:file:bg-crm-accent/22`}
+                      />
+                      <p className={profileHintClass()}>JPG/PNG/WebP до 5 МБ.</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={profileLabelClass()}>Статус</label>
+                    <textarea
+                      value={profileForm.status_text}
+                      onChange={(e) => setProfileForm((prev) => ({ ...prev, status_text: e.target.value }))}
+                      maxLength={160}
+                      rows={3}
+                      placeholder="Например: на показах до 18:00"
+                      className={profileTextareaClass()}
+                    />
+                    <p className={`${profileHintClass()} text-right tabular-nums`}>{profileForm.status_text.length}/160</p>
+                  </div>
+
+                  {profileError && <p className={profileAlertClass('error')}>{profileError}</p>}
+                  {profileSaved && <p className={profileAlertClass('success')}>Профиль сохранён.</p>}
+
+                  <button type="submit" disabled={profileSaving} className={profileButtonClass('primary')}>
+                    {profileSaving ? 'Сохранение...' : 'Сохранить профиль'}
+                  </button>
+                </form>
+              </section>
+
+              <section className={settingsCardClass()}>
+                <div className={settingsCardHeaderClass()}>
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-crmLg border border-crm-accent/25 bg-crm-accent/10">
+                      <ProfileSectionIcon name="security" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-lg font-semibold text-crm-text">Безопасность</h3>
+                      <p className="mt-1 text-sm text-crm-muted">
+                        Смена логина и пароля. Текущий пароль обязателен для любых изменений.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <form onSubmit={saveCredentials} className={`${settingsCardBodyClass()} space-y-4`}>
+                  <div className="grid gap-4">
+                    <div>
+                      <label className={profileLabelClass()}>Новый логин (необязательно)</label>
+                      <div className="crm-focus-ring flex min-h-11 overflow-hidden rounded-crmLg border border-crm-border bg-crm-surface/50 focus-within:ring-2">
+                        <span className="flex items-center border-r border-crm-border px-3 text-sm text-crm-muted">@</span>
+                        <input
+                          type="text"
+                          value={credForm.new_username}
+                          onChange={(e) => setCredForm((f) => ({ ...f, new_username: e.target.value.replace(/^@+/, '') }))}
+                          placeholder={profile.username}
+                          autoComplete="off"
+                          className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm text-crm-text placeholder:text-crm-muted focus:outline-none"
+                        />
+                      </div>
+                      <p className={profileHintClass()}>При смене логина вы будете разлогинены.</p>
+                    </div>
+
+                    <div>
+                      <label className={profileLabelClass()}>Текущий пароль *</label>
+                      <div className="relative">
+                        <input
+                          type={showCurrentPassword ? 'text' : 'password'}
+                          value={credForm.current_password}
+                          onChange={(e) => setCredForm((f) => ({ ...f, current_password: e.target.value }))}
+                          placeholder="Введите текущий пароль"
+                          autoComplete="current-password"
+                          required
+                          className={`${profileInputClass()} pr-11`}
+                        />
+                        <PasswordVisibilityToggle
+                          show={showCurrentPassword}
+                          onToggle={() => setShowCurrentPassword((v) => !v)}
+                          label="текущий пароль"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={profileLabelClass()}>Новый пароль (необязательно)</label>
+                      <div className="relative">
+                        <input
+                          type={showNewPassword ? 'text' : 'password'}
+                          value={credForm.new_password}
+                          onChange={(e) => setCredForm((f) => ({ ...f, new_password: e.target.value }))}
+                          placeholder="Минимум 4 символа"
+                          autoComplete="new-password"
+                          className={`${profileInputClass()} pr-11`}
+                        />
+                        <PasswordVisibilityToggle
+                          show={showNewPassword}
+                          onToggle={() => setShowNewPassword((v) => !v)}
+                          label="новый пароль"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={profileLabelClass()}>Повтор нового пароля</label>
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          value={credForm.confirm_password}
+                          onChange={(e) => setCredForm((f) => ({ ...f, confirm_password: e.target.value }))}
+                          placeholder="Повторите новый пароль"
+                          autoComplete="new-password"
+                          className={`${profileInputClass()} pr-11`}
+                        />
+                        <PasswordVisibilityToggle
+                          show={showConfirmPassword}
+                          onToggle={() => setShowConfirmPassword((v) => !v)}
+                          label="повтор пароля"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {credError && <p className={profileAlertClass('error')}>{credError}</p>}
+                  {credSaved && <p className={profileAlertClass('success')}>{credSaved}</p>}
+
+                  <button type="submit" disabled={credSaving} className={profileButtonClass('primary')}>
+                    {credSaving ? 'Сохранение...' : 'Обновить данные'}
+                  </button>
+                </form>
+              </section>
+
+              <section className={`${settingsCardClass()} lg:col-span-2`}>
+                <div className={settingsCardHeaderClass()}>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-crmLg border border-crm-accent/25 bg-crm-accent/10">
+                        <ProfileSectionIcon name="notifications" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-lg font-semibold text-crm-text">Уведомления</h3>
+                        <p className="mt-1 text-sm text-crm-muted">Push-уведомления о новых лидах и сообщениях.</p>
+                      </div>
+                    </div>
+                    <span className={pushStatusPillClass(notifStatus === 'granted' ? 'granted' : notifStatus === 'error' || notifStatus === 'denied' ? 'error' : 'off')}>
+                      {pushStatusLabel(notifStatus)}
+                    </span>
+                  </div>
+                </div>
+                <div className={`${settingsCardBodyClass()} space-y-3`}>
+                  {notifStatus === 'granted' ? (
+                    <button
+                      onClick={disableNotifications}
+                      className={`${profileButtonClass('success')} hover:border-crm-danger/35 hover:bg-crm-danger/10 hover:text-crm-danger`}
+                    >
+                      {notificationLabel}
+                    </button>
                   ) : (
-                    <div className="space-y-1.5">
-                      <p>{pushDiagnostics.browser?.notificationApi ? '✓' : '×'} Notification API: {pushDiagnostics.browser?.permission}</p>
-                      <p>{pushDiagnostics.browser?.serviceWorker ? '✓' : '×'} Service Worker</p>
-                      <p>{pushDiagnostics.browser?.pushManager ? '✓' : '×'} PushManager</p>
-                      {pushDiagnostics.browser?.ios && (
-                        <p>{pushDiagnostics.browser?.standalone ? '✓' : '×'} iPhone PWA: {pushDiagnostics.browser?.standalone ? 'запущено с экрана Домой' : 'нужно установить через Safari'}</p>
-                      )}
-                      <p>{pushDiagnostics.browser?.subscription ? '✓' : '×'} Подписка в браузере{pushDiagnostics.browser?.endpoint ? `: ${pushDiagnostics.browser.endpoint}` : ''}</p>
-                      <p>{pushDiagnostics.server?.vapidPublicKey?.ok ? '✓' : '×'} VAPID public key</p>
-                      <p>{pushDiagnostics.server?.vapidPrivateKey?.ok ? '✓' : '×'} VAPID private key</p>
-                      <p>{pushDiagnostics.server?.database?.ok ? '✓' : '×'} База данных: {pushDiagnostics.server?.database?.label}</p>
-                      <p>{pushDiagnostics.server?.subscriptions?.ok ? '✓' : '×'} Подписки на сервере: {pushDiagnostics.server?.subscriptions?.count || 0}</p>
-                      {pushDiagnostics.server?.subscriptions?.items?.length > 0 && (
-                        <div className="mt-2 space-y-1 rounded-lg bg-white px-2 py-2">
-                          {pushDiagnostics.server.subscriptions.items.map((item) => (
-                            <div key={item.id} className="border-b border-slate-100 pb-1 last:border-0 last:pb-0">
-                              <p>#{item.id} {item.platform || 'unknown'} · {item.endpoint}</p>
-                              {item.last_success_at && <p className="text-green-700">Последняя доставка: {new Date(item.last_success_at).toLocaleString('ru-RU')}</p>}
-                              {item.last_error && <p className="text-red-700">Ошибка {item.last_status_code || ''}: {item.last_error}</p>}
+                    <button
+                      onClick={notificationBlocked ? undefined : enableNotifications}
+                      disabled={notifStatus === 'loading' || notificationBlocked}
+                      className={`crm-focus-ring inline-flex min-h-11 w-full items-center justify-center rounded-crmLg border px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${notificationClass}`}
+                    >
+                      {notificationLabel}
+                    </button>
+                  )}
+                  {notificationError && (
+                    <p className={profileAlertClass('error')}>{notificationError}</p>
+                  )}
+                  {notifStatus === 'granted' && (
+                    <button
+                      onClick={sendTestPush}
+                      disabled={testPushStatus === 'loading'}
+                      className={profileButtonClass('test')}
+                    >
+                      {testPushStatus === 'loading' ? 'Отправка...' : testPushStatus === 'sent' ? 'Отправлено!' : testPushStatus === 'error' ? 'Ошибка отправки' : 'Отправить тестовый пуш'}
+                    </button>
+                  )}
+                  <button
+                    onClick={runPushDiagnostics}
+                    disabled={pushDiagnosticsLoading}
+                    className={profileButtonClass('secondary')}
+                  >
+                    {pushDiagnosticsLoading ? 'Проверка...' : 'Диагностика push'}
+                  </button>
+                  {pushDiagnostics && (
+                    <div className="crm-scrollbar max-h-80 overflow-y-auto rounded-crmLg border border-crm-border bg-crm-bg/80 px-4 py-3 font-mono text-xs leading-relaxed text-crm-muted shadow-inner">
+                      {pushDiagnostics.error ? (
+                        <p className="text-crm-danger">{pushDiagnostics.error}</p>
+                      ) : (
+                        <div className="space-y-2">
+                          <p className="flex items-start gap-2">
+                            <DiagnosticsMark ok={pushDiagnostics.browser?.notificationApi} />
+                            <span>Notification API: {pushDiagnostics.browser?.permission}</span>
+                          </p>
+                          <p className="flex items-start gap-2">
+                            <DiagnosticsMark ok={pushDiagnostics.browser?.serviceWorker} />
+                            <span>Service Worker</span>
+                          </p>
+                          <p className="flex items-start gap-2">
+                            <DiagnosticsMark ok={pushDiagnostics.browser?.pushManager} />
+                            <span>PushManager</span>
+                          </p>
+                          {pushDiagnostics.browser?.ios && (
+                            <p className="flex items-start gap-2">
+                              <DiagnosticsMark ok={pushDiagnostics.browser?.standalone} />
+                              <span>
+                                iPhone PWA: {pushDiagnostics.browser?.standalone ? 'запущено с экрана Домой' : 'нужно установить через Safari'}
+                              </span>
+                            </p>
+                          )}
+                          <p className="flex items-start gap-2 break-all">
+                            <DiagnosticsMark ok={pushDiagnostics.browser?.subscription} />
+                            <span>
+                              Подписка в браузере
+                              {pushDiagnostics.browser?.endpoint ? `: ${pushDiagnostics.browser.endpoint}` : ''}
+                            </span>
+                          </p>
+                          <p className="flex items-start gap-2">
+                            <DiagnosticsMark ok={pushDiagnostics.server?.vapidPublicKey?.ok} />
+                            <span>VAPID public key</span>
+                          </p>
+                          <p className="flex items-start gap-2">
+                            <DiagnosticsMark ok={pushDiagnostics.server?.vapidPrivateKey?.ok} />
+                            <span>VAPID private key</span>
+                          </p>
+                          <p className="flex items-start gap-2">
+                            <DiagnosticsMark ok={pushDiagnostics.server?.database?.ok} />
+                            <span>База данных: {pushDiagnostics.server?.database?.label}</span>
+                          </p>
+                          <p className="flex items-start gap-2">
+                            <DiagnosticsMark ok={pushDiagnostics.server?.subscriptions?.ok} />
+                            <span>Подписки на сервере: {pushDiagnostics.server?.subscriptions?.count || 0}</span>
+                          </p>
+                          {pushDiagnostics.server?.subscriptions?.items?.length > 0 && (
+                            <div className="mt-3 space-y-2 rounded-crmLg border border-crm-border/70 bg-crm-surface/30 px-3 py-3">
+                              {pushDiagnostics.server.subscriptions.items.map((item) => (
+                                <div key={item.id} className="border-b border-crm-border/60 pb-2 last:border-0 last:pb-0">
+                                  <p className="break-all text-crm-text">#{item.id} {item.platform || 'unknown'} · {item.endpoint}</p>
+                                  {item.last_success_at && (
+                                    <p className="mt-1 text-crm-success">Последняя доставка: {new Date(item.last_success_at).toLocaleString('ru-RU')}</p>
+                                  )}
+                                  {item.last_error && (
+                                    <p className="mt-1 text-crm-danger">Ошибка {item.last_status_code || ''}: {item.last_error}</p>
+                                  )}
+                                </div>
+                              ))}
                             </div>
-                          ))}
+                          )}
                         </div>
                       )}
                     </div>
                   )}
                 </div>
-              )}
+              </section>
             </div>
-          </section>
-
           </div>
         )}
 
         {/* ── Employees tab (admin only) ── */}
         {isAdmin && activeTab === 'employees' && (
-          <div className="space-y-4">
-            <div className="flex justify-end">
+          <>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0">
+                <h2 className="text-2xl font-semibold tracking-tight crm-gradient-text">Сотрудники</h2>
+                <p className="mt-1 text-sm text-crm-muted">
+                  Управление командой, доступами и рабочими ролями
+                </p>
+              </div>
               <button
                 onClick={openCreateModal}
-                className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white transition hover:bg-slate-700"
+                className="crm-focus-ring inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-crmLg border border-crm-accent/40 bg-crm-accent/15 px-4 py-2.5 text-sm font-medium text-crm-accent shadow-crmGlow transition hover:bg-crm-accent/22"
               >
-                + Добавить сотрудника
+                <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                Добавить сотрудника
               </button>
             </div>
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+
+            <div className="space-y-3 md:hidden">
               {loading ? (
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-600">
-                    <tr>
-                      <th className="p-3">ID</th>
-                      <th className="p-3">Имя</th>
-                      <th className="p-3">Логин</th>
-                      <th className="p-3">Действия</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <tr key={i} className="border-t border-slate-100">
-                        <td className="p-3"><div className="h-4 w-6 animate-pulse rounded bg-gray-200" /></td>
-                        <td className="p-3"><div className="h-4 w-32 animate-pulse rounded bg-gray-200" /></td>
-                        <td className="p-3"><div className="h-4 w-20 animate-pulse rounded bg-gray-200" /></td>
-                        <td className="p-3"><div className="h-6 w-16 animate-pulse rounded-lg bg-gray-200" /></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="crm-card animate-pulse rounded-crmXl p-4 shadow-crmCard">
+                    <div className="mb-3 flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-full bg-crm-border/60" />
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div className="h-4 w-32 rounded bg-crm-border/50" />
+                        <div className="h-3 w-20 rounded bg-crm-border/40" />
+                      </div>
+                    </div>
+                    <div className="h-10 w-full rounded-crmLg bg-crm-border/40" />
+                  </div>
+                ))
               ) : employees.length === 0 ? (
-                <div className="py-16 text-center text-slate-500">Сотрудников нет.</div>
+                <EmployeesEmptyState />
               ) : (
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-600">
-                    <tr>
-                      <th className="p-3">ID</th>
-                      <th className="p-3">Имя</th>
-                      <th className="p-3">Логин</th>
-                      <th className="p-3">Действия</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {employees.map((emp) => (
-                      <tr key={emp.id} className="border-t border-slate-100">
-                        <td className="p-3 text-slate-400">#{emp.id}</td>
-                        <td className="p-3">
+                employees.map((emp) => (
+                  <article key={emp.id} className={employeeCardClass()}>
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <EmployeeInitialCircle name={emp.name} />
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium uppercase tracking-wide text-crm-muted">#{emp.id}</p>
                           {editingEmployee === emp.id ? (
                             <input
                               ref={editInputRef}
                               value={editName}
                               onChange={(e) => setEditName(e.target.value)}
                               onKeyDown={(e) => handleEditKey(e, emp.id)}
-                              className="rounded-lg border border-slate-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                              className={`${employeeInputClass()} mt-1`}
                             />
                           ) : (
-                            <span className="font-medium">{emp.name}</span>
+                            <p className="truncate text-base font-semibold text-crm-text">{emp.name}</p>
                           )}
-                        </td>
-                        <td className="p-3 text-slate-500">{emp.username || '—'}</td>
-                        <td className="p-3">
-                          {editingEmployee === emp.id ? (
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => saveEmployeeName(emp.id)}
-                                className="rounded-lg border border-green-200 bg-green-50 px-3 py-1 text-xs text-green-700 transition hover:bg-green-100"
-                              >
-                                ✓
-                              </button>
-                              <button
-                                onClick={cancelEditEmployee}
-                                className="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-500 transition hover:bg-slate-100"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => startEditEmployee(emp)}
-                                className="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-600 transition hover:bg-slate-100"
-                              >
-                                ✏️
-                              </button>
-                              <button
-                                onClick={() => deleteEmployee(emp)}
-                                className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 transition hover:bg-red-50"
-                              >
-                                🗑️
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          <p className="mt-0.5 truncate text-sm text-crm-muted">@{emp.username || '—'}</p>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1.5">
+                        <span className="rounded-full border border-crm-border bg-crm-surface/60 px-2.5 py-1 text-xs font-medium text-crm-muted">
+                          Сотрудник
+                        </span>
+                        <span className={employeeStatusBadgeClass(emp.is_active)}>
+                          {emp.is_active !== false ? 'Активен' : 'Неактивен'}
+                        </span>
+                      </div>
+                    </div>
+                    {typeof emp.active_leads_count === 'number' && emp.active_leads_count > 0 && (
+                      <p className="mb-3 text-xs text-crm-muted">
+                        Лидов в работе: <span className="font-medium text-crm-text">{emp.active_leads_count}</span>
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {editingEmployee === emp.id ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => saveEmployeeName(emp.id)}
+                            className={employeeActionButtonClass('save')}
+                            aria-label="Сохранить"
+                          >
+                            <EmployeeCheckIcon />
+                            <span>Сохранить</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelEditEmployee}
+                            className={employeeActionButtonClass('cancel')}
+                            aria-label="Отмена"
+                          >
+                            <EmployeeCloseIcon />
+                            <span>Отмена</span>
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => startEditEmployee(emp)}
+                            className={employeeActionButtonClass('edit')}
+                            aria-label="Редактировать"
+                          >
+                            <EmployeeEditIcon />
+                            <span>Изменить</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteEmployee(emp)}
+                            className={employeeActionButtonClass('delete')}
+                            aria-label="Удалить"
+                          >
+                            <EmployeeDeleteIcon />
+                            <span>Удалить</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </article>
+                ))
               )}
             </div>
-          </div>
+
+            <div className="crm-glass hidden overflow-hidden rounded-crmXl border border-crm-border shadow-crmCard md:block">
+              {loading ? (
+                <div className="crm-scrollbar overflow-x-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="sticky top-0 z-10 border-b border-crm-border bg-crm-surface/95 text-xs uppercase tracking-wide text-crm-muted backdrop-blur-md">
+                      <tr>
+                        <th className="p-3 font-semibold">ID</th>
+                        <th className="p-3 font-semibold">Имя</th>
+                        <th className="p-3 font-semibold">Логин</th>
+                        <th className="p-3 font-semibold">Статус</th>
+                        <th className="p-3 font-semibold">Действия</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <tr key={i} className="border-t border-crm-border/60">
+                          <td className="p-3"><div className="h-4 w-8 animate-pulse rounded bg-crm-border/50" /></td>
+                          <td className="p-3">
+                            <div className="flex items-center gap-3">
+                              <div className="h-9 w-9 animate-pulse rounded-full bg-crm-border/50" />
+                              <div className="h-4 w-32 animate-pulse rounded bg-crm-border/50" />
+                            </div>
+                          </td>
+                          <td className="p-3"><div className="h-4 w-24 animate-pulse rounded bg-crm-border/50" /></td>
+                          <td className="p-3"><div className="h-5 w-16 animate-pulse rounded-full bg-crm-border/50" /></td>
+                          <td className="p-3"><div className="h-9 w-24 animate-pulse rounded-crmLg bg-crm-border/50" /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : employees.length === 0 ? (
+                <div className="px-6 py-16">
+                  <EmployeesEmptyState />
+                </div>
+              ) : (
+                <div className="crm-scrollbar max-h-[min(70vh,720px)] overflow-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="sticky top-0 z-10 border-b border-crm-border bg-crm-surface/95 text-xs uppercase tracking-wide text-crm-muted backdrop-blur-md">
+                      <tr>
+                        <th className="p-3 font-semibold">ID</th>
+                        <th className="p-3 font-semibold">Имя</th>
+                        <th className="p-3 font-semibold">Логин</th>
+                        <th className="p-3 font-semibold">Статус</th>
+                        <th className="p-3 font-semibold">Действия</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {employees.map((emp) => (
+                        <tr key={emp.id} className="border-t border-crm-border/60 transition hover:bg-white/[0.03]">
+                          <td className="whitespace-nowrap p-3 tabular-nums text-crm-muted">#{emp.id}</td>
+                          <td className="p-3">
+                            <div className="flex items-center gap-3">
+                              <EmployeeInitialCircle name={emp.name} />
+                              {editingEmployee === emp.id ? (
+                                <input
+                                  ref={editInputRef}
+                                  value={editName}
+                                  onChange={(e) => setEditName(e.target.value)}
+                                  onKeyDown={(e) => handleEditKey(e, emp.id)}
+                                  className={`${employeeInputClass()} max-w-xs`}
+                                />
+                              ) : (
+                                <span className="font-medium text-crm-text">{emp.name}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="whitespace-nowrap p-3 text-crm-muted">@{emp.username || '—'}</td>
+                          <td className="p-3">
+                            <span className={employeeStatusBadgeClass(emp.is_active)}>
+                              {emp.is_active !== false ? 'Активен' : 'Неактивен'}
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            {editingEmployee === emp.id ? (
+                              <div className="flex flex-wrap gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => saveEmployeeName(emp.id)}
+                                  className={employeeActionButtonClass('save')}
+                                  aria-label="Сохранить"
+                                >
+                                  <EmployeeCheckIcon />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelEditEmployee}
+                                  className={employeeActionButtonClass('cancel')}
+                                  aria-label="Отмена"
+                                >
+                                  <EmployeeCloseIcon />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex flex-wrap gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => startEditEmployee(emp)}
+                                  className={employeeActionButtonClass('edit')}
+                                  aria-label="Редактировать"
+                                >
+                                  <EmployeeEditIcon />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => deleteEmployee(emp)}
+                                  className={employeeActionButtonClass('delete')}
+                                  aria-label="Удалить"
+                                >
+                                  <EmployeeDeleteIcon />
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </>
         )}
 
         </div>
@@ -2053,78 +2540,82 @@ export default function DashboardClient({ user }) {
       {/* ── Create employee modal ── */}
       {showCreateModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
           onClick={(e) => { if (e.target === e.currentTarget) closeCreateModal(); }}
         >
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <h2 className="font-semibold">Новый сотрудник</h2>
+          <div className="crm-glass w-full max-w-md rounded-crm2xl border border-crm-border shadow-crmCard">
+            <div className="flex items-center justify-between border-b border-crm-border px-5 py-4">
+              <h2 className="font-semibold text-crm-text">Добавить сотрудника</h2>
               <button
+                type="button"
                 onClick={closeCreateModal}
-                className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                className="crm-focus-ring rounded-crmLg p-1.5 text-crm-muted transition hover:bg-crm-accent/10 hover:text-crm-accent"
+                aria-label="Закрыть"
               >
-                ✕
+                <EmployeeCloseIcon />
               </button>
             </div>
             <form onSubmit={submitCreateEmployee} className="space-y-4 px-5 py-5">
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Имя</label>
+                <label className="mb-1 block text-xs font-medium text-crm-muted">Имя</label>
                 <input
                   type="text"
                   value={createForm.name}
                   onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="Иван Иванов"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  className={employeeInputClass()}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Логин</label>
+                <label className="mb-1 block text-xs font-medium text-crm-muted">Логин</label>
                 <input
                   type="text"
                   value={createForm.username}
                   onChange={(e) => setCreateForm((f) => ({ ...f, username: e.target.value }))}
                   placeholder="ivan"
                   autoComplete="off"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  className={employeeInputClass()}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Пароль</label>
+                <label className="mb-1 block text-xs font-medium text-crm-muted">Пароль</label>
                 <input
                   type="password"
                   value={createForm.password}
                   onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
                   placeholder="Минимум 4 символа"
                   autoComplete="new-password"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  className={employeeInputClass()}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Подтверждение пароля</label>
+                <label className="mb-1 block text-xs font-medium text-crm-muted">Подтверждение пароля</label>
                 <input
                   type="password"
                   value={createForm.confirmPassword}
                   onChange={(e) => setCreateForm((f) => ({ ...f, confirmPassword: e.target.value }))}
                   placeholder="Повторите пароль"
                   autoComplete="new-password"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  className={employeeInputClass()}
                 />
               </div>
               {createError && (
-                <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{createError}</p>
+                <p className="rounded-crmLg border border-crm-danger/35 bg-crm-danger/10 px-3 py-2 text-xs text-crm-danger">
+                  {createError}
+                </p>
               )}
-              <div className="flex justify-end gap-2 pt-1">
+              <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   onClick={closeCreateModal}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-100"
+                  className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-border px-4 py-2.5 text-sm text-crm-muted transition hover:bg-crm-surface/60 hover:text-crm-text"
                 >
                   Отмена
                 </button>
                 <button
                   type="submit"
                   disabled={createLoading}
-                  className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white transition hover:bg-slate-700 disabled:opacity-50"
+                  className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-accent/40 bg-crm-accent/15 px-4 py-2.5 text-sm font-medium text-crm-accent shadow-crmGlow transition hover:bg-crm-accent/22 disabled:opacity-50"
                 >
                   {createLoading ? 'Создание...' : 'Создать'}
                 </button>
@@ -2148,7 +2639,8 @@ export default function DashboardClient({ user }) {
               </div>
               <button
                 onClick={() => setCloseReasonModal(null)}
-                className="crm-focus-ring rounded-crmLg p-1.5 text-crm-muted transition hover:bg-crm-accent/10 hover:text-crm-accent"
+                className="crm-focus-ring flex h-11 w-11 items-center justify-center rounded-crmLg text-crm-muted transition hover:bg-crm-accent/10 hover:text-crm-accent"
+                aria-label="Закрыть"
               >
                 ✕
               </button>
@@ -2166,14 +2658,14 @@ export default function DashboardClient({ user }) {
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setCloseReasonModal(null)}
-                  className="crm-focus-ring rounded-crmLg border border-crm-border px-4 py-2 text-sm text-crm-muted transition hover:bg-crm-surface/60 hover:text-crm-text"
+                  className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-border px-4 py-2.5 text-sm text-crm-muted transition hover:bg-crm-surface/60 hover:text-crm-text"
                 >
                   Отмена
                 </button>
                 <button
                   onClick={submitCloseReason}
                   disabled={!closeReasonText.trim() || closeReasonLoading}
-                  className="crm-focus-ring rounded-crmLg border border-crm-success/40 bg-crm-success/15 px-4 py-2 text-sm font-medium text-crm-success transition hover:bg-crm-success/22 disabled:opacity-40"
+                  className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-success/40 bg-crm-success/15 px-4 py-2.5 text-sm font-medium text-crm-success transition hover:bg-crm-success/22 disabled:opacity-40"
                 >
                   {closeReasonLoading ? 'Закрытие...' : 'Закрыть лид'}
                 </button>
@@ -2185,44 +2677,66 @@ export default function DashboardClient({ user }) {
 
       {/* ── Create Room modal ── */}
       {showCreateRoom && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-80 overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-              <h3 className="font-semibold text-slate-800">Создать канал</h3>
-              <button onClick={() => { setShowCreateRoom(false); setNewRoomName(''); setNewRoomMembers([]); }}
-                className="text-slate-400 hover:text-slate-600">✕</button>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowCreateRoom(false); setNewRoomName(''); setNewRoomMembers([]); } }}
+        >
+          <div className="crm-glass w-full max-w-sm overflow-hidden rounded-crm2xl border border-crm-border shadow-crmCard">
+            <div className="flex items-center justify-between border-b border-crm-border px-5 py-4">
+              <h3 className="font-semibold text-crm-text">Создать канал</h3>
+              <button
+                type="button"
+                onClick={() => { setShowCreateRoom(false); setNewRoomName(''); setNewRoomMembers([]); }}
+                className="crm-focus-ring flex h-11 w-11 items-center justify-center rounded-crmLg text-crm-muted transition hover:bg-crm-accent/10 hover:text-crm-accent"
+                aria-label="Закрыть"
+              >
+                ✕
+              </button>
             </div>
-            <div className="max-h-[55vh] space-y-3 overflow-y-auto p-4">
+            <div className="crm-scrollbar max-h-[55vh] space-y-4 overflow-y-auto px-5 py-5">
               <div>
-                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">Название</label>
-                <input type="text" value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)}
+                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-crm-muted">Название</label>
+                <input
+                  type="text"
+                  value={newRoomName}
+                  onChange={(e) => setNewRoomName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateRoom()}
                   placeholder="Например: Маркетинг"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  className={employeeInputClass()}
+                />
               </div>
               <div>
-                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">Участники</label>
-                {chatNavUsers.filter((u) => u.id !== user.id).map((emp) => (
-                  <label key={emp.id} className="flex cursor-pointer items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-slate-50">
-                    <input type="checkbox" checked={newRoomMembers.includes(emp.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) setNewRoomMembers((p) => [...p, emp.id]);
-                        else setNewRoomMembers((p) => p.filter((id) => id !== emp.id));
-                      }}
-                      className="rounded accent-blue-500" />
-                    {emp.avatar_url
-                      ? <img src={emp.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover" />
-                      : <div className="flex h-7 w-7 items-center justify-center rounded-full text-[9px] font-bold text-white"
-                          style={{ background: chatColor(emp.id) }}>{chatInitials(emp.name)}</div>
-                    }
-                    <span className="text-sm text-slate-700">{emp.name}</span>
-                  </label>
-                ))}
+                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-crm-muted">Участники</label>
+                <div className="space-y-1">
+                  {chatNavUsers.filter((u) => u.id !== user.id).map((emp) => (
+                    <label key={emp.id} className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-crmLg px-2 py-2 transition hover:bg-crm-accent/10">
+                      <input
+                        type="checkbox"
+                        checked={newRoomMembers.includes(emp.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) setNewRoomMembers((p) => [...p, emp.id]);
+                          else setNewRoomMembers((p) => p.filter((id) => id !== emp.id));
+                        }}
+                        className="rounded accent-crm-accent"
+                      />
+                      {emp.avatar_url
+                        ? <img src={emp.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+                        : <div className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                            style={{ background: chatColor(emp.id) }}>{chatInitials(emp.name)}</div>
+                      }
+                      <span className="text-sm text-crm-text">{emp.name}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
-            <div className="border-t border-slate-100 p-3">
-              <button onClick={handleCreateRoom} disabled={!newRoomName.trim() || creatingRoom}
-                className="w-full rounded-xl bg-[#2196F3] py-2.5 text-sm font-semibold text-white transition hover:bg-[#1E88E5] disabled:opacity-40">
+            <div className="border-t border-crm-border px-5 py-4">
+              <button
+                type="button"
+                onClick={handleCreateRoom}
+                disabled={!newRoomName.trim() || creatingRoom}
+                className="crm-focus-ring min-h-11 w-full rounded-crmLg border border-crm-accent/40 bg-crm-accent/15 py-2.5 text-sm font-semibold text-crm-accent shadow-crmGlow transition hover:bg-crm-accent/22 disabled:cursor-not-allowed disabled:opacity-40"
+              >
                 {creatingRoom ? 'Создание...' : 'Создать канал'}
               </button>
             </div>
@@ -2241,7 +2755,8 @@ export default function DashboardClient({ user }) {
               <h2 className="font-semibold text-crm-text">Экспорт в Excel</h2>
               <button
                 onClick={() => setShowExportModal(false)}
-                className="crm-focus-ring rounded-crmLg p-1.5 text-crm-muted transition hover:bg-crm-accent/10 hover:text-crm-accent"
+                className="crm-focus-ring flex h-11 w-11 items-center justify-center rounded-crmLg text-crm-muted transition hover:bg-crm-accent/10 hover:text-crm-accent"
+                aria-label="Закрыть"
               >
                 ✕
               </button>
@@ -2254,7 +2769,7 @@ export default function DashboardClient({ user }) {
                     type="date"
                     value={exportDateFrom}
                     onChange={(e) => setExportDateFrom(e.target.value)}
-                    className="crm-focus-ring w-full rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2 text-sm text-crm-text"
+                    className="crm-focus-ring w-full min-h-11 rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2 text-sm text-crm-text"
                   />
                 </div>
                 <div>
@@ -2263,7 +2778,7 @@ export default function DashboardClient({ user }) {
                     type="date"
                     value={exportDateTo}
                     onChange={(e) => setExportDateTo(e.target.value)}
-                    className="crm-focus-ring w-full rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2 text-sm text-crm-text"
+                    className="crm-focus-ring w-full min-h-11 rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2 text-sm text-crm-text"
                   />
                 </div>
               </div>
@@ -2303,7 +2818,8 @@ export default function DashboardClient({ user }) {
               </div>
               <button
                 onClick={closeComments}
-                className="crm-focus-ring rounded-crmLg p-1.5 text-crm-muted transition hover:bg-crm-accent/10 hover:text-crm-accent"
+                className="crm-focus-ring flex h-11 w-11 items-center justify-center rounded-crmLg text-crm-muted transition hover:bg-crm-accent/10 hover:text-crm-accent"
+                aria-label="Закрыть"
               >
                 ✕
               </button>
@@ -2354,12 +2870,12 @@ export default function DashboardClient({ user }) {
                   onChange={(e) => setCommentText(e.target.value)}
                   onKeyDown={handleCommentKey}
                   placeholder="Написать комментарий..."
-                  className="crm-focus-ring flex-1 rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2.5 text-sm text-crm-text placeholder:text-crm-muted"
+                  className="crm-focus-ring min-h-11 flex-1 rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2.5 text-sm text-crm-text placeholder:text-crm-muted"
                 />
                 <button
                   onClick={sendComment}
                   disabled={!commentText.trim()}
-                  className="crm-focus-ring rounded-crmLg border border-crm-accent/40 bg-crm-accent/15 px-4 py-2.5 text-sm font-medium text-crm-accent transition hover:bg-crm-accent/22 disabled:opacity-40"
+                  className="crm-focus-ring min-h-11 shrink-0 rounded-crmLg border border-crm-accent/40 bg-crm-accent/15 px-4 py-2.5 text-sm font-medium text-crm-accent transition hover:bg-crm-accent/22 disabled:opacity-40"
                 >
                   Отправить
                 </button>

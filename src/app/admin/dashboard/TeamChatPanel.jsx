@@ -71,12 +71,26 @@ function sameGroup(msgs, i) {
 const PALETTE = ['#E91E63','#9C27B0','#673AB7','#3F51B5','#2196F3','#00BCD4','#009688','#4CAF50','#FF9800','#FF5722'];
 const nameCol = (uid) => PALETTE[(uid ?? 0) % PALETTE.length];
 
+/* ─── Visual class helpers (presentation only) ─────────────────────────────── */
+const cx = (...parts) => parts.filter(Boolean).join(' ');
+const btnGlass = 'flex shrink-0 items-center justify-center rounded-crmXl border border-crm-border bg-[var(--crm-surface-strong)] text-crm-muted transition hover:border-crm-accent/25 hover:bg-[var(--crm-accent-soft)] hover:text-crm-accent crm-focus-ring';
+const btnPrimaryRound = (size = 'h-11 w-11') => cx(
+  'flex items-center justify-center rounded-full bg-gradient-to-br from-crm-accent to-[var(--crm-accent-strong)] text-[var(--crm-bg-deep)] shadow-crmGlow transition hover:opacity-90 disabled:opacity-40 crm-focus-ring',
+  size,
+);
+const popoverPanel = 'overflow-hidden rounded-crmXl border border-crm-border bg-[var(--crm-surface-strong)] shadow-crmCard backdrop-blur-xl';
+
 function rRect(ctx, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2);
   ctx.beginPath(); ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
   ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath(); ctx.fill();
+}
+
+function accentRgb() {
+  if (typeof window === 'undefined') return '19, 216, 232';
+  return getComputedStyle(document.documentElement).getPropertyValue('--crm-accent-rgb').trim() || '19, 216, 232';
 }
 
 /* ─── Icons ─────────────────────────────────────────────────────────────────── */
@@ -105,9 +119,9 @@ const SingleCheck = () => (
     <polyline points="1 6 4 9 11 2"/>
   </svg>
 );
-const DoubleCheck = () => (
+const DoubleCheck = ({ read }) => (
   <svg width="20" height="12" viewBox="0 0 20 12" fill="none"
-    stroke="#4FC3F7" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    stroke={read ? 'var(--crm-accent)' : 'currentColor'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <polyline points="1 7 4 10 11 3"/><polyline points="8 7 11 10 18 3"/>
   </svg>
 );
@@ -140,14 +154,16 @@ function AudioPlayer({ src, msgId, own }) {
 
   const prog = dur > 0 ? cur / dur : 0;
   const label = dur > 0 ? fmtSecs(playing ? cur : dur) : '0:00';
-  const actCol = own ? '#3a9f43' : '#229ED9';
-  const inactCol = own ? 'rgba(58,159,67,0.28)' : 'rgba(34,158,217,0.24)';
-  const btnCls = own ? 'bg-[#45a849] hover:bg-[#3e9846] text-white' : 'bg-[#229ED9] hover:bg-[#168ac2] text-white';
+  const actCol = own ? 'var(--crm-accent)' : 'var(--crm-info)';
+  const inactCol = own ? 'rgba(var(--crm-accent-rgb), 0.22)' : 'rgba(var(--crm-info-rgb), 0.2)';
+  const btnCls = own
+    ? 'bg-gradient-to-br from-crm-accent to-[var(--crm-accent-strong)] text-[var(--crm-bg-deep)] shadow-crmGlow hover:opacity-90'
+    : 'border border-crm-border bg-[var(--crm-accent-soft)] text-crm-accent hover:border-crm-accent/40';
 
   return (
     <div className="flex w-[248px] max-w-[62vw] items-center gap-2.5">
       <audio ref={aRef} src={src} preload="metadata" />
-      <button onClick={toggle} className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full shadow-sm transition ${btnCls}`} aria-label={playing ? 'Пауза' : 'Воспроизвести'}>
+      <button onClick={toggle} className={cx('flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition crm-focus-ring', btnCls)} aria-label={playing ? 'Пауза' : 'Воспроизвести'}>
         {playing ? <IconPause /> : <IconPlay />}
       </button>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -156,9 +172,9 @@ function AudioPlayer({ src, msgId, own }) {
             <div key={i} className="rounded-full transition-colors" style={{ width: 3, height: `${Math.round(5 + h * 25)}px`, background: i / WAVE_BARS < prog ? actCol : inactCol }} />
           ))}
         </div>
-        <div className={`flex items-center justify-between text-[11px] font-medium ${own ? 'text-emerald-800/60' : 'text-slate-500'}`}>
+        <div className={cx('flex items-center justify-between text-[11px] font-medium', own ? 'text-white/65' : 'text-crm-muted')}>
           <span className="tabular-nums">{label}</span>
-          <button onClick={cycleSpd} className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold transition ${own ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>{spd}x</button>
+          <button onClick={cycleSpd} className={cx('rounded-full px-1.5 py-0.5 text-[10px] font-semibold transition crm-focus-ring', own ? 'bg-white/15 text-white hover:bg-white/25' : 'border border-crm-border bg-[var(--crm-accent-soft)] text-crm-accent hover:border-crm-accent/40')}>{spd}x</button>
         </div>
       </div>
     </div>
@@ -183,7 +199,7 @@ function VideoNote({ src }) {
   const toggle = () => { const v = vRef.current; if (!v) return; if (playing) { v.pause(); setPlaying(false); } else { v.play().catch(console.error); setPlaying(true); } };
 
   return (
-    <div className="relative cursor-pointer select-none rounded-full shadow-[0_2px_10px_rgba(15,23,42,0.22)]" style={{ width: S, height: S }} onClick={toggle}>
+    <div className="relative cursor-pointer select-none rounded-full shadow-crmCard ring-2 ring-crm-accent/30" style={{ width: S, height: S }} onClick={toggle}>
       <video ref={vRef} src={src} playsInline className="rounded-full object-cover" style={{ width: S, height: S }} />
       <svg className="pointer-events-none absolute inset-0" width={S} height={S} style={{ transform: 'rotate(-90deg)' }}>
         <circle cx={S/2} cy={S/2} r={R} fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="4"/>
@@ -192,7 +208,7 @@ function VideoNote({ src }) {
       </svg>
       {!playing && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-black/25">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/85 text-slate-800 shadow-lg"><IconPlay /></div>
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--crm-surface-strong)]/90 text-crm-text shadow-crmCard ring-1 ring-crm-border"><IconPlay /></div>
         </div>
       )}
     </div>
@@ -206,6 +222,7 @@ function LiveWave({ analyserRef: aRef }) {
   useEffect(() => {
     const cv = cvRef.current; if (!cv) return;
     const ctx = cv.getContext('2d'), bw = (W / N) - 1;
+    const rgb = accentRgb();
     const tick = () => {
       rafRef.current = requestAnimationFrame(tick);
       ctx.clearRect(0, 0, W, H);
@@ -213,10 +230,10 @@ function LiveWave({ analyserRef: aRef }) {
       if (a) {
         const data = new Uint8Array(a.frequencyBinCount); a.getByteFrequencyData(data);
         const step = Math.floor(data.length / N);
-        for (let i = 0; i < N; i++) { const v = data[i * step] / 255, h = Math.max(3, v * H); ctx.fillStyle = `rgba(33,150,243,${0.35 + v * 0.65})`; rRect(ctx, i * (bw + 1), (H - h) / 2, bw, h, 2); }
+        for (let i = 0; i < N; i++) { const v = data[i * step] / 255, h = Math.max(3, v * H); ctx.fillStyle = `rgba(${rgb},${0.35 + v * 0.65})`; rRect(ctx, i * (bw + 1), (H - h) / 2, bw, h, 2); }
       } else {
         const t = Date.now() / 500;
-        for (let i = 0; i < N; i++) { const h = 3 + 7 * Math.abs(Math.sin(t + i * 0.4)); ctx.fillStyle = 'rgba(33,150,243,0.4)'; rRect(ctx, i * (bw + 1), (H - h) / 2, bw, h, 2); }
+        for (let i = 0; i < N; i++) { const h = 3 + 7 * Math.abs(Math.sin(t + i * 0.4)); ctx.fillStyle = `rgba(${rgb},0.4)`; rRect(ctx, i * (bw + 1), (H - h) / 2, bw, h, 2); }
       }
     };
     tick(); return () => cancelAnimationFrame(rafRef.current);
@@ -232,9 +249,9 @@ function Bubble({ msg, own, showAv, showName, isLast, isDm }) {
   const isVid = msg.media_type === 'video_note';
 
   const meta = (
-    <span className={`inline-flex shrink-0 items-center gap-0.5 ${isVid ? 'rounded-full bg-black/30 px-1.5 py-0.5' : ''}`}>
-      <span className={`text-[10px] leading-none tabular-nums ${isVid ? 'text-white' : own ? 'text-emerald-800/60' : 'text-slate-400'}`}>{t}</span>
-      {own && <span className={isVid ? 'text-white/80' : 'text-emerald-700/70'}>{isRead ? <DoubleCheck /> : <SingleCheck />}</span>}
+    <span className={cx('inline-flex shrink-0 items-center gap-0.5', isVid && 'rounded-full bg-black/40 px-1.5 py-0.5 backdrop-blur-sm')}>
+      <span className={cx('text-[10px] leading-none tabular-nums', isVid ? 'text-white/90' : own ? 'text-white/65' : 'text-crm-muted')}>{t}</span>
+      {own && <span className={isVid ? 'text-crm-accent' : 'text-white/80'}>{isRead ? <DoubleCheck read /> : <SingleCheck />}</span>}
     </span>
   );
 
@@ -253,16 +270,22 @@ function Bubble({ msg, own, showAv, showName, isLast, isDm }) {
         {!own && showName && (
           <span className="mb-0.5 ml-1 text-[11px] font-semibold" style={{ color: nameCol(msg.user_id) }}>{msg.author_name}</span>
         )}
-        <div className={`relative shadow-[0_1px_2px_rgba(0,0,0,0.13)] ${tailCls} ${isVid ? '' : `rounded-2xl px-3 py-2 ${own ? 'bg-[#effdde]' : 'bg-white'}`}`}>
+        <div className={cx(
+          'relative shadow-crmCard',
+          tailCls,
+          isVid ? '' : cx('rounded-2xl px-3 py-2', own
+            ? 'bg-gradient-to-br from-crm-accent to-[var(--crm-accent-strong)] text-white'
+            : 'crm-glass border border-crm-border bg-crm-surface/90'),
+        )}>
           {msg.media_type === 'text' && msg.text && (
-            <div><p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-900">{msg.text}</p><div className="mt-0.5 flex justify-end">{meta}</div></div>
+            <div><p className={cx('whitespace-pre-wrap break-words text-sm leading-relaxed', own ? 'text-white' : 'text-crm-text')}>{msg.text}</p><div className="mt-0.5 flex justify-end">{meta}</div></div>
           )}
           {msg.media_type === 'image' && msg.media_url && (
             <div>
-              <a href={msg.media_url} target="_blank" rel="noreferrer" className="block -mx-3 -mt-2 overflow-hidden rounded-2xl">
+              <a href={msg.media_url} target="_blank" rel="noreferrer" className="block -mx-3 -mt-2 overflow-hidden rounded-2xl ring-1 ring-crm-border/50">
                 <img src={msg.media_url} alt="Фото" className="w-full object-cover" style={{ maxHeight: 320 }} />
               </a>
-              {msg.text && <p className="mt-1 whitespace-pre-wrap break-words text-sm">{msg.text}</p>}
+              {msg.text && <p className={cx('mt-1 whitespace-pre-wrap break-words text-sm', own ? 'text-white' : 'text-crm-text')}>{msg.text}</p>}
               <div className="mt-0.5 flex justify-end">{meta}</div>
             </div>
           )}
@@ -275,20 +298,20 @@ function Bubble({ msg, own, showAv, showName, isLast, isDm }) {
           {msg.media_type === 'file' && msg.media_url && (
             <div>
               <a href={msg.media_url} target="_blank" rel="noreferrer"
-                className="flex items-center gap-2.5 rounded-xl transition hover:opacity-80" style={{ minWidth: 200 }}>
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: own ? '#45a849' : '#2196F3' }}><IconFile /></span>
+                className="crm-card-strong flex items-center gap-2.5 rounded-crmXl border border-crm-border/80 p-2 transition hover:border-crm-accent/25" style={{ minWidth: 200 }}>
+                <span className={cx('flex h-10 w-10 shrink-0 items-center justify-center rounded-crmLg', own ? 'bg-white/15 text-white' : 'bg-[var(--crm-accent-soft)] text-crm-accent')}><IconFile /></span>
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium text-slate-800">{msg.media_name || 'Открыть файл'}</span>
-                  <span className="text-[11px] text-slate-500">{msg.media_mime || 'Файл'} · {fmtSize(msg.media_size)}</span>
+                  <span className={cx('block truncate text-sm font-medium', own ? 'text-white' : 'text-crm-text')}>{msg.media_name || 'Открыть файл'}</span>
+                  <span className={cx('text-[11px]', own ? 'text-white/60' : 'text-crm-muted')}>{msg.media_mime || 'Файл'} · {fmtSize(msg.media_size)}</span>
                 </span>
               </a>
-              {msg.text && <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-900">{msg.text}</p>}
+              {msg.text && <p className={cx('mt-1 whitespace-pre-wrap break-words text-sm', own ? 'text-white' : 'text-crm-text')}>{msg.text}</p>}
               <div className="mt-0.5 flex justify-end">{meta}</div>
             </div>
           )}
         </div>
         {own && !isDm && msg.readers?.length > 0 && (
-          <p className="mt-0.5 pr-1 text-right text-[10px] text-slate-400 dark:text-slate-500">
+          <p className="mt-0.5 pr-1 text-right text-[10px] text-crm-muted">
             {readerLabel(msg.readers)}
           </p>
         )}
@@ -301,7 +324,7 @@ function Bubble({ msg, own, showAv, showName, isLast, isDm }) {
 function DateSep({ iso }) {
   return (
     <div className="flex items-center justify-center py-3">
-      <span className="rounded-full bg-black/20 px-3 py-1 text-xs font-medium text-white shadow backdrop-blur-sm">{fmtDate(iso)}</span>
+      <span className="crm-glass rounded-full border border-crm-border px-3 py-1 text-xs font-medium text-crm-muted shadow-crmCard">{fmtDate(iso)}</span>
     </div>
   );
 }
@@ -310,7 +333,7 @@ function DateSep({ iso }) {
 function UnreadBadge({ count }) {
   if (!count) return null;
   return (
-    <span className="ml-1 flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-[#2196F3] px-1.5 text-[11px] font-bold text-white">
+    <span className="ml-1 flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-crm-accent to-[var(--crm-accent-strong)] px-1.5 text-[11px] font-bold text-[var(--crm-bg-deep)] shadow-crmGlow">
       {count > 99 ? '99+' : count}
     </span>
   );
@@ -767,14 +790,14 @@ export default function TeamChatPanel({
 
   /* ── Render ──────────────────────────────────────────────────────────────── */
   return (
-    <section className="fixed top-0 left-0 right-0 h-dvh z-20 flex flex-col overflow-hidden bg-[#f0f2f5] dark:bg-gray-900 md:left-72">
+    <section className="crm-app-bg fixed top-0 left-0 right-0 z-30 flex h-dvh min-w-0 flex-col overflow-hidden md:left-72">
 
       {/* Header */}
-      <div className="flex items-center gap-2 border-b border-white/50 bg-white/90 px-3 py-3 shadow-sm backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/95">
+      <div className="crm-glass flex shrink-0 items-center gap-2 border-b border-crm-border px-3 py-3 shadow-crmCard">
           <button
             type="button"
             onClick={onOpenMenu}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100 dark:border-gray-700 dark:bg-gray-900 dark:text-slate-100 dark:hover:bg-gray-700 md:hidden"
+            className={cx(btnGlass, 'h-11 w-11 md:hidden')}
             aria-label="Открыть меню"
           >
             <IconMenu />
@@ -790,8 +813,8 @@ export default function TeamChatPanel({
                   </div>
               }
               <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{dmOtherUser?.name}</h2>
-                <p className="text-[11px] text-slate-400">{dmOtherUser?.role === 'admin' ? 'Администратор' : 'Сотрудник'} · личный чат</p>
+                <h2 className="truncate text-sm font-semibold text-crm-text">{dmOtherUser?.name}</h2>
+                <p className="truncate text-[11px] text-crm-muted">{dmOtherUser?.role === 'admin' ? 'Администратор' : 'Сотрудник'} · личный чат</p>
               </div>
             </>
           ) : activeRoomId ? (
@@ -801,39 +824,44 @@ export default function TeamChatPanel({
                 {(activeRoom?.name || '?').slice(0, 2).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{activeRoom?.name}</h2>
-                <p className="text-[11px] text-slate-400">{activeRoom?.member_count || '?'} участников</p>
+                <h2 className="truncate text-sm font-semibold text-crm-text">{activeRoom?.name}</h2>
+                <p className="truncate text-[11px] text-crm-muted">{activeRoom?.member_count || '?'} участников</p>
               </div>
               <button onClick={openManageRoom}
-                className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-gray-700"
-                title="Настройки канала">
+                className={cx(btnGlass, 'ml-auto h-11 w-11')}
+                aria-label="Настройки канала">
                 <IconSettings />
               </button>
             </>
           ) : (
             <>
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow"
-                style={{ background: 'linear-gradient(135deg, #2196F3, #00BCD4)' }}>CRM</div>
-              <div>
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Общий чат</h2>
-                <p className="text-[11px] text-slate-400">{chatUsers.length} участников · вы как {user.name}</p>
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-[var(--crm-bg-deep)] shadow-crmGlow"
+                style={{ background: 'var(--crm-gradient-primary)' }}>CRM</div>
+              <div className="min-w-0 flex-1">
+                <h2 className="truncate text-sm font-semibold text-crm-text">Общий чат</h2>
+                <p className="truncate text-[11px] text-crm-muted">{chatUsers.length} участников · вы как {user.name}</p>
               </div>
             </>
           )}
         </div>
 
         {/* Messages */}
-        <div className="relative flex-1 overflow-hidden">
-          <div ref={listRef} onScroll={handleScroll} className="h-full overflow-y-auto pb-2">
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          <div ref={listRef} onScroll={handleScroll} className="crm-scrollbar h-full overflow-y-auto overflow-x-hidden pb-2">
             {loading ? (
-              <div className="flex justify-center py-20">
-                <span className="rounded-full bg-black/20 px-4 py-1.5 text-sm text-white backdrop-blur-sm">Загрузка...</span>
+              <div className="flex flex-col items-center justify-center gap-3 px-6 py-20">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-crm-border border-t-crm-accent" aria-hidden />
+                <span className="crm-glass rounded-full border border-crm-border px-4 py-1.5 text-sm text-crm-muted shadow-crmCard">Загрузка...</span>
               </div>
             ) : messages.length === 0 ? (
-              <div className="flex justify-center py-20">
-                <span className="rounded-full bg-black/20 px-4 py-1.5 text-sm text-white backdrop-blur-sm">
+              <div className="flex flex-col items-center justify-center gap-2 px-6 py-20 text-center">
+                <div className="crm-glass flex h-14 w-14 items-center justify-center rounded-crm2xl border border-crm-border text-crm-accent shadow-crmCard">
+                  <IconSend cls="h-6 w-6" />
+                </div>
+                <p className="max-w-[16rem] text-sm font-medium text-crm-text">
                   {activeDmId ? 'Начните переписку' : activeRoomId ? 'Нет сообщений в канале' : 'Нет сообщений'}
-                </span>
+                </p>
+                <p className="max-w-[18rem] text-xs text-crm-muted">Напишите первое сообщение или прикрепите файл</p>
               </div>
             ) : (
               messages.map((msg, i) => {
@@ -858,35 +886,36 @@ export default function TeamChatPanel({
           </div>
           {newMsgBadge && (
             <button onClick={() => scrollToBottom('smooth')}
-              className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full bg-[#2196F3] px-4 py-1.5 text-sm font-medium text-white shadow-lg transition hover:bg-[#1976D2]">
+              className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border border-[var(--crm-border-accent)] bg-gradient-to-r from-crm-accent to-[var(--crm-accent-strong)] px-4 py-1.5 text-sm font-medium text-[var(--crm-bg-deep)] shadow-crmGlow transition hover:opacity-90 crm-focus-ring">
               ↓ Новые сообщения
             </button>
           )}
         </div>
 
         {/* Input area */}
-        <div className="relative z-10 shrink-0 border-t border-white/40 bg-[#f0f4f7] px-3 py-3 dark:border-gray-700 dark:bg-gray-800">
-          {error && <p className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+        <div className="crm-glass crm-mobile-safe-bottom relative z-10 shrink-0 border-t border-crm-border px-3 py-3">
+          {error && <p className="mb-2 rounded-crmXl border border-crm-danger/30 bg-crm-danger/10 px-3 py-2 text-sm text-crm-danger">{error}</p>}
 
           <div className={`mb-3 flex justify-center ${isRec && recMode === 'video' ? '' : 'hidden'}`}>
-            <div className="overflow-hidden rounded-full border-4 border-[#2196F3] shadow-xl" style={{ width: 120, height: 120 }}>
+            <div className="overflow-hidden rounded-full border-4 border-crm-accent shadow-crmGlow" style={{ width: 120, height: 120 }}>
               <video ref={vidPrevRef} playsInline muted className="h-full w-full rounded-full object-cover" />
             </div>
           </div>
 
           {mentOpen && mentUsers.length > 0 && !isRec && (
-            <div className="absolute bottom-full left-3 z-20 mb-1 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
-              <div className="border-b border-slate-100 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Упомянуть</div>
+            <div className={cx('absolute bottom-full left-3 z-20 mb-1 w-72 max-w-[calc(100vw-1.5rem)]', popoverPanel)}>
+              <div className="border-b border-crm-border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-crm-muted">Упомянуть</div>
               {mentUsers.map((u, idx) => (
                 <button key={u.id} type="button" onMouseDown={(e) => { e.preventDefault(); pickMent(u); }}
-                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition ${idx === mentIdx ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
+                  className={cx('flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition', idx === mentIdx ? 'bg-[var(--crm-accent-soft)] text-crm-text' : 'text-crm-text hover:bg-crm-accent/10')}>
                   {u.avatar_url
-                    ? <img src={u.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
-                    : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-white">{initials(u.name)}</span>
+                    ? <img src={u.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover ring-1 ring-crm-border" />
+                    : <span className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold text-white ring-1 ring-crm-border"
+                        style={{ background: `linear-gradient(135deg, ${nameCol(u.id)}, ${nameCol(u.id + 2)})` }}>{initials(u.name)}</span>
                   }
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{u.name}</span>
-                    <span className="block truncate text-[11px] text-slate-400">@{u.username}</span>
+                    <span className="block truncate text-[11px] text-crm-muted">@{u.username}</span>
                   </span>
                 </button>
               ))}
@@ -894,20 +923,20 @@ export default function TeamChatPanel({
           )}
 
           {hasPendingFiles && !isRec && (
-            <div className="mb-3 flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm dark:border-gray-700 dark:bg-gray-900/95">
+            <div className="crm-scrollbar mb-3 flex gap-2 overflow-x-auto rounded-crmXl border border-crm-border bg-[var(--crm-surface-strong)] p-2 shadow-crmCard">
               {pendingFiles.map((item) => (
-                <div key={item.id} className="relative flex w-40 shrink-0 items-center gap-2 rounded-xl bg-slate-50 p-2 dark:bg-gray-800">
+                <div key={item.id} className="crm-card relative flex w-40 shrink-0 items-center gap-2 rounded-crmLg p-2">
                   {item.type === 'image' && item.previewUrl ? (
-                    <img src={item.previewUrl} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
+                    <img src={item.previewUrl} alt="" className="h-12 w-12 shrink-0 rounded-crmLg object-cover ring-1 ring-crm-border" />
                   ) : (
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-600"><IconFile /></span>
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-crmLg bg-[var(--crm-accent-soft)] text-crm-accent"><IconFile /></span>
                   )}
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-semibold text-slate-700 dark:text-slate-100">{item.name}</span>
-                    <span className="block text-[11px] text-slate-400">{fmtSize(item.size)}</span>
+                    <span className="block truncate text-xs font-semibold text-crm-text">{item.name}</span>
+                    <span className="block text-[11px] text-crm-muted">{fmtSize(item.size)}</span>
                   </span>
                   <button type="button" onClick={() => removePendingFile(item.id)}
-                    className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-md transition hover:bg-red-500"
+                    className="absolute -right-1.5 -top-1.5 flex h-8 w-8 items-center justify-center rounded-full border border-crm-border bg-crm-danger text-white shadow-crmCard transition hover:opacity-90 crm-focus-ring"
                     aria-label="Убрать файл">
                     <IconX />
                   </button>
@@ -917,58 +946,58 @@ export default function TeamChatPanel({
           )}
 
           {attachOpen && !isRec && (
-            <div className="absolute bottom-[76px] left-3 z-30 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+            <div className={cx('absolute bottom-[76px] left-3 z-30 w-64 max-w-[calc(100vw-1.5rem)]', popoverPanel)}>
               <button type="button" onClick={() => galleryRef.current?.click()}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-gray-800">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-100 text-sky-600"><IconPhoto /></span>
+                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-crm-text transition hover:bg-crm-accent/10">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--crm-accent-soft)] text-crm-accent"><IconPhoto /></span>
                 <span>
                   <span className="block font-medium">Фото из галереи</span>
-                  <span className="block text-xs text-slate-400">На телефоне откроется галерея</span>
+                  <span className="block text-xs text-crm-muted">На телефоне откроется галерея</span>
                 </span>
               </button>
               <button type="button" onClick={() => cameraRef.current?.click()}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-gray-800">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-600"><IconCamera /></span>
+                className="flex w-full items-center gap-3 border-t border-crm-border px-4 py-3 text-left text-sm text-crm-text transition hover:bg-crm-accent/10">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-crm-success/15 text-crm-success"><IconCamera /></span>
                 <span>
                   <span className="block font-medium">Сделать фото</span>
-                  <span className="block text-xs text-slate-400">Камера на мобильном</span>
+                  <span className="block text-xs text-crm-muted">Камера на мобильном</span>
                 </span>
               </button>
               <button type="button" onClick={() => fileRef.current?.click()}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-gray-800">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 text-violet-600"><IconFile /></span>
+                className="flex w-full items-center gap-3 border-t border-crm-border px-4 py-3 text-left text-sm text-crm-text transition hover:bg-crm-accent/10">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--crm-accent-soft)] text-crm-accent"><IconFile /></span>
                 <span>
                   <span className="block font-medium">Файл</span>
-                  <span className="block text-xs text-slate-400">PDF, DOCX, XLSX, ZIP</span>
+                  <span className="block text-xs text-crm-muted">PDF, DOCX, XLSX, ZIP</span>
                 </span>
               </button>
             </div>
           )}
 
           {isRec ? (
-            <div className={`flex items-center gap-3 rounded-2xl px-3 py-2 transition-colors ${isCancelZone ? 'bg-red-50' : 'bg-white'}`}>
+            <div className={cx('flex items-center gap-3 rounded-crmXl border px-3 py-2 transition-colors', isCancelZone ? 'border-crm-danger/40 bg-crm-danger/10' : 'border-crm-border bg-[var(--crm-surface-strong)]')}>
               <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden"
                 style={{ transform: `translateX(${swipeOff * 0.4}px)`, opacity: isCancelZone ? 0.45 : 1, transition: 'opacity 0.15s' }}>
-                <span className={`transition-colors ${isCancelZone ? 'text-red-500' : 'text-slate-400'}`}><IconChevL /></span>
-                <span className={`truncate text-sm transition-colors ${isCancelZone ? 'text-red-500 font-medium' : 'text-slate-400'}`}>
+                <span className={cx('transition-colors', isCancelZone ? 'text-crm-danger' : 'text-crm-muted')}><IconChevL /></span>
+                <span className={cx('truncate text-sm transition-colors', isCancelZone ? 'font-medium text-crm-danger' : 'text-crm-muted')}>
                   {isCancelZone ? 'Отпустите для отмены' : 'Свайп влево — отмена'}
                 </span>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 {recMode === 'audio' && <LiveWave analyserRef={analyserRef} />}
-                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-red-500" />
-                <span className="min-w-[36px] text-sm font-medium tabular-nums text-slate-700">{fmtSecs(recSecs)}</span>
+                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-crm-danger" />
+                <span className="min-w-[36px] text-sm font-medium tabular-nums text-crm-text">{fmtSecs(recSecs)}</span>
               </div>
               <button onPointerMove={onPtrMove} onPointerUp={onPtrUp} onPointerCancel={() => stopRec(true)}
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full shadow-md transition-all ${isCancelZone ? 'scale-90 bg-red-500 text-white' : 'scale-125 bg-[#2196F3] text-white'}`}
+                className={cx('flex h-12 w-12 shrink-0 items-center justify-center rounded-full shadow-crmGlow transition-all crm-focus-ring', isCancelZone ? 'scale-90 bg-crm-danger text-white' : 'scale-125', !isCancelZone && btnPrimaryRound('h-12 w-12'))}
                 style={{ touchAction: 'none' }}>
                 {recMode === 'audio' ? <IconMic /> : <IconVideo />}
               </button>
             </div>
           ) : (
-            <div className="flex items-end gap-2">
+            <div className="flex min-w-0 items-end gap-2">
               <button type="button" onClick={() => setAttachOpen((v) => !v)} disabled={uploading}
-                className={`mb-[3px] flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-sm transition disabled:opacity-40 ${attachOpen ? 'bg-[#2196F3] text-white' : 'bg-white text-slate-500 hover:bg-slate-100'}`} aria-label="Прикрепить">
+                className={cx('mb-[3px] h-11 w-11 shrink-0 transition disabled:opacity-40', attachOpen ? btnPrimaryRound('h-11 w-11') : btnGlass)} aria-label="Прикрепить">
                 <IconClip />
               </button>
               <textarea ref={taRef} value={text} onChange={onTAChange} onKeyDown={onTAKey}
@@ -976,24 +1005,24 @@ export default function TeamChatPanel({
                 onClick={(e) => { setAttachOpen(false); refreshMent(e.currentTarget.value, e.currentTarget.selectionStart ?? text.length); }}
                 onFocus={() => { setTimeout(() => scrollToBottom('smooth'), 300); }}
                 placeholder={activeDmId ? `Сообщение для ${dmOtherUser?.name || ''}…` : activeRoomId ? `Сообщение в ${activeRoom?.name || 'канал'}…` : 'Сообщение...'}
-                rows={1} style={{ minHeight: 36, maxHeight: 120, overflowY: 'auto', fontSize: 16 }}
-                className="flex-1 resize-none rounded-2xl bg-white px-3.5 py-2 shadow-sm ring-1 ring-slate-200/80 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                rows={1} style={{ minHeight: 44, maxHeight: 120, overflowY: 'auto', fontSize: 16 }}
+                className="crm-focus-ring min-h-[44px] flex-1 resize-none rounded-crmXl border border-crm-border bg-[var(--crm-surface-strong)] px-3.5 py-2.5 text-crm-text shadow-crmCard placeholder:text-crm-muted" />
               <div className="mb-[3px] flex shrink-0 items-center gap-1">
                 {!hasText && !hasPendingFiles && (
                   <button type="button" onClick={() => setRecMode((m) => m === 'audio' ? 'video' : 'audio')}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm transition hover:bg-slate-100"
-                    title={recMode === 'audio' ? 'Режим видео-круга' : 'Режим голосового'}>
+                    className={cx(btnGlass, 'h-11 w-11')}
+                    aria-label={recMode === 'audio' ? 'Режим видео-круга' : 'Режим голосового'}>
                     {recMode === 'audio' ? <IconVideo /> : <IconMic />}
                   </button>
                 )}
                 {hasText || hasPendingFiles ? (
                   <button type="button" onClick={hasPendingFiles ? sendPendingFiles : sendText} disabled={sending || uploading}
-                    className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2196F3] text-white shadow-md transition hover:bg-[#1E88E5] disabled:opacity-40" aria-label="Отправить">
+                    className={btnPrimaryRound()} aria-label="Отправить">
                     <IconSend />
                   </button>
                 ) : (
                   <button disabled={uploading} onPointerDown={onPtrDown} onPointerMove={onPtrMove} onPointerUp={onPtrUp} onPointerCancel={() => stopRec(true)}
-                    className="flex h-10 w-10 select-none items-center justify-center rounded-full bg-[#2196F3] text-white shadow-md transition hover:bg-[#1E88E5] disabled:opacity-40"
+                    className={cx(btnPrimaryRound(), 'select-none')}
                     style={{ touchAction: 'none' }} aria-label={recMode === 'audio' ? 'Зажать — голосовое' : 'Зажать — видео-круг'}>
                     {recMode === 'audio' ? <IconMic /> : <IconVideo />}
                   </button>
@@ -1006,33 +1035,39 @@ export default function TeamChatPanel({
           <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onFiles(e.target.files, 'image')} />
           <input ref={fileRef} type="file" multiple className="hidden" onChange={(e) => onFiles(e.target.files, 'file')} />
           {!isRec && (
-            <p className="mt-1.5 text-[11px] text-slate-400">
-              Enter — отправить · Shift+Enter — строка · @ — упомянуть · зажать {recMode === 'audio' ? '🎤' : '🎥'} — записать
+            <p className="mt-1.5 flex flex-wrap items-center gap-x-1 text-[11px] text-crm-muted">
+              <span>Enter — отправить</span>
+              <span aria-hidden>·</span>
+              <span>Shift+Enter — строка</span>
+              <span aria-hidden>·</span>
+              <span>@ — упомянуть</span>
+              <span aria-hidden>·</span>
+              <span className="inline-flex items-center gap-0.5">зажать {recMode === 'audio' ? <IconMic cls="h-3 w-3" /> : <IconVideo cls="h-3 w-3" />} — записать</span>
             </p>
           )}
         </div>
 
       {/* ── Manage room modal ───────────────────────────────────────────────── */}
       {showManageRoom && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-80 overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-800">
-            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-gray-700">
-              <h3 className="font-semibold text-slate-800 dark:text-slate-100">Настройки канала</h3>
-              <button onClick={() => setShowManageRoom(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">✕</button>
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="crm-glass w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-crm2xl border border-crm-border shadow-crmCard">
+            <div className="flex items-center justify-between border-b border-crm-border px-4 py-3">
+              <h3 className="font-semibold text-crm-text">Настройки канала</h3>
+              <button onClick={() => setShowManageRoom(false)} className={cx(btnGlass, 'h-11 w-11')} aria-label="Закрыть"><IconX /></button>
             </div>
             {manageLoading ? (
-              <div className="py-8 text-center text-sm text-slate-400">Загрузка...</div>
+              <div className="py-8 text-center text-sm text-crm-muted">Загрузка...</div>
             ) : roomDetails ? (
-              <div className="max-h-[65vh] overflow-y-auto">
+              <div className="crm-scrollbar max-h-[65vh] overflow-y-auto">
                 {/* Rename (admin only) */}
                 {activeRoom?.my_role === 'admin' && (
-                  <div className="border-b border-slate-100 p-4 dark:border-gray-700">
-                    <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">Название</label>
+                  <div className="border-b border-crm-border p-4">
+                    <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-crm-muted">Название</label>
                     <div className="flex gap-2">
                       <input type="text" ref={manageNameRef} defaultValue={roomDetails.name}
-                        className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-600 dark:bg-gray-700 dark:text-slate-100" />
+                        className="crm-focus-ring min-h-11 flex-1 rounded-crmXl border border-crm-border bg-[var(--crm-surface-strong)] px-3 py-2 text-sm text-crm-text" />
                       <button onClick={handleRenameRoom}
-                        className="rounded-xl bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:bg-gray-700 dark:text-slate-200 dark:hover:bg-gray-600">
+                        className="crm-focus-ring min-h-11 rounded-crmXl border border-crm-border bg-[var(--crm-accent-soft)] px-3 py-2 text-sm font-medium text-crm-accent transition hover:border-crm-accent/40">
                         Сохранить
                       </button>
                     </div>
@@ -1041,26 +1076,26 @@ export default function TeamChatPanel({
 
                 {/* Members list */}
                 <div className="p-4">
-                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-crm-muted">
                     Участники ({(roomDetails.members || []).length})
                   </div>
                   <div className="space-y-1">
                     {(roomDetails.members || []).map((member) => (
-                      <div key={member.user_id} className="flex items-center gap-2 rounded-xl px-2 py-1.5">
+                      <div key={member.user_id} className="flex items-center gap-2 rounded-crmXl px-2 py-1.5 transition hover:bg-crm-accent/10">
                         {member.avatar_url
                           ? <img src={member.avatar_url} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
                           : <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
                               style={{ background: nameCol(member.user_id) }}>{initials(member.name)}</div>
                         }
                         <div className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium text-slate-800 dark:text-slate-100">{member.name}</span>
-                          <span className="text-[11px] text-slate-400">{member.role === 'admin' ? 'Администратор' : 'Участник'}</span>
+                          <span className="block truncate text-sm font-medium text-crm-text">{member.name}</span>
+                          <span className="text-[11px] text-crm-muted">{member.role === 'admin' ? 'Администратор' : 'Участник'}</span>
                         </div>
                         {member.user_id === user.id
-                          ? <span className="text-[10px] text-slate-400">вы</span>
+                          ? <span className="text-[10px] text-crm-muted">вы</span>
                           : activeRoom?.my_role === 'admin' && (
                             <button onClick={() => handleRemoveMember(member.user_id)}
-                              className="rounded-lg px-2 py-1 text-[11px] text-red-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30">
+                              className="rounded-crmLg px-2 py-1 text-[11px] text-crm-danger transition hover:bg-crm-danger/10 crm-focus-ring">
                               Удалить
                             </button>
                           )
@@ -1072,16 +1107,16 @@ export default function TeamChatPanel({
 
                 {/* Add member (admin only) */}
                 {activeRoom?.my_role === 'admin' && nonMemberUsers.length > 0 && (
-                  <div className="border-t border-slate-100 p-4 dark:border-gray-700">
-                    <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Добавить участника</div>
+                  <div className="border-t border-crm-border p-4">
+                    <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-crm-muted">Добавить участника</div>
                     <div className="flex gap-2">
                       <select value={addMemberUserId} onChange={(e) => setAddMemberUserId(e.target.value)}
-                        className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-gray-600 dark:bg-gray-700 dark:text-slate-200">
+                        className="crm-focus-ring min-h-11 flex-1 rounded-crmXl border border-crm-border bg-[var(--crm-surface-strong)] px-3 py-2 text-sm text-crm-text">
                         <option value="">Выбрать...</option>
                         {nonMemberUsers.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
                       </select>
                       <button onClick={handleAddMember} disabled={!addMemberUserId}
-                        className="rounded-xl bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-600 transition hover:bg-blue-100 disabled:opacity-40 dark:bg-blue-900/30 dark:text-blue-400">
+                        className="crm-focus-ring min-h-11 rounded-crmXl border border-[var(--crm-border-accent)] bg-[var(--crm-accent-soft)] px-3 py-2 text-sm font-medium text-crm-accent transition hover:border-crm-accent/40 disabled:opacity-40">
                         Добавить
                       </button>
                     </div>
@@ -1089,16 +1124,16 @@ export default function TeamChatPanel({
                 )}
 
                 {/* Leave / Delete */}
-                <div className="space-y-2 border-t border-slate-100 p-4 dark:border-gray-700">
+                <div className="space-y-2 border-t border-crm-border p-4">
                   {activeRoom?.my_role !== 'admin' && (
                     <button onClick={() => handleRemoveMember(user.id)}
-                      className="w-full rounded-xl border border-red-200 py-2 text-sm font-medium text-red-500 transition hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/30">
+                      className="crm-focus-ring min-h-11 w-full rounded-crmXl border border-crm-danger/40 py-2.5 text-sm font-medium text-crm-danger transition hover:bg-crm-danger/10">
                       Покинуть канал
                     </button>
                   )}
                   {activeRoom?.my_role === 'admin' && (
                     <button onClick={handleDeleteRoom}
-                      className="w-full rounded-xl bg-red-500 py-2 text-sm font-medium text-white transition hover:bg-red-600">
+                      className="crm-focus-ring min-h-11 w-full rounded-crmXl bg-crm-danger py-2.5 text-sm font-medium text-white transition hover:opacity-90">
                       Удалить канал
                     </button>
                   )}

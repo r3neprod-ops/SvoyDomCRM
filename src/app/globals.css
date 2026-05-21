@@ -53,6 +53,8 @@
   --crm-gradient-app: linear-gradient(165deg, #07111f 0%, #030913 100%);
   --crm-gradient-card: linear-gradient(155deg, rgba(20, 36, 58, 0.92) 0%, rgba(15, 29, 48, 0.78) 100%);
   --crm-gradient-primary: linear-gradient(135deg, #13d8e8 0%, #0b88d8 100%);
+  --crm-accent-rgb: 19, 216, 232;
+  --crm-info-rgb: 56, 189, 248;
 }
 
 *,
