@@ -3,7 +3,7 @@
   "short_name": "СвойДом CRM",
   "description": "Панель управления лидами СвойДом",
   "id": "/admin/login",
-  "start_url": "/admin/login",
+  "start_url": "/admin/dashboard",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],

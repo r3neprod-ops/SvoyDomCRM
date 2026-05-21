@@ -14,7 +14,7 @@ function getSecret() {
 export async function signToken(payload) {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
-    .setExpirationTime('7d')
+    .setExpirationTime('30d')
     .sign(getSecret());
 }
 
