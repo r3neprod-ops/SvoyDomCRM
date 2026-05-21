@@ -7,10 +7,46 @@ import { useTheme } from '@/app/ThemeProvider';
 
 const STATUS_LABELS = { new: 'Новый', in_progress: 'В работе', closed: 'Закрыт' };
 const STATUS_COLORS = {
-  new:         'bg-blue-100 text-blue-700',
-  in_progress: 'bg-yellow-100 text-yellow-700',
-  closed:      'bg-green-100 text-green-700',
+  new:         'border border-crm-accent/35 bg-crm-accent/12 text-crm-accent',
+  in_progress: 'border border-crm-warning/35 bg-crm-warning/12 text-crm-warning',
+  closed:      'border border-crm-success/35 bg-crm-success/12 text-crm-success',
 };
+
+function statusBadgeClass(status) {
+  return `inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLORS[status] ?? 'border border-crm-border bg-crm-surface/60 text-crm-muted'}`;
+}
+
+function leadFilterChipClass(isActive) {
+  return `crm-focus-ring rounded-crmLg px-4 py-2 text-sm font-medium transition ${
+    isActive
+      ? 'border border-crm-accent/45 bg-crm-accent/15 text-crm-accent shadow-crmGlow'
+      : 'border border-crm-border bg-crm-surface/40 text-crm-muted hover:border-crm-accent/30 hover:bg-crm-accent/8 hover:text-crm-text'
+  }`;
+}
+
+function leadStatCardClass(accent) {
+  const base = 'crm-card rounded-crmXl px-4 py-3.5 shadow-crmCard';
+  if (accent === 'total') return `${base} crm-card-strong`;
+  if (accent === 'new') return `${base} border-crm-accent/25`;
+  if (accent === 'in_progress') return `${base} border-crm-warning/25`;
+  if (accent === 'closed') return `${base} border-crm-success/25`;
+  return base;
+}
+
+function leadStatValueClass(accent) {
+  if (accent === 'new') return 'text-crm-accent';
+  if (accent === 'in_progress') return 'text-crm-warning';
+  if (accent === 'closed') return 'text-crm-success';
+  return 'text-crm-text';
+}
+
+function LeadsEmptyState({ children }) {
+  return (
+    <div className="crm-card flex flex-col items-center justify-center rounded-crmXl border border-dashed border-crm-border px-6 py-14 text-center shadow-crmCard">
+      <p className="max-w-xs text-sm leading-relaxed text-crm-muted">{children}</p>
+    </div>
+  );
+}
 const STATUSES = ['new', 'in_progress', 'closed'];
 const FILTER_OPTIONS = [
   { value: '',            label: 'Все' },
@@ -1041,10 +1077,10 @@ export default function DashboardClient({ user }) {
   const leadStats = useMemo(() => {
     const countByStatus = (status) => leads.filter((lead) => lead.status === status).length;
     return [
-      { label: 'Всего', value: leads.length, tone: 'bg-slate-900 text-white' },
-      { label: STATUS_LABELS.new, value: countByStatus('new'), tone: 'bg-blue-50 text-blue-700' },
-      { label: STATUS_LABELS.in_progress, value: countByStatus('in_progress'), tone: 'bg-yellow-50 text-yellow-700' },
-      { label: STATUS_LABELS.closed, value: countByStatus('closed'), tone: 'bg-green-50 text-green-700' },
+      { label: 'Всего', value: leads.length, accent: 'total' },
+      { label: STATUS_LABELS.new, value: countByStatus('new'), accent: 'new' },
+      { label: STATUS_LABELS.in_progress, value: countByStatus('in_progress'), accent: 'in_progress' },
+      { label: STATUS_LABELS.closed, value: countByStatus('closed'), accent: 'closed' },
     ];
   }, [leads]);
   const filteredVisibleLeads = useMemo(() => {
@@ -1296,17 +1332,46 @@ export default function DashboardClient({ user }) {
         {/* ── Leads tab ── */}
         {activeTab === 'leads' && (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0">
+                <h2 className="text-2xl font-semibold tracking-tight crm-gradient-text">Лиды</h2>
+                <p className="mt-1 text-sm text-crm-muted">
+                  Все обращения, статусы и назначения в одной рабочей зоне
+                </p>
+              </div>
+              {isAdmin && (
+                <button
+                  onClick={() => setShowExportModal(true)}
+                  className="crm-focus-ring inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-crmLg border border-crm-border bg-crm-surface/60 px-4 py-2.5 text-sm font-medium text-crm-text transition hover:border-crm-accent/35 hover:bg-crm-accent/10 hover:text-crm-accent"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Экспорт
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              {leadStats.map((stat) => (
+                <div key={stat.label} className={leadStatCardClass(stat.accent)}>
+                  <p className="text-xs font-medium uppercase tracking-wide text-crm-muted">{stat.label}</p>
+                  <p className={`mt-1.5 text-3xl font-semibold tabular-nums ${leadStatValueClass(stat.accent)}`}>
+                    {stat.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
               <div className="flex flex-wrap gap-2">
                 {FILTER_OPTIONS.map(({ value, label }) => (
                   <button
                     key={value}
                     onClick={() => setFilter(value)}
-                    className={`rounded-xl px-4 py-2 text-sm transition ${
-                      filter === value
-                        ? 'bg-slate-900 text-white'
-                        : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
-                    }`}
+                    className={leadFilterChipClass(filter === value)}
                   >
                     {label}
                   </button>
@@ -1321,56 +1386,39 @@ export default function DashboardClient({ user }) {
                     <button
                       key={key}
                       onClick={() => setEmployeeLeadTab(key)}
-                      className={`rounded-xl px-4 py-2 text-sm transition ${
-                        employeeLeadTab === key
-                          ? 'bg-blue-600 text-white'
-                          : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
-                      }`}
+                      className={leadFilterChipClass(employeeLeadTab === key)}
                     >
                       {label}
                     </button>
                   ))}
                 </div>
               )}
-              {isAdmin && (
-                <button
-                  onClick={() => setShowExportModal(true)}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
-                >
-                  📥 Экспорт
-                </button>
-              )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-              {leadStats.map((stat) => (
-                <div key={stat.label} className={`rounded-xl border border-slate-200 px-4 py-3 shadow-sm ${stat.tone}`}>
-                  <p className="text-xs opacity-75">{stat.label}</p>
-                  <p className="mt-1 text-2xl font-semibold tabular-nums">{stat.value}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center">
-              <div className="relative flex-1">
+            <div className="crm-glass flex flex-col gap-2 rounded-crmXl border border-crm-border p-3 shadow-crmCard sm:flex-row sm:items-center">
+              <div className="relative min-w-0 flex-1">
+                <svg viewBox="0 0 24 24" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-crm-muted" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
                 <input
                   value={leadSearch}
                   onChange={(e) => setLeadSearch(e.target.value)}
-                  placeholder="Поиск по имени, телефону, сообщению или сотруднику"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  placeholder="Поиск по имени, телефону, сообщению…"
+                  className="crm-focus-ring w-full rounded-crmLg border border-crm-border bg-crm-surface/50 py-2.5 pl-10 pr-10 text-sm text-crm-text placeholder:text-crm-muted"
                 />
                 {leadSearch && (
                   <button
                     type="button"
                     onClick={() => setLeadSearch('')}
-                    className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                    className="crm-focus-ring absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-crm-muted transition hover:bg-crm-accent/10 hover:text-crm-accent"
                     aria-label="Очистить поиск"
                   >
                     ×
                   </button>
                 )}
               </div>
-              <span className="shrink-0 text-xs text-slate-500">
+              <span className="shrink-0 px-1 text-xs text-crm-muted sm:px-2">
                 Показано {filteredVisibleLeads.length} из {visibleLeads.length}
               </span>
             </div>
@@ -1378,37 +1426,43 @@ export default function DashboardClient({ user }) {
             <div className="space-y-3 md:hidden">
               {loading ? (
                 Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div className="mb-3 h-4 w-32 animate-pulse rounded bg-slate-200" />
-                    <div className="mb-2 h-3 w-48 animate-pulse rounded bg-slate-200" />
-                    <div className="h-3 w-full animate-pulse rounded bg-slate-200" />
+                  <div key={i} className="crm-card animate-pulse rounded-crmXl p-4 shadow-crmCard">
+                    <div className="mb-3 h-4 w-32 rounded bg-crm-border/60" />
+                    <div className="mb-2 h-3 w-48 rounded bg-crm-border/50" />
+                    <div className="h-3 w-full rounded bg-crm-border/40" />
                   </div>
                 ))
               ) : filteredVisibleLeads.length === 0 ? (
-                <div className="rounded-xl border border-slate-200 bg-white py-12 text-center text-sm text-slate-500 shadow-sm">{searchEmptyText}</div>
+                <LeadsEmptyState>{searchEmptyText}</LeadsEmptyState>
               ) : (
                 filteredVisibleLeads.map((lead) => (
-                  <article key={lead.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <article key={lead.id} className="crm-card rounded-crmXl border border-crm-border p-4 shadow-crmCard transition hover:border-crm-accent/20">
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-base font-semibold text-slate-900">{lead.name || '—'}</p>
-                        <p className="mt-0.5 text-xs text-slate-500">{formatDate(lead.created_at)}</p>
+                        <p className="truncate text-lg font-semibold text-crm-text">{lead.name || '—'}</p>
+                        <p className="mt-0.5 text-xs text-crm-muted">{formatDate(lead.created_at)}</p>
                       </div>
-                      <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${STATUS_COLORS[lead.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                      <span className={statusBadgeClass(lead.status)}>
                         {STATUS_LABELS[lead.status] ?? lead.status}
                       </span>
                     </div>
                     {lead.phone && (
-                      <a href={`tel:${lead.phone}`} className="mb-3 inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-sm font-medium text-slate-800">
-                        📞 {lead.phone}
+                      <a
+                        href={`tel:${lead.phone}`}
+                        className="crm-focus-ring mb-3 inline-flex min-h-11 items-center gap-2 rounded-crmLg border border-crm-accent/35 bg-crm-accent/12 px-3 py-2 text-sm font-medium text-crm-accent transition hover:bg-crm-accent/18"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true">
+                          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+                        </svg>
+                        {lead.phone}
                       </a>
                     )}
-                    <p className="mb-3 text-sm leading-relaxed text-slate-600">{formatMessage(lead.message)}</p>
+                    <p className="mb-3 text-sm leading-relaxed text-crm-muted">{formatMessage(lead.message)}</p>
                     {isAdmin && (
                       <select
                         value={lead.assigned_to ?? ''}
                         onChange={(e) => assignLead(lead.id, e.target.value || null)}
-                        className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-400"
+                        className="crm-focus-ring mb-3 w-full min-h-11 rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2 text-sm text-crm-text"
                       >
                         <option value="">Не назначен</option>
                         {employees.map((emp) => (
@@ -1417,9 +1471,14 @@ export default function DashboardClient({ user }) {
                       </select>
                     )}
                     {showWorkColumns && (
-                      <button onClick={() => openComments(lead)} className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-left text-sm text-slate-700">
-                        💬 Комментарии: {lead.comment_count || 0}
-                        {lead.last_comment_text && <span className="mt-1 block truncate text-xs text-slate-500">{lead.last_comment_text}</span>}
+                      <button
+                        onClick={() => openComments(lead)}
+                        className="crm-focus-ring mb-3 flex min-h-11 w-full flex-col justify-center rounded-crmLg border border-crm-border bg-crm-surface/40 px-3 py-2 text-left text-sm text-crm-text transition hover:border-crm-accent/30 hover:bg-crm-accent/8"
+                      >
+                        <span className="font-medium">Комментарии: {lead.comment_count || 0}</span>
+                        {lead.last_comment_text && (
+                          <span className="mt-1 block truncate text-xs text-crm-muted">{lead.last_comment_text}</span>
+                        )}
                       </button>
                     )}
                     <div className="flex flex-wrap gap-2">
@@ -1427,7 +1486,7 @@ export default function DashboardClient({ user }) {
                         <button
                           onClick={() => claimLead(lead.id)}
                           disabled={claimingLeadId === lead.id}
-                          className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 disabled:opacity-50"
+                          className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-accent/35 bg-crm-accent/12 px-4 py-2.5 text-xs font-medium text-crm-accent disabled:opacity-50"
                         >
                           {claimingLeadId === lead.id ? 'Забираю...' : '→ В работу'}
                         </button>
@@ -1437,7 +1496,7 @@ export default function DashboardClient({ user }) {
                             <button
                               key={s}
                               onClick={() => s === 'closed' ? openCloseReason(lead) : updateStatus(lead.id, s)}
-                              className="rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                              className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-border bg-crm-surface/40 px-3 py-2.5 text-xs text-crm-text transition hover:border-crm-accent/30 hover:bg-crm-accent/8"
                             >
                               → {STATUS_LABELS[s]}
                             </button>
@@ -1445,7 +1504,7 @@ export default function DashboardClient({ user }) {
                           {isAdmin && (
                             <button
                               onClick={() => deleteLead(lead.id)}
-                              className="rounded-lg border border-red-200 px-3 py-2 text-xs text-red-600"
+                              className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-danger/35 bg-crm-danger/10 px-3 py-2.5 text-xs font-medium text-crm-danger transition hover:bg-crm-danger/15"
                             >
                               Удалить
                             </button>
@@ -1458,74 +1517,79 @@ export default function DashboardClient({ user }) {
               )}
             </div>
 
-            <div className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:block">
+            <div className="crm-glass hidden overflow-hidden rounded-crmXl border border-crm-border shadow-crmCard md:block">
               {loading ? (
-                <div className="overflow-x-auto">
+                <div className="crm-scrollbar overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
-                    <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-600">
+                    <thead className="sticky top-0 z-10 border-b border-crm-border bg-crm-surface/95 text-xs uppercase tracking-wide text-crm-muted backdrop-blur-md">
                       <tr>
-                        <th className="p-3">Дата</th>
-                        <th className="p-3">Имя</th>
-                        <th className="p-3">Телефон</th>
-                        <th className="p-3">Сообщение</th>
-                        <th className="p-3">Статус</th>
-                        {isAdmin && <th className="p-3">Назначен</th>}
-                        {showWorkColumns && <th className="p-3">Комментарии</th>}
-                        <th className="p-3">Действия</th>
+                        <th className="p-3 font-semibold">Дата</th>
+                        <th className="p-3 font-semibold">Имя</th>
+                        <th className="p-3 font-semibold">Телефон</th>
+                        <th className="p-3 font-semibold">Сообщение</th>
+                        <th className="p-3 font-semibold">Статус</th>
+                        {isAdmin && <th className="p-3 font-semibold">Назначен</th>}
+                        {showWorkColumns && <th className="p-3 font-semibold">Комментарии</th>}
+                        <th className="p-3 font-semibold">Действия</th>
                       </tr>
                     </thead>
                     <tbody>
                       {Array.from({ length: 5 }).map((_, i) => (
-                        <tr key={i} className="border-t border-slate-100 align-top">
-                          <td className="p-3"><div className="h-4 w-24 animate-pulse rounded bg-gray-200" /></td>
-                          <td className="p-3"><div className="h-4 w-28 animate-pulse rounded bg-gray-200" /></td>
-                          <td className="p-3"><div className="h-4 w-28 animate-pulse rounded bg-gray-200" /></td>
-                          <td className="p-3"><div className="h-4 w-48 animate-pulse rounded bg-gray-200" /></td>
-                          <td className="p-3"><div className="h-5 w-16 animate-pulse rounded-full bg-gray-200" /></td>
-                          {isAdmin && <td className="p-3"><div className="h-6 w-24 animate-pulse rounded-lg bg-gray-200" /></td>}
-                          {showWorkColumns && <td className="p-3"><div className="h-4 w-36 animate-pulse rounded bg-gray-200" /></td>}
-                          <td className="p-3"><div className="h-6 w-32 animate-pulse rounded-lg bg-gray-200" /></td>
+                        <tr key={i} className="border-t border-crm-border/60 align-top">
+                          <td className="p-3"><div className="h-4 w-24 animate-pulse rounded bg-crm-border/50" /></td>
+                          <td className="p-3"><div className="h-4 w-28 animate-pulse rounded bg-crm-border/50" /></td>
+                          <td className="p-3"><div className="h-4 w-28 animate-pulse rounded bg-crm-border/50" /></td>
+                          <td className="p-3"><div className="h-4 w-48 animate-pulse rounded bg-crm-border/50" /></td>
+                          <td className="p-3"><div className="h-5 w-16 animate-pulse rounded-full bg-crm-border/50" /></td>
+                          {isAdmin && <td className="p-3"><div className="h-8 w-24 animate-pulse rounded-crmLg bg-crm-border/50" /></td>}
+                          {showWorkColumns && <td className="p-3"><div className="h-4 w-36 animate-pulse rounded bg-crm-border/50" /></td>}
+                          <td className="p-3"><div className="h-8 w-32 animate-pulse rounded-crmLg bg-crm-border/50" /></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               ) : filteredVisibleLeads.length === 0 ? (
-                <div className="py-16 text-center text-slate-500">{searchEmptyText}</div>
+                <div className="px-6 py-16">
+                  <LeadsEmptyState>{searchEmptyText}</LeadsEmptyState>
+                </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="crm-scrollbar max-h-[min(70vh,720px)] overflow-auto">
                   <table className="min-w-full text-left text-sm">
-                    <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-600">
+                    <thead className="sticky top-0 z-10 border-b border-crm-border bg-crm-surface/95 text-xs uppercase tracking-wide text-crm-muted backdrop-blur-md">
                       <tr>
-                        <th className="p-3">Дата</th>
-                        <th className="p-3">Имя</th>
-                        <th className="p-3">Телефон</th>
-                        <th className="p-3">Сообщение</th>
-                        <th className="p-3">Статус</th>
-                        {isAdmin && <th className="p-3">Назначен</th>}
-                        {showWorkColumns && <th className="p-3">Комментарии</th>}
-                        <th className="p-3">Действия</th>
+                        <th className="p-3 font-semibold">Дата</th>
+                        <th className="p-3 font-semibold">Имя</th>
+                        <th className="p-3 font-semibold">Телефон</th>
+                        <th className="p-3 font-semibold">Сообщение</th>
+                        <th className="p-3 font-semibold">Статус</th>
+                        {isAdmin && <th className="p-3 font-semibold">Назначен</th>}
+                        {showWorkColumns && <th className="p-3 font-semibold">Комментарии</th>}
+                        <th className="p-3 font-semibold">Действия</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredVisibleLeads.map((lead) => (
-                        <tr key={lead.id} className="border-t border-slate-100 align-top">
-                          <td className="whitespace-nowrap p-3 text-slate-500">{formatDate(lead.created_at)}</td>
-                          <td className="p-3 font-medium">{lead.name || '—'}</td>
+                        <tr key={lead.id} className="border-t border-crm-border/60 align-top transition hover:bg-white/[0.03]">
+                          <td className="whitespace-nowrap p-3 text-crm-muted">{formatDate(lead.created_at)}</td>
+                          <td className="p-3 font-medium text-crm-text">{lead.name || '—'}</td>
                           <td className="whitespace-nowrap p-3">
                             {lead.phone ? (
                               <a
                                 href={`tel:${lead.phone}`}
-                                className="flex items-center gap-1 text-inherit hover:text-blue-600 transition-colors"
+                                className="crm-focus-ring inline-flex items-center gap-1.5 rounded-crmLg text-crm-accent transition hover:bg-crm-accent/10 hover:underline"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                📞 {lead.phone}
+                                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true">
+                                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+                                </svg>
+                                {lead.phone}
                               </a>
-                            ) : '—'}
+                            ) : <span className="text-crm-muted">—</span>}
                           </td>
-                          <td className="max-w-xs p-3 text-slate-600">{formatMessage(lead.message)}</td>
+                          <td className="max-w-xs p-3 text-crm-muted">{formatMessage(lead.message)}</td>
                           <td className="p-3">
-                            <span className={`rounded-full px-2 py-1 text-xs font-medium ${STATUS_COLORS[lead.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                            <span className={statusBadgeClass(lead.status)}>
                               {STATUS_LABELS[lead.status] ?? lead.status}
                             </span>
                           </td>
@@ -1534,7 +1598,7 @@ export default function DashboardClient({ user }) {
                               <select
                                 value={lead.assigned_to ?? ''}
                                 onChange={(e) => assignLead(lead.id, e.target.value || null)}
-                                className="rounded-lg border border-slate-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-slate-400"
+                                className="crm-focus-ring rounded-crmLg border border-crm-border bg-crm-surface/50 px-2 py-1.5 text-xs text-crm-text"
                               >
                                 <option value="">Не назначен</option>
                                 {employees.map((emp) => (
@@ -1547,15 +1611,15 @@ export default function DashboardClient({ user }) {
                             <td className="max-w-[200px] p-3">
                               <button
                                 onClick={() => openComments(lead)}
-                                className="group w-full text-left"
+                                className="crm-focus-ring group w-full rounded-crmLg text-left transition hover:bg-crm-accent/8"
                               >
                                 <div className="flex items-center gap-1.5">
-                                  <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600 group-hover:bg-slate-200">
-                                    💬 {lead.comment_count || 0}
+                                  <span className="rounded-full border border-crm-border bg-crm-surface/60 px-2 py-0.5 text-xs font-medium text-crm-text group-hover:border-crm-accent/30 group-hover:text-crm-accent">
+                                    {lead.comment_count || 0}
                                   </span>
                                 </div>
                                 {lead.last_comment_text && (
-                                  <p className="mt-1 text-xs text-slate-500 line-clamp-2 group-hover:text-slate-700">
+                                  <p className="mt-1 line-clamp-2 text-xs text-crm-muted group-hover:text-crm-text">
                                     {lead.last_comment_text.length > 50
                                       ? lead.last_comment_text.slice(0, 50) + '…'
                                       : lead.last_comment_text}
@@ -1565,12 +1629,12 @@ export default function DashboardClient({ user }) {
                             </td>
                           )}
                           <td className="p-3">
-                            <div className="flex flex-wrap gap-1">
+                            <div className="flex flex-wrap gap-1.5">
                               {!isAdmin && employeeLeadTab === 'common' ? (
                                 <button
                                   onClick={() => claimLead(lead.id)}
                                   disabled={claimingLeadId === lead.id}
-                                  className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:opacity-50"
+                                  className="crm-focus-ring rounded-crmLg border border-crm-accent/35 bg-crm-accent/12 px-3 py-1.5 text-xs font-medium text-crm-accent transition hover:bg-crm-accent/18 disabled:opacity-50"
                                 >
                                   {claimingLeadId === lead.id ? 'Забираю...' : '→ В работе'}
                                 </button>
@@ -1580,7 +1644,7 @@ export default function DashboardClient({ user }) {
                                     <button
                                       key={s}
                                       onClick={() => s === 'closed' ? openCloseReason(lead) : updateStatus(lead.id, s)}
-                                      className="rounded-lg border border-slate-200 px-2 py-1 text-xs transition hover:bg-slate-100"
+                                      className="crm-focus-ring rounded-crmLg border border-crm-border bg-crm-surface/40 px-2.5 py-1.5 text-xs text-crm-text transition hover:border-crm-accent/30 hover:bg-crm-accent/8"
                                     >
                                       → {STATUS_LABELS[s]}
                                     </button>
@@ -1588,7 +1652,7 @@ export default function DashboardClient({ user }) {
                                   {isAdmin && (
                                     <button
                                       onClick={() => deleteLead(lead.id)}
-                                      className="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600 transition hover:bg-red-50"
+                                      className="crm-focus-ring rounded-crmLg border border-crm-danger/35 bg-crm-danger/10 px-2.5 py-1.5 text-xs font-medium text-crm-danger transition hover:bg-crm-danger/15"
                                     >
                                       Удалить
                                     </button>
@@ -2073,18 +2137,18 @@ export default function DashboardClient({ user }) {
       {/* ── Close reason modal ── */}
       {closeReasonModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
           onClick={(e) => { if (e.target === e.currentTarget) setCloseReasonModal(null); }}
         >
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <div className="crm-glass w-full max-w-md rounded-crm2xl border border-crm-border shadow-crmCard">
+            <div className="flex items-center justify-between border-b border-crm-border px-5 py-4">
               <div>
-                <h2 className="font-semibold">Причина закрытия</h2>
-                <p className="text-xs text-slate-500">{closeReasonModal.leadName}</p>
+                <h2 className="font-semibold text-crm-text">Причина закрытия</h2>
+                <p className="text-xs text-crm-muted">{closeReasonModal.leadName}</p>
               </div>
               <button
                 onClick={() => setCloseReasonModal(null)}
-                className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                className="crm-focus-ring rounded-crmLg p-1.5 text-crm-muted transition hover:bg-crm-accent/10 hover:text-crm-accent"
               >
                 ✕
               </button>
@@ -2097,19 +2161,19 @@ export default function DashboardClient({ user }) {
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitCloseReason(); } }}
                 placeholder="Напишите причину закрытия..."
                 rows={3}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 resize-none"
+                className="crm-focus-ring w-full resize-none rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2.5 text-sm text-crm-text placeholder:text-crm-muted"
               />
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setCloseReasonModal(null)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-100"
+                  className="crm-focus-ring rounded-crmLg border border-crm-border px-4 py-2 text-sm text-crm-muted transition hover:bg-crm-surface/60 hover:text-crm-text"
                 >
                   Отмена
                 </button>
                 <button
                   onClick={submitCloseReason}
                   disabled={!closeReasonText.trim() || closeReasonLoading}
-                  className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white transition hover:bg-slate-700 disabled:opacity-40"
+                  className="crm-focus-ring rounded-crmLg border border-crm-success/40 bg-crm-success/15 px-4 py-2 text-sm font-medium text-crm-success transition hover:bg-crm-success/22 disabled:opacity-40"
                 >
                   {closeReasonLoading ? 'Закрытие...' : 'Закрыть лид'}
                 </button>
@@ -2169,15 +2233,15 @@ export default function DashboardClient({ user }) {
       {/* ── Export modal ── */}
       {showExportModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
           onClick={(e) => { if (e.target === e.currentTarget) setShowExportModal(false); }}
         >
-          <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <h2 className="font-semibold">Экспорт в Excel</h2>
+          <div className="crm-glass w-full max-w-sm rounded-crm2xl border border-crm-border shadow-crmCard">
+            <div className="flex items-center justify-between border-b border-crm-border px-5 py-4">
+              <h2 className="font-semibold text-crm-text">Экспорт в Excel</h2>
               <button
                 onClick={() => setShowExportModal(false)}
-                className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                className="crm-focus-ring rounded-crmLg p-1.5 text-crm-muted transition hover:bg-crm-accent/10 hover:text-crm-accent"
               >
                 ✕
               </button>
@@ -2185,21 +2249,21 @@ export default function DashboardClient({ user }) {
             <div className="space-y-4 px-5 py-5">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">Дата от</label>
+                  <label className="mb-1 block text-xs font-medium text-crm-muted">Дата от</label>
                   <input
                     type="date"
                     value={exportDateFrom}
                     onChange={(e) => setExportDateFrom(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    className="crm-focus-ring w-full rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2 text-sm text-crm-text"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">Дата до</label>
+                  <label className="mb-1 block text-xs font-medium text-crm-muted">Дата до</label>
                   <input
                     type="date"
                     value={exportDateTo}
                     onChange={(e) => setExportDateTo(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    className="crm-focus-ring w-full rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2 text-sm text-crm-text"
                   />
                 </div>
               </div>
@@ -2207,14 +2271,14 @@ export default function DashboardClient({ user }) {
                 <button
                   onClick={() => downloadExport({ dateFrom: exportDateFrom, dateTo: exportDateTo })}
                   disabled={exportLoading}
-                  className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white transition hover:bg-slate-700 disabled:opacity-50"
+                  className="crm-focus-ring rounded-crmLg border border-crm-accent/40 bg-crm-accent/15 px-4 py-2.5 text-sm font-medium text-crm-accent transition hover:bg-crm-accent/22 disabled:opacity-50"
                 >
-                  {exportLoading ? 'Загрузка...' : '📥 Скачать'}
+                  {exportLoading ? 'Загрузка...' : 'Скачать за период'}
                 </button>
                 <button
                   onClick={() => downloadExport()}
                   disabled={exportLoading}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
+                  className="crm-focus-ring rounded-crmLg border border-crm-border px-4 py-2.5 text-sm text-crm-text transition hover:bg-crm-surface/60 disabled:opacity-50"
                 >
                   Скачать всё
                 </button>
@@ -2227,52 +2291,52 @@ export default function DashboardClient({ user }) {
       {/* ── Comments modal ── */}
       {commentModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
           onClick={(e) => { if (e.target === e.currentTarget) closeComments(); }}
         >
-          <div className="flex w-full max-w-lg flex-col rounded-2xl bg-white shadow-xl" style={{ maxHeight: '80vh' }}>
+          <div className="crm-glass flex w-full max-w-lg flex-col rounded-crm2xl border border-crm-border shadow-crmCard" style={{ maxHeight: '80vh' }}>
             {/* Modal header */}
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+            <div className="flex items-center justify-between border-b border-crm-border px-5 py-4">
               <div>
-                <h2 className="font-semibold">Комментарии</h2>
-                <p className="text-xs text-slate-500">{commentModal.leadName}</p>
+                <h2 className="font-semibold text-crm-text">Комментарии</h2>
+                <p className="text-xs text-crm-muted">{commentModal.leadName}</p>
               </div>
               <button
                 onClick={closeComments}
-                className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                className="crm-focus-ring rounded-crmLg p-1.5 text-crm-muted transition hover:bg-crm-accent/10 hover:text-crm-accent"
               >
                 ✕
               </button>
             </div>
 
             {/* Comments list */}
-            <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
+            <div className="crm-scrollbar flex-1 space-y-3 overflow-y-auto px-5 py-3">
               {commentsLoading ? (
-                <p className="py-8 text-center text-sm text-slate-400">Загрузка...</p>
+                <p className="py-8 text-center text-sm text-crm-muted">Загрузка...</p>
               ) : comments.length === 0 ? (
-                <p className="py-8 text-center text-sm text-slate-400">Комментариев пока нет. Будьте первым!</p>
+                <p className="py-8 text-center text-sm text-crm-muted">Комментариев пока нет. Будьте первым!</p>
               ) : (
                 comments.map((c) => (
-                  <div key={c.id} className="rounded-xl bg-slate-50 px-4 py-3">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="text-xs font-semibold text-slate-700">{c.author_name || 'Неизвестно'}</span>
-                      <span className="text-xs text-slate-400">{formatDate(c.created_at)}</span>
+                  <div key={c.id} className="rounded-crmLg border border-crm-border bg-crm-surface/50 px-4 py-3">
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-crm-text">{c.author_name || 'Неизвестно'}</span>
+                      <span className="text-xs text-crm-muted">{formatDate(c.created_at)}</span>
                     </div>
-                    <p className="text-sm text-slate-800 whitespace-pre-wrap">{c.text}</p>
+                    <p className="whitespace-pre-wrap text-sm text-crm-text">{c.text}</p>
                   </div>
                 ))
               )}
               {leadEvents.length > 0 && (
-                <div className="mt-4 border-t border-slate-100 pt-4">
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">История действий</h3>
+                <div className="mt-4 border-t border-crm-border pt-4">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-crm-muted">История действий</h3>
                   <div className="space-y-2">
                     {leadEvents.map((event) => (
-                      <div key={event.id} className="rounded-xl border border-slate-100 bg-white px-3 py-2">
+                      <div key={event.id} className="rounded-crmLg border border-crm-border bg-crm-surface/40 px-3 py-2">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-semibold text-slate-700">{event.author_name || 'Система'}</span>
-                          <span className="text-[11px] text-slate-400">{formatDate(event.created_at)}</span>
+                          <span className="text-xs font-semibold text-crm-text">{event.author_name || 'Система'}</span>
+                          <span className="text-[11px] text-crm-muted">{formatDate(event.created_at)}</span>
                         </div>
-                        <p className="mt-1 text-sm text-slate-700">{event.message}</p>
+                        <p className="mt-1 text-sm text-crm-muted">{event.message}</p>
                       </div>
                     ))}
                   </div>
@@ -2282,7 +2346,7 @@ export default function DashboardClient({ user }) {
             </div>
 
             {/* Input */}
-            <div className="border-t border-slate-100 px-5 py-4">
+            <div className="border-t border-crm-border px-5 py-4">
               <div className="flex gap-2">
                 <input
                   ref={commentInputRef}
@@ -2290,17 +2354,17 @@ export default function DashboardClient({ user }) {
                   onChange={(e) => setCommentText(e.target.value)}
                   onKeyDown={handleCommentKey}
                   placeholder="Написать комментарий..."
-                  className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  className="crm-focus-ring flex-1 rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2.5 text-sm text-crm-text placeholder:text-crm-muted"
                 />
                 <button
                   onClick={sendComment}
                   disabled={!commentText.trim()}
-                  className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white transition hover:bg-slate-700 disabled:opacity-40"
+                  className="crm-focus-ring rounded-crmLg border border-crm-accent/40 bg-crm-accent/15 px-4 py-2.5 text-sm font-medium text-crm-accent transition hover:bg-crm-accent/22 disabled:opacity-40"
                 >
                   Отправить
                 </button>
               </div>
-              <p className="mt-1.5 text-xs text-slate-400">Enter — отправить · Shift+Enter — новая строка</p>
+              <p className="mt-1.5 text-xs text-crm-muted">Enter — отправить · Shift+Enter — новая строка</p>
             </div>
           </div>
         </div>
