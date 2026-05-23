@@ -1,5 +1,5 @@
 import postgres from 'postgres';
-import { getSql, ensureSchema, pushDebugLog } from './db.js';
+import { getSql, ensureSchema, normalizeDatabaseUrl, pushDebugLog } from './db.js';
 import { sendPushToAll } from './push.js';
 
 let started = false;
@@ -99,7 +99,7 @@ async function startListenNotify() {
   if (!process.env.DATABASE_URL) return false;
 
   try {
-    const dbUrl = process.env.DATABASE_URL;
+    const dbUrl = normalizeDatabaseUrl(process.env.DATABASE_URL);
     const listenSql = postgres(dbUrl, {
       ssl: dbUrl.includes('sslmode=require') ? { rejectUnauthorized: false } : false,
       max: 1,

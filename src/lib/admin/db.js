@@ -4,6 +4,40 @@ import bcrypt from 'bcryptjs';
 let sql;
 let initialized = false;
 
+function cleanEnvValue(value) {
+  return String(value || '').trim().replace(/^['"]+|['"]+$/g, '');
+}
+
+function encodeUrlPart(value) {
+  try {
+    return encodeURIComponent(decodeURIComponent(value));
+  } catch {
+    return encodeURIComponent(value);
+  }
+}
+
+export function normalizeDatabaseUrl(value) {
+  const cleaned = cleanEnvValue(value);
+  const match = cleaned.match(/^(postgres(?:ql)?:\/\/)(.+)$/i);
+  if (!match) return cleaned;
+
+  const [, protocol, rest] = match;
+  const pathIndex = rest.indexOf('/');
+  const authority = pathIndex >= 0 ? rest.slice(0, pathIndex) : rest;
+  const path = pathIndex >= 0 ? rest.slice(pathIndex) : '';
+  const atIndex = authority.lastIndexOf('@');
+  if (atIndex < 0) return cleaned;
+
+  const credentials = authority.slice(0, atIndex);
+  const host = authority.slice(atIndex + 1);
+  const colonIndex = credentials.indexOf(':');
+  if (colonIndex < 0) return cleaned;
+
+  const username = credentials.slice(0, colonIndex);
+  const password = credentials.slice(colonIndex + 1);
+  return `${protocol}${encodeUrlPart(username)}:${encodeUrlPart(password)}@${host}${path}`;
+}
+
 async function dropLeadAssignmentTriggers(sql) {
   let triggers = [];
   try {
@@ -98,7 +132,7 @@ export function getSql() {
     throw new Error('DATABASE_URL environment variable is not set');
   }
   if (!sql) {
-    const dbUrl = process.env.DATABASE_URL;
+    const dbUrl = normalizeDatabaseUrl(process.env.DATABASE_URL);
     sql = postgres(dbUrl, {
       ssl: dbUrl.includes('sslmode=require') ? { rejectUnauthorized: false } : false,
       max: 10,
