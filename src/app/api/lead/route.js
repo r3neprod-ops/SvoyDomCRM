@@ -6,11 +6,20 @@ import { pushDebugLog, getSql } from '@/lib/admin/db';
 const DEDUPE_WINDOW_MS = 30 * 1000;
 const recentLeadStore = new Map();
 
+const DEFAULT_ALLOWED_LEAD_ORIGINS = [
+  'https://noviyadres.ru',
+  'https://www.noviyadres.ru',
+  'https://svoydom-crm.ru',
+  'https://www.svoydom-crm.ru',
+];
+
 function getAllowedOrigins() {
-  return (process.env.ALLOWED_LEAD_ORIGIN || '')
+  const configuredOrigins = (process.env.ALLOWED_LEAD_ORIGIN || '')
     .split(',')
     .map((origin) => origin.trim().replace(/\/+$/, ''))
     .filter(Boolean);
+
+  return Array.from(new Set([...DEFAULT_ALLOWED_LEAD_ORIGINS, ...configuredOrigins]));
 }
 
 function getCors(request) {
