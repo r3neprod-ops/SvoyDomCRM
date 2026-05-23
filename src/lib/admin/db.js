@@ -38,6 +38,17 @@ export function normalizeDatabaseUrl(value) {
   return `${protocol}${encodeUrlPart(username)}:${encodeUrlPart(password)}@${host}${path}`;
 }
 
+export function getSslOptions(dbUrl) {
+  try {
+    const sslMode = new URL(dbUrl).searchParams.get('sslmode')?.toLowerCase();
+    if (!sslMode || sslMode === 'disable' || sslMode === 'allow') return false;
+  } catch {
+    if (!dbUrl.includes('sslmode=')) return false;
+  }
+
+  return { rejectUnauthorized: false };
+}
+
 async function dropLeadAssignmentTriggers(sql) {
   let triggers = [];
   try {
@@ -134,9 +145,10 @@ export function getSql() {
   if (!sql) {
     const dbUrl = normalizeDatabaseUrl(process.env.DATABASE_URL);
     sql = postgres(dbUrl, {
-      ssl: dbUrl.includes('sslmode=require') ? { rejectUnauthorized: false } : false,
+      ssl: getSslOptions(dbUrl),
       max: 10,
       idle_timeout: 20,
+      connect_timeout: 20,
     });
   }
   return sql;
