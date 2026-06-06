@@ -2,15 +2,15 @@ import { jwtVerify, SignJWT } from 'jose';
 import { NextResponse } from 'next/server';
 
 function getSecret() {
-  const secret = process.env.JWT_SECRET?.trim();
   return new TextEncoder().encode(
-    secret || 'fallback-dev-secret-change-in-production'
+    process.env.JWT_SECRET || 'fallback-dev-secret-change-in-production'
   );
 }
 
-export async function proxy(request) {
+export async function middleware(request) {
   const { pathname } = request.nextUrl;
 
+  // Страница логина — пропускаем без проверки
   if (pathname === '/admin/login' || pathname.startsWith('/admin/login/')) {
     return NextResponse.next();
   }
@@ -25,6 +25,8 @@ export async function proxy(request) {
     const { payload } = await jwtVerify(token, secret);
 
     const response = NextResponse.next();
+
+    // Скользящая сессия: если осталось меньше 15 дней — обновляем токен
     const expiresAt = payload.exp * 1000;
     const fifteenDays = 15 * 24 * 60 * 60 * 1000;
 

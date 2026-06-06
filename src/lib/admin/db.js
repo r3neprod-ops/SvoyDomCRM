@@ -397,21 +397,17 @@ export async function ensureSchema() {
     FOR EACH ROW EXECUTE FUNCTION svoydom_notify_new_lead()
   `;
 
-  // Keep first-run login convenient. Set DISABLE_DEFAULT_ADMIN=true to block
-  // automatic admin/admin123 creation after a separate access flow exists.
+  // Ensure admin account always exists — but never overwrite an existing password.
+  // This runs on every cold start; ON CONFLICT DO NOTHING guarantees idempotency.
   const [adminRow] = await sql`SELECT id FROM users WHERE username = 'admin' LIMIT 1`;
   if (!adminRow) {
-    if (process.env.NODE_ENV === 'production' && process.env.DISABLE_DEFAULT_ADMIN === 'true') {
-      console.warn('[db] Admin user is missing; refusing to create a default production password.');
-    } else {
-      const hash = await bcrypt.hash('admin123', 10);
-      await sql`
-        INSERT INTO users (username, password_hash, role, name)
-        VALUES ('admin', ${hash}, 'admin', 'Администратор')
-        ON CONFLICT (username) DO NOTHING
-      `;
-      console.log('[db] Admin user created with password admin123');
-    }
+    const hash = await bcrypt.hash('admin123', 10);
+    await sql`
+      INSERT INTO users (username, password_hash, role, name)
+      VALUES ('admin', ${hash}, 'admin', 'Администратор')
+      ON CONFLICT (username) DO NOTHING
+    `;
+    console.log('[db] Admin user created with default password admin123');
   }
 
   initialized = true;

@@ -1,7 +1,6 @@
 /**
  * Reset admin password in the current database.
  * Usage: node scripts/reset-admin-password.mjs [new_password]
- * Defaults to admin123.
  * Requires DATABASE_URL env var.
  */
 
@@ -9,11 +8,6 @@ import bcrypt from 'bcryptjs';
 import postgres from 'postgres';
 
 const newPassword = process.argv[2] || 'admin123';
-
-if (newPassword.length < 4) {
-  console.error('ERROR: Pass a new admin password with at least 4 characters');
-  process.exit(1);
-}
 
 if (!process.env.DATABASE_URL) {
   console.error('ERROR: DATABASE_URL environment variable is not set');

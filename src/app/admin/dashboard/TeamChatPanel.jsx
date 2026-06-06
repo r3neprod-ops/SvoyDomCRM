@@ -441,8 +441,6 @@ export default function TeamChatPanel({
   onRoomSent,
   onRoomListRefresh,
   onOpenMenu,
-  showToast = () => {},
-  askConfirm = () => {},
 }) {
   /* ── Core state ─────────────────────────────────────────────────────────── */
   const [messages,   setMessages]   = useState([]);
@@ -644,11 +642,9 @@ export default function TeamChatPanel({
           onRoomListRefresh?.();
         }
       } else if (data.message) {
-        showToast(data.message, 'error');
+        alert(data.message);
       }
-    } catch {
-      showToast('Не удалось обновить участников канала', 'error');
-    }
+    } catch {}
   };
 
   const handleAddMember = async () => {
@@ -666,36 +662,17 @@ export default function TeamChatPanel({
         const d2 = await res2.json();
         if (d2.ok) { setRoomDetails(d2.room); onSetActiveRoom?.((r) => ({ ...r, member_count: d2.room.member_count })); }
         onRoomListRefresh?.();
-        showToast('Участник добавлен в канал', 'success');
       }
-    } catch {
-      showToast('Не удалось добавить участника', 'error');
-    }
+    } catch {}
   };
 
   const handleDeleteRoom = async () => {
-    askConfirm({
-      title: `Удалить канал "${activeRoom?.name}"?`,
-      message: 'Сообщения и участники канала будут удалены без восстановления.',
-      confirmLabel: 'Удалить',
-      tone: 'danger',
-      onConfirm: async () => {
-        try {
-          const res = await fetch(`/api/rooms/${activeRoomId}`, { method: 'DELETE' });
-          const data = await res.json();
-          if (data.ok) {
-            setShowManageRoom(false);
-            onOpenGeneral?.();
-            onRoomListRefresh?.();
-            showToast('Канал удален', 'success');
-          } else {
-            showToast(data.message || 'Не удалось удалить канал', 'error');
-          }
-        } catch {
-          showToast('Не удалось удалить канал', 'error');
-        }
-      }
-    });
+    if (!confirm(`Удалить канал "${activeRoom?.name}"? Это нельзя отменить.`)) return;
+    try {
+      const res = await fetch(`/api/rooms/${activeRoomId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.ok) { setShowManageRoom(false); onOpenGeneral?.(); onRoomListRefresh?.(); }
+    } catch {}
   };
 
   /* ── Mention ─────────────────────────────────────────────────────────────── */
@@ -889,9 +866,7 @@ export default function TeamChatPanel({
       rec.start(); setIsRec(true); setRecSecs(0);
       recTmRef.current  = setInterval(() => setRecSecs((s) => s + 1), 1000);
       stopTmRef.current = setTimeout(() => stopRec(false), isAudio ? MAX_AUDIO_MS : MAX_VIDEO_MS);
-    } catch {
-      showToast(isAudio ? 'Нет доступа к микрофону' : 'Нет доступа к камере или микрофону', 'error');
-    }
+    } catch { alert(isAudio ? 'Нет доступа к микрофону.' : 'Нет доступа к камере/микрофону.'); }
   };
 
   const onPtrDown = (e) => { e.currentTarget.setPointerCapture(e.pointerId); pStartXRef.current = e.clientX; setSwipeOff(0); startRec(); };

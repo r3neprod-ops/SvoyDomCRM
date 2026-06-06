@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TeamChatPanel from './TeamChatPanel';
-import { ConfirmDialog, ToastStack } from './Feedback';
-import LeadContactActions from './LeadContactActions';
 import { useTheme } from '@/app/ThemeProvider';
 
 const STATUS_LABELS = { new: 'Новый', in_progress: 'В работе', closed: 'Закрыт' };
@@ -479,8 +477,8 @@ function shellNavItemClass(isActive) {
 
 function shellChatSubItemClass(isActive) {
   return isActive
-    ? 'border border-crm-accent/35 bg-crm-accent/14 font-medium text-crm-accent shadow-crmGlow'
-    : 'border border-transparent bg-crm-surface/20 text-crm-muted hover:border-crm-accent/20 hover:bg-crm-accent/8 hover:text-crm-text';
+    ? 'bg-crm-accent/10 font-medium text-crm-accent'
+    : 'text-crm-muted hover:bg-white/[0.04] hover:text-crm-text';
 }
 
 export default function DashboardClient({ user }) {
@@ -488,7 +486,7 @@ export default function DashboardClient({ user }) {
   const isAdmin = user.role === 'admin';
   const { theme, toggle: toggleTheme } = useTheme();
 
-  const [activeTab, setActiveTab] = useState('chat');
+  const [activeTab, setActiveTab] = useState('leads');
   const [leads, setLeads] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [filter, setFilter] = useState('');
@@ -503,7 +501,6 @@ export default function DashboardClient({ user }) {
   const [claimingLeadId, setClaimingLeadId] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
-  const [reminderSending, setReminderSending] = useState(false);
 
   // Chat navigation state (shared with TeamChatPanel)
   const [chatNavUsers,   setChatNavUsers]   = useState([]);
@@ -569,37 +566,6 @@ export default function DashboardClient({ user }) {
   const [closeReasonModal, setCloseReasonModal] = useState(null); // { leadId, leadName }
   const [closeReasonText, setCloseReasonText] = useState('');
   const [closeReasonLoading, setCloseReasonLoading] = useState(false);
-  const [nudgeModal, setNudgeModal] = useState(null); // { leadId, leadName, assignedToName }
-  const [nudgeText, setNudgeText] = useState('');
-  const [nudgeLoading, setNudgeLoading] = useState(false);
-  const [toasts, setToasts] = useState([]);
-  const [confirmState, setConfirmState] = useState(null);
-
-  const closeToast = useCallback((id) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  }, []);
-
-  const showToast = useCallback((message, type = 'info') => {
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    setToasts((prev) => [...prev.slice(-2), { id, message, type }]);
-    window.setTimeout(() => {
-      setToasts((prev) => prev.filter((toast) => toast.id !== id));
-    }, type === 'error' ? 6500 : 4200);
-  }, []);
-
-  const askConfirm = useCallback((nextState) => {
-    setConfirmState(nextState);
-  }, []);
-
-  const cancelConfirm = useCallback(() => {
-    setConfirmState(null);
-  }, []);
-
-  const acceptConfirm = useCallback(async () => {
-    const action = confirmState?.onConfirm;
-    setConfirmState(null);
-    await action?.();
-  }, [confirmState]);
 
   const getVapidPublicKey = useCallback(async () => {
     const keyRes = await fetch('/api/push/vapid-public-key', { cache: 'no-store' });
@@ -796,7 +762,6 @@ export default function DashboardClient({ user }) {
       console.log('[Push] Saved subscription on server');
       setNotificationError('');
       setNotifStatus('granted');
-      showToast('Уведомления включены', 'success');
     } catch (err) {
       console.error('[Push] Subscription error:', err);
       if (err.code === 'vapid_public_key_missing') {
@@ -826,7 +791,6 @@ export default function DashboardClient({ user }) {
       }
       setNotificationError('');
       setTestPushStatus('sent');
-      showToast('Тестовое уведомление отправлено', 'success');
     } catch (err) {
       console.error('[Push] Test push request error:', err);
       setTestPushStatus('error');
@@ -869,33 +833,24 @@ export default function DashboardClient({ user }) {
   };
 
   const disableNotifications = async () => {
-    askConfirm({
-      title: 'Выключить уведомления?',
-      message: 'Новые лиды и сообщения перестанут приходить на это устройство.',
-      confirmLabel: 'Выключить',
-      tone: 'danger',
-      onConfirm: async () => {
-        try {
-          const registration = await navigator.serviceWorker.ready;
-          const subscription = await registration.pushManager.getSubscription();
-          if (subscription) {
-            const endpoint = subscription.endpoint;
-            await subscription.unsubscribe();
-            await fetch('/api/push/subscribe', {
-              method: 'DELETE',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ endpoint }),
-            });
-          }
-          setNotificationError('');
-          setNotifStatus('default');
-          showToast('Уведомления выключены на этом устройстве', 'success');
-        } catch (err) {
-          console.error('[Push] Unsubscribe error:', err);
-          showToast('Не удалось выключить уведомления', 'error');
-        }
+    if (!confirm('Выключить уведомления?')) return;
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        const endpoint = subscription.endpoint;
+        await subscription.unsubscribe();
+        await fetch('/api/push/subscribe', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint }),
+        });
       }
-    });
+      setNotificationError('');
+      setNotifStatus('default');
+    } catch (err) {
+      console.error('[Push] Unsubscribe error:', err);
+    }
   };
 
   const fetchLeads = useCallback(async () => {
@@ -967,29 +922,26 @@ export default function DashboardClient({ user }) {
   }, []);
 
   useEffect(() => {
+    if (activeTab !== 'chat') return;
     fetchChatNavUsers();
     fetchDmList();
     fetchRoomList();
-    const i0 = setInterval(fetchChatNavUsers, 15000);
-    const i1 = setInterval(fetchDmList,  8000);
-    const i2 = setInterval(fetchRoomList, 8000);
-    return () => { clearInterval(i0); clearInterval(i1); clearInterval(i2); };
-  }, [fetchChatNavUsers, fetchDmList, fetchRoomList]);
+    const i1 = setInterval(fetchDmList,  4000);
+    const i2 = setInterval(fetchRoomList, 4000);
+    return () => { clearInterval(i1); clearInterval(i2); };
+  }, [activeTab, fetchChatNavUsers, fetchDmList, fetchRoomList]);
 
   const openChatGeneral = useCallback(() => {
-    setActiveTab('chat');
     setActiveDmId(null); setDmOtherUser(null);
     setActiveRoomId(null); setActiveRoom(null);
   }, []);
 
   const openChatDm = useCallback((chatId, otherUser) => {
-    setActiveTab('chat');
     setActiveDmId(chatId); setDmOtherUser(otherUser);
     setActiveRoomId(null); setActiveRoom(null);
   }, []);
 
   const openChatRoom = useCallback((roomId, room) => {
-    setActiveTab('chat');
     setActiveDmId(null); setDmOtherUser(null);
     setActiveRoomId(roomId); setActiveRoom(room);
   }, []);
@@ -1029,22 +981,12 @@ export default function DashboardClient({ user }) {
   };
 
   const updateStatus = async (id, status) => {
-    try {
-      const res = await fetch(`/api/leads/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      const data = await readApiJson(res);
-      if (!res.ok || data.ok === false) {
-        showToast(data.message || 'Не удалось обновить статус', 'error');
-        return;
-      }
-      showToast('Статус обновлен', 'success');
-      fetchLeads();
-    } catch (err) {
-      showToast(err?.message || 'Не удалось обновить статус', 'error');
-    }
+    await fetch(`/api/leads/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    fetchLeads();
   };
 
   const openCloseReason = (lead) => {
@@ -1067,78 +1009,19 @@ export default function DashboardClient({ user }) {
         body: JSON.stringify({ status: 'closed' }),
       });
       setCloseReasonModal(null);
-      showToast('Лид закрыт с причиной', 'success');
       fetchLeads();
     } finally {
       setCloseReasonLoading(false);
     }
   };
 
-  const openNudge = (lead) => {
-    if (!lead.assigned_to) {
-      showToast('Сначала назначьте ответственного сотрудника', 'error');
-      return;
-    }
-    setNudgeModal({
-      leadId: lead.id,
-      leadName: lead.name || `Лид #${lead.id}`,
-      assignedTo: lead.assigned_to,
-      assignedToName: lead.assigned_to_name || employees.find((emp) => emp.id === lead.assigned_to)?.name || 'сотрудник',
-    });
-    setNudgeText('');
-  };
-
-  const closeNudge = () => {
-    setNudgeModal(null);
-    setNudgeText('');
-  };
-
-  const submitNudge = async () => {
-    if (!nudgeModal || nudgeLoading) return;
-    setNudgeLoading(true);
-    try {
-      const res = await fetch(`/api/leads/${nudgeModal.leadId}/nudge`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: nudgeText.trim() }),
-      });
-      const data = await readApiJson(res);
-      if (!res.ok || data.ok === false) {
-        showToast(data.message || 'Не удалось отправить напоминание', 'error');
-        return;
-      }
-      showToast('Напоминание отправлено ответственному', 'success');
-      const emp = employees.find((item) => item.id === nudgeModal.assignedTo) || {
-        id: nudgeModal.assignedTo,
-        name: nudgeModal.assignedToName,
-      };
-      if (data.chat_id) openChatDm(data.chat_id, emp);
-      fetchDmList();
-      closeNudge();
-    } catch (err) {
-      showToast(err?.message || 'Не удалось отправить напоминание', 'error');
-    } finally {
-      setNudgeLoading(false);
-    }
-  };
-
   const assignLead = async (id, value) => {
-    try {
-      const res = await fetch(`/api/leads/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assigned_to: value ? Number(value) : null }),
-      });
-      const data = await readApiJson(res);
-      if (!res.ok || data.ok === false) {
-        showToast(data.message || 'Не удалось назначить лид', 'error');
-        return;
-      }
-      showToast(value ? 'Ответственный назначен' : 'Ответственный снят', 'success');
-      fetchLeads();
-    } catch (err) {
-      showToast(err?.message || 'Не удалось назначить лид', 'error');
-    }
+    await fetch(`/api/leads/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assigned_to: value ? Number(value) : null }),
+    });
+    fetchLeads();
   };
 
   const claimLead = async (id) => {
@@ -1151,10 +1034,9 @@ export default function DashboardClient({ user }) {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        showToast(data.message || 'Не удалось забрать лид', 'error');
+        alert(data.message || 'Не удалось забрать лид');
       } else {
         setEmployeeLeadTab('my');
-        showToast('Лид теперь в ваших задачах', 'success');
       }
       await fetchLeads();
     } finally {
@@ -1163,27 +1045,19 @@ export default function DashboardClient({ user }) {
   };
 
   const deleteLead = async (id) => {
-    askConfirm({
-      title: 'Удалить лид?',
-      message: 'Лид, комментарии и история действий будут удалены без восстановления.',
-      confirmLabel: 'Удалить',
-      tone: 'danger',
-      onConfirm: async () => {
-        try {
-          const res = await fetch(`/api/leads/${id}`, { method: 'DELETE' });
-          const data = await readApiJson(res);
-          if (res.ok && data.ok) {
-            setLeads((prev) => prev.filter((lead) => lead.id !== id));
-            fetchLeads();
-            showToast('Лид удален', 'success');
-            return;
-          }
-          showToast(data.message || `Не удалось удалить лид (${res.status})`, 'error');
-        } catch (err) {
-          showToast(err?.message || 'Не удалось удалить лид', 'error');
-        }
+    if (!confirm('Удалить лид?')) return;
+    try {
+      const res = await fetch(`/api/leads/${id}`, { method: 'DELETE' });
+      const data = await readApiJson(res);
+      if (res.ok && data.ok) {
+        setLeads((prev) => prev.filter((lead) => lead.id !== id));
+        fetchLeads();
+        return;
       }
-    });
+      alert(data.message || `Не удалось удалить лид (${res.status})`);
+    } catch (err) {
+      alert(err?.message || 'Не удалось удалить лид');
+    }
   };
 
   const logout = async () => {
@@ -1219,7 +1093,6 @@ export default function DashboardClient({ user }) {
       setProfile(data.profile);
       setProfileForm((prev) => ({ ...prev, avatar: null }));
       setProfileSaved(true);
-      showToast('Профиль сохранен', 'success');
     } catch (err) {
       console.error('Profile save error:', err);
       setProfileError('Не удалось сохранить профиль');
@@ -1261,7 +1134,6 @@ export default function DashboardClient({ user }) {
         return;
       }
       setCredSaved('Данные обновлены');
-      showToast('Данные входа обновлены', 'success');
       setCredForm({ current_password: '', new_username: '', new_password: '', confirm_password: '' });
     } catch (err) {
       console.error('Credentials save error:', err);
@@ -1316,8 +1188,6 @@ export default function DashboardClient({ user }) {
             : l
         )
       );
-    } else {
-      showToast(data.message || 'Не удалось отправить комментарий', 'error');
     }
   };
 
@@ -1398,7 +1268,6 @@ export default function DashboardClient({ user }) {
       if (!data.ok) { setCreateError(data.message || 'Ошибка создания'); return; }
       setEmployees((prev) => [...prev, data.user]);
       closeCreateModal();
-      showToast('Сотрудник добавлен', 'success');
     } finally {
       setCreateLoading(false);
     }
@@ -1414,10 +1283,7 @@ export default function DashboardClient({ user }) {
       if (dateTo) params.set('date_to', dateTo);
       const url = `/api/leads/export${params.toString() ? '?' + params.toString() : ''}`;
       const res = await fetch(url);
-      if (!res.ok) {
-        showToast('Не удалось подготовить экспорт', 'error');
-        return;
-      }
+      if (!res.ok) return;
       const blob = await res.blob();
       const a = document.createElement('a');
       const from = dateFrom || 'all';
@@ -1427,7 +1293,6 @@ export default function DashboardClient({ user }) {
       a.click();
       URL.revokeObjectURL(a.href);
       setShowExportModal(false);
-      showToast('Экспорт скачан', 'success');
     } finally {
       setExportLoading(false);
     }
@@ -1436,34 +1301,26 @@ export default function DashboardClient({ user }) {
   // --- Employee delete ---
 
   const deleteEmployee = async (emp) => {
-    askConfirm({
-      title: `Удалить ${emp.name}?`,
-      message: 'Активные лиды сотрудника вернутся в общий пул.',
-      confirmLabel: 'Удалить',
-      tone: 'danger',
-      onConfirm: async () => {
-        try {
-          const res = await fetch(`/api/users/${emp.id}`, { method: 'DELETE' });
-          const data = await readApiJson(res);
-          if (res.ok && data.ok) {
-            setEmployees((prev) => prev.filter((e) => e.id !== emp.id));
-            setLeads((prev) =>
-              prev.map((lead) =>
-                lead.assigned_to === emp.id
-                  ? { ...lead, assigned_to: null, assigned_to_name: null, status: lead.status === 'in_progress' ? 'new' : lead.status }
-                  : lead
-              )
-            );
-            fetchLeads();
-            showToast('Сотрудник удален', 'success');
-            return;
-          }
-          showToast(data.message || `Ошибка удаления (${res.status})`, 'error');
-        } catch (err) {
-          showToast(err?.message || 'Ошибка удаления', 'error');
-        }
+    if (!confirm(`Вы уверены? Сотрудник "${emp.name}" будет удалён.`)) return;
+    try {
+      const res = await fetch(`/api/users/${emp.id}`, { method: 'DELETE' });
+      const data = await readApiJson(res);
+      if (res.ok && data.ok) {
+        setEmployees((prev) => prev.filter((e) => e.id !== emp.id));
+        setLeads((prev) =>
+          prev.map((lead) =>
+            lead.assigned_to === emp.id
+              ? { ...lead, assigned_to: null, assigned_to_name: null, status: lead.status === 'in_progress' ? 'new' : lead.status }
+              : lead
+          )
+        );
+        fetchLeads();
+        return;
       }
-    });
+      alert(data.message || `Ошибка удаления (${res.status})`);
+    } catch (err) {
+      alert(err?.message || 'Ошибка удаления');
+    }
   };
 
   const commonLeads = isAdmin ? [] : leads.filter((lead) => lead.assigned_to === null);
@@ -1493,48 +1350,6 @@ export default function DashboardClient({ user }) {
     });
   }, [employees, leadSearch, visibleLeads]);
   const showWorkColumns = isAdmin || employeeLeadTab === 'my';
-  const unassignedNewLeads = useMemo(
-    () => leads.filter((lead) => lead.status === 'new' && !lead.assigned_to),
-    [leads]
-  );
-  const chatSidebarUsers = useMemo(
-    () => chatNavUsers.filter((item) => item.id !== user.id),
-    [chatNavUsers, user.id]
-  );
-  const chatSidebarScrollClass =
-    chatSidebarUsers.length + roomList.length + 1 > 10
-      ? 'crm-scrollbar max-h-[28rem] overflow-y-auto pr-1'
-      : 'pr-1';
-
-  const sendLeadReminder = async () => {
-    if (reminderSending || unassignedNewLeads.length === 0) return;
-    setReminderSending(true);
-    try {
-      const preview = unassignedNewLeads
-        .slice(0, 3)
-        .map((lead) => `${lead.name || `Лид #${lead.id}`}${lead.phone ? ` (${lead.phone})` : ''}`)
-        .join(', ');
-      const suffix = unassignedNewLeads.length > 3 ? ` и еще ${unassignedNewLeads.length - 3}` : '';
-      const text = `Коллеги, нужно разобрать ${unassignedNewLeads.length} новых лидов без ответственного: ${preview}${suffix}. Кто свободен, заберите лид в работу.`;
-      const res = await fetch('/api/chat/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) {
-        showToast(data.message || 'Не удалось отправить напоминание', 'error');
-        return;
-      }
-      showToast('Напоминание отправлено в общий чат', 'success');
-      openChatGeneral();
-      fetchChatUnread();
-    } catch (err) {
-      showToast(err?.message || 'Не удалось отправить напоминание', 'error');
-    } finally {
-      setReminderSending(false);
-    }
-  };
   const emptyLeadsText = isAdmin
     ? 'Лидов нет.'
     : employeeLeadTab === 'common'
@@ -1609,11 +1424,11 @@ export default function DashboardClient({ user }) {
               )}
             </button>
 
-            {item.key === 'chat' && (
-              <div className={`mt-2 space-y-1.5 rounded-crmXl border border-crm-border/70 bg-crm-surface/35 p-1.5 shadow-inner ${chatSidebarScrollClass}`}>
+            {item.key === 'chat' && activeTab === 'chat' && (
+              <div className="mt-1 space-y-0.5 border-l border-crm-border/60 pb-1 pl-2 ml-4">
                 <button
                   onClick={() => { openChatGeneral(); setDrawerOpen(false); }}
-                  className={`crm-focus-ring flex min-h-10 w-full items-center gap-2 rounded-crmLg px-2.5 py-2 text-left text-xs transition ${shellChatSubItemClass(!activeDmId && !activeRoomId)}`}
+                  className={`crm-focus-ring flex w-full items-center gap-2 rounded-crmLg py-1.5 pl-5 pr-3 text-left text-xs transition ${shellChatSubItemClass(!activeDmId && !activeRoomId)}`}
                 >
                   <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[8px] font-bold text-white"
                     style={{ background: 'var(--crm-gradient-primary)' }}>CRM</div>
@@ -1626,14 +1441,14 @@ export default function DashboardClient({ user }) {
                 </button>
 
                 <p className="px-3 pb-0.5 pt-2 text-[9px] font-semibold uppercase tracking-wider text-crm-muted">Сотрудники</p>
-                {chatSidebarUsers.map((emp) => {
+                {chatNavUsers.filter((u) => u.id !== user.id).map((emp) => {
                   const dmEntry  = dmList.find((c) => c.other_user_id === emp.id);
                   const dmUnread = dmEntry?.unread_count || 0;
                   const isActive = dmEntry ? activeDmId === dmEntry.id : false;
                   return (
                     <button key={emp.id}
                       onClick={() => { handleOpenChatDm(emp); setDrawerOpen(false); }}
-                      className={`crm-focus-ring flex min-h-10 w-full items-center gap-2 rounded-crmLg px-2.5 py-2 text-left text-xs transition ${shellChatSubItemClass(isActive)}`}
+                      className={`crm-focus-ring flex w-full items-center gap-2 rounded-crmLg py-1.5 pl-5 pr-3 text-left text-xs transition ${shellChatSubItemClass(isActive)}`}
                     >
                       {emp.avatar_url
                         ? <img src={emp.avatar_url} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover ring-1 ring-crm-border" />
@@ -1666,7 +1481,7 @@ export default function DashboardClient({ user }) {
                 {roomList.map((room) => (
                   <button key={room.id}
                     onClick={() => { openChatRoom(room.id, room); setDrawerOpen(false); }}
-                    className={`crm-focus-ring flex min-h-10 w-full items-center gap-2 rounded-crmLg px-2.5 py-2 text-left text-xs transition ${shellChatSubItemClass(activeRoomId === room.id)}`}
+                    className={`crm-focus-ring flex w-full items-center gap-2 rounded-crmLg py-1.5 pl-5 pr-3 text-left text-xs transition ${shellChatSubItemClass(activeRoomId === room.id)}`}
                   >
                     <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[8px] font-bold text-white"
                       style={{ background: chatColor(room.id + 5) }}>
@@ -1724,9 +1539,6 @@ export default function DashboardClient({ user }) {
           : 'min-h-dvh touch-pan-y'
       }`}
     >
-      <ToastStack toasts={toasts} onClose={closeToast} />
-      <ConfirmDialog state={confirmState} onCancel={cancelConfirm} onConfirm={acceptConfirm} />
-
       <aside className="crm-glass fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-crm-border shadow-crmCard md:block">
         {renderNavigation()}
       </aside>
@@ -1805,28 +1617,6 @@ export default function DashboardClient({ user }) {
                 </button>
               )}
             </div>
-
-            {isAdmin && unassignedNewLeads.length > 0 && (
-              <div className="crm-card crm-card-strong rounded-crmXl border border-crm-warning/35 bg-crm-warning/10 p-4 shadow-crmCard">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-crm-text">
-                      Нужно разобрать новые лиды: {unassignedNewLeads.length}
-                    </p>
-                    <p className="mt-1 text-sm leading-relaxed text-crm-muted">
-                      Напомните сотрудникам в общем чате, чтобы кто-то взял заявки в работу.
-                    </p>
-                  </div>
-                  <button
-                    onClick={sendLeadReminder}
-                    disabled={reminderSending}
-                    className="crm-focus-ring inline-flex min-h-11 shrink-0 items-center justify-center rounded-crmLg border border-crm-warning/45 bg-crm-warning/18 px-4 py-2.5 text-sm font-semibold text-crm-warning transition hover:bg-crm-warning/25 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {reminderSending ? 'Отправляю...' : 'Напомнить в чат'}
-                  </button>
-                </div>
-              </div>
-            )}
 
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               {leadStats.map((stat) => (
@@ -1920,7 +1710,17 @@ export default function DashboardClient({ user }) {
                         {STATUS_LABELS[lead.status] ?? lead.status}
                       </span>
                     </div>
-                    <LeadContactActions lead={lead} />
+                    {lead.phone && (
+                      <a
+                        href={`tel:${lead.phone}`}
+                        className="crm-focus-ring mb-3 inline-flex min-h-11 items-center gap-2 rounded-crmLg border border-crm-accent/35 bg-crm-accent/12 px-3 py-2 text-sm font-medium text-crm-accent transition hover:bg-crm-accent/18"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true">
+                          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+                        </svg>
+                        {lead.phone}
+                      </a>
+                    )}
                     <p className="mb-3 text-sm leading-relaxed text-crm-muted">{formatMessage(lead.message)}</p>
                     {isAdmin && (
                       <select
@@ -1966,21 +1766,12 @@ export default function DashboardClient({ user }) {
                             </button>
                           ))}
                           {isAdmin && (
-                            <>
-                              <button
-                                onClick={() => openNudge(lead)}
-                                disabled={!lead.assigned_to}
-                                className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-warning/40 bg-crm-warning/12 px-3 py-2.5 text-xs font-medium text-crm-warning transition hover:bg-crm-warning/20 disabled:cursor-not-allowed disabled:opacity-40"
-                              >
-                                Напомнить
-                              </button>
-                              <button
-                                onClick={() => deleteLead(lead.id)}
-                                className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-danger/35 bg-crm-danger/10 px-3 py-2.5 text-xs font-medium text-crm-danger transition hover:bg-crm-danger/15"
-                              >
-                                Удалить
-                              </button>
-                            </>
+                            <button
+                              onClick={() => deleteLead(lead.id)}
+                              className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-danger/35 bg-crm-danger/10 px-3 py-2.5 text-xs font-medium text-crm-danger transition hover:bg-crm-danger/15"
+                            >
+                              Удалить
+                            </button>
                           )}
                         </>
                       )}
@@ -2047,7 +1838,18 @@ export default function DashboardClient({ user }) {
                           <td className="whitespace-nowrap p-3 text-crm-muted">{formatDate(lead.created_at)}</td>
                           <td className="p-3 font-medium text-crm-text">{lead.name || '—'}</td>
                           <td className="whitespace-nowrap p-3">
-                            <LeadContactActions lead={lead} compact />
+                            {lead.phone ? (
+                              <a
+                                href={`tel:${lead.phone}`}
+                                className="crm-focus-ring inline-flex items-center gap-1.5 rounded-crmLg text-crm-accent transition hover:bg-crm-accent/10 hover:underline"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true">
+                                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+                                </svg>
+                                {lead.phone}
+                              </a>
+                            ) : <span className="text-crm-muted">—</span>}
                           </td>
                           <td className="max-w-xs p-3 text-crm-muted">{formatMessage(lead.message)}</td>
                           <td className="p-3">
@@ -2112,21 +1914,12 @@ export default function DashboardClient({ user }) {
                                     </button>
                                   ))}
                                   {isAdmin && (
-                                    <>
-                                      <button
-                                        onClick={() => openNudge(lead)}
-                                        disabled={!lead.assigned_to}
-                                        className="crm-focus-ring rounded-crmLg border border-crm-warning/40 bg-crm-warning/12 px-2.5 py-1.5 text-xs font-medium text-crm-warning transition hover:bg-crm-warning/20 disabled:cursor-not-allowed disabled:opacity-40"
-                                      >
-                                        Напомнить
-                                      </button>
-                                      <button
-                                        onClick={() => deleteLead(lead.id)}
-                                        className="crm-focus-ring rounded-crmLg border border-crm-danger/35 bg-crm-danger/10 px-2.5 py-1.5 text-xs font-medium text-crm-danger transition hover:bg-crm-danger/15"
-                                      >
-                                        Удалить
-                                      </button>
-                                    </>
+                                    <button
+                                      onClick={() => deleteLead(lead.id)}
+                                      className="crm-focus-ring rounded-crmLg border border-crm-danger/35 bg-crm-danger/10 px-2.5 py-1.5 text-xs font-medium text-crm-danger transition hover:bg-crm-danger/15"
+                                    >
+                                      Удалить
+                                    </button>
                                   )}
                                 </>
                               )}
@@ -2158,8 +1951,6 @@ export default function DashboardClient({ user }) {
             onRoomSent={fetchRoomList}
             onRoomListRefresh={fetchRoomList}
             onOpenMenu={() => setDrawerOpen(true)}
-            showToast={showToast}
-            askConfirm={askConfirm}
           />
         )}
 
@@ -2897,61 +2688,6 @@ export default function DashboardClient({ user }) {
       )}
 
       {/* ── Create Room modal ── */}
-      {/* Lead reminder modal */}
-      {nudgeModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-          onClick={(e) => { if (e.target === e.currentTarget) closeNudge(); }}
-        >
-          <div className="crm-glass w-full max-w-md rounded-crm2xl border border-crm-border shadow-crmCard">
-            <div className="flex items-center justify-between border-b border-crm-border px-5 py-4">
-              <div>
-                <h2 className="font-semibold text-crm-text">Напоминание ответственному</h2>
-                <p className="text-xs text-crm-muted">
-                  {nudgeModal.leadName} → {nudgeModal.assignedToName}
-                </p>
-              </div>
-              <button
-                onClick={closeNudge}
-                className="crm-focus-ring flex h-11 w-11 items-center justify-center rounded-crmLg text-crm-muted transition hover:bg-crm-accent/10 hover:text-crm-accent"
-                aria-label="Закрыть"
-              >
-                ×
-              </button>
-            </div>
-            <div className="space-y-4 px-5 py-5">
-              <div className="rounded-crmLg border border-crm-warning/30 bg-crm-warning/10 px-3 py-2.5 text-sm leading-relaxed text-crm-muted">
-                Если оставить поле пустым, сотрудник получит стандартный текст: связаться с клиентом и обновить статус или комментарий.
-              </div>
-              <textarea
-                autoFocus
-                value={nudgeText}
-                onChange={(e) => setNudgeText(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitNudge(); }}
-                placeholder="Например: позвони сегодня до 18:00, клиент ждет подборку по ипотеке"
-                rows={4}
-                className="crm-focus-ring w-full resize-none rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2.5 text-sm text-crm-text placeholder:text-crm-muted"
-              />
-              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <button
-                  onClick={closeNudge}
-                  className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-border px-4 py-2.5 text-sm text-crm-muted transition hover:bg-crm-surface/60 hover:text-crm-text"
-                >
-                  Отмена
-                </button>
-                <button
-                  onClick={submitNudge}
-                  disabled={nudgeLoading}
-                  className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-warning/45 bg-crm-warning/15 px-4 py-2.5 text-sm font-semibold text-crm-warning transition hover:bg-crm-warning/22 disabled:opacity-40"
-                >
-                  {nudgeLoading ? 'Отправляю...' : nudgeText.trim() ? 'Отправить напоминание' : 'Отправить стандартное напоминание'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {showCreateRoom && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"

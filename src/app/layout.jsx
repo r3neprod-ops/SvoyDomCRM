@@ -1,5 +1,4 @@
 import './globals.css';
-import Script from 'next/script';
 import ServiceWorkerRegistration from './ServiceWorkerRegistration';
 import { ThemeProvider } from './ThemeProvider';
 
@@ -40,7 +39,7 @@ export default function RootLayout({ children }) {
     <html lang="ru" suppressHydrationWarning>
       <body>
         {/* Anti-FOUC: apply saved theme before React paints */}
-        <Script id="crm-theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <ThemeProvider>
           <ServiceWorkerRegistration />
           {children}

@@ -41,9 +41,8 @@ export async function addLead(payload) {
       meta: { source: payload?.pageUrl || null },
     });
 
-    if (process.env.LEAD_DEBUG_LOG === 'true') {
-      await tx`INSERT INTO settings (key, value) VALUES (${`_dbg_addlead_${lead.id}`}, ${'store.addLead:tx_reached'}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
-    }
+    // Diagnostic probe: write to settings inside the transaction
+    await tx`INSERT INTO settings (key, value) VALUES (${`_dbg_addlead_${lead.id}`}, ${'store.addLead:tx_reached'}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
 
     return lead;
   });
