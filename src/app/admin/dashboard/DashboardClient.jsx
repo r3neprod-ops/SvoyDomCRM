@@ -667,7 +667,10 @@ function isFinalLeadStatus(status) {
 
 function getLeadPipelineActions(status) {
   if (status === 'new') {
-    return [{ status: 'in_progress', label: 'В работу', variant: 'primary' }];
+    return [
+      { status: 'in_progress', label: 'В работу', variant: 'primary' },
+      { status: 'closed_lost', label: 'Отказ / ошибка', variant: 'danger', needsReason: true },
+    ];
   }
   if (status === 'in_progress') {
     return [
