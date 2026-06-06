@@ -7,7 +7,9 @@ async function fetchLeadsData(userId, userRole, status) {
 
   const filters = [
     userRole === 'employee' && sql`(l.assigned_to = ${userId} OR l.assigned_to IS NULL)`,
-    status && sql`l.status = ${status}`,
+    status === 'closed_won'
+      ? sql`l.status IN ('closed_won', 'closed')`
+      : status && sql`l.status = ${status}`,
   ].filter(Boolean);
 
   const leads = await sql`
@@ -26,7 +28,7 @@ async function fetchLeadsData(userId, userRole, status) {
   const employees = userRole === 'admin'
     ? await sql`
         SELECT u.id, u.name, u.username, u.is_active,
-               COUNT(l.id) FILTER (WHERE l.status IN ('new', 'in_progress'))::int AS active_leads_count
+               COUNT(l.id) FILTER (WHERE l.status IN ('new', 'in_progress', 'meeting', 'documents', 'deal'))::int AS active_leads_count
         FROM users u
         LEFT JOIN leads l ON l.assigned_to = u.id
         WHERE u.role = 'employee'

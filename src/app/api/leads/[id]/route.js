@@ -5,8 +5,17 @@ import { getSql, ensureSchema } from '@/lib/admin/db';
 import { addLeadEvent } from '@/lib/admin/leadEvents';
 import { sendPushToAll } from '@/lib/admin/push';
 
-const STATUS_LABELS = { new: 'Новый', in_progress: 'В работе', closed: 'Закрыт' };
-const VALID_STATUSES = new Set(['new', 'in_progress', 'closed']);
+const STATUS_LABELS = {
+  new: 'Новый',
+  in_progress: 'В работе',
+  meeting: 'Встреча',
+  documents: 'Документы',
+  deal: 'Сделка',
+  closed_won: 'Закрыт успешно',
+  closed_lost: 'Отказ / сорвался',
+  closed: 'Закрыт успешно',
+};
+const VALID_STATUSES = new Set(Object.keys(STATUS_LABELS));
 
 function normalizeAssignee(value) {
   if (value === null || value === '') return null;

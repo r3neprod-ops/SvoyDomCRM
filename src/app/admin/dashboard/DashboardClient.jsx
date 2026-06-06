@@ -7,11 +7,25 @@ import { ConfirmDialog, ToastStack } from './Feedback';
 import LeadContactActions from './LeadContactActions';
 import { useTheme } from '@/app/ThemeProvider';
 
-const STATUS_LABELS = { new: 'Новый', in_progress: 'В работе', closed: 'Закрыт' };
+const STATUS_LABELS = {
+  new: 'Новый',
+  in_progress: 'В работе',
+  meeting: 'Встреча',
+  documents: 'Документы',
+  deal: 'Сделка',
+  closed_won: 'Закрыт успешно',
+  closed_lost: 'Отказ / сорвался',
+  closed: 'Закрыт успешно',
+};
 const STATUS_COLORS = {
-  new:         'border border-crm-accent/35 bg-crm-accent/12 text-crm-accent',
-  in_progress: 'border border-crm-warning/35 bg-crm-warning/12 text-crm-warning',
-  closed:      'border border-crm-success/35 bg-crm-success/12 text-crm-success',
+  new: 'border border-crm-accent/35 bg-crm-accent/12 text-crm-accent',
+  in_progress: 'border border-crm-info/35 bg-crm-info/12 text-crm-info',
+  meeting: 'border border-crm-warning/35 bg-crm-warning/12 text-crm-warning',
+  documents: 'border border-violet-300/35 bg-violet-400/12 text-violet-200',
+  deal: 'border border-emerald-300/35 bg-emerald-400/12 text-emerald-200',
+  closed_won: 'border border-crm-success/35 bg-crm-success/12 text-crm-success',
+  closed_lost: 'border border-crm-danger/40 bg-crm-danger/12 text-crm-danger',
+  closed: 'border border-crm-success/35 bg-crm-success/12 text-crm-success',
 };
 
 function statusBadgeClass(status) {
@@ -30,22 +44,35 @@ function leadStatCardClass(accent) {
   const base = 'crm-card crm-soft-rise rounded-crmXl px-4 py-3.5 shadow-crmCard';
   if (accent === 'total') return `${base} crm-card-strong`;
   if (accent === 'new') return `${base} border-crm-accent/25`;
-  if (accent === 'in_progress') return `${base} border-crm-warning/25`;
-  if (accent === 'closed') return `${base} border-crm-success/25`;
+  if (accent === 'in_progress') return `${base} border-crm-info/25`;
+  if (accent === 'meeting') return `${base} border-crm-warning/25`;
+  if (accent === 'documents') return `${base} border-violet-300/25`;
+  if (accent === 'deal') return `${base} border-emerald-300/25`;
+  if (accent === 'closed_won' || accent === 'closed') return `${base} border-crm-success/25`;
+  if (accent === 'closed_lost') return `${base} border-crm-danger/25`;
   return base;
 }
 
 function leadStatValueClass(accent) {
   if (accent === 'new') return 'text-crm-accent';
-  if (accent === 'in_progress') return 'text-crm-warning';
-  if (accent === 'closed') return 'text-crm-success';
+  if (accent === 'in_progress') return 'text-crm-info';
+  if (accent === 'meeting') return 'text-crm-warning';
+  if (accent === 'documents') return 'text-violet-200';
+  if (accent === 'deal') return 'text-emerald-200';
+  if (accent === 'closed_won' || accent === 'closed') return 'text-crm-success';
+  if (accent === 'closed_lost') return 'text-crm-danger';
   return 'text-crm-text';
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const REPORT_STATUS_COLORS = {
   new: '#2dd4bf',
-  in_progress: '#f5c451',
+  in_progress: '#60a5fa',
+  meeting: '#f5c451',
+  documents: '#c4b5fd',
+  deal: '#34d399',
+  closed_won: '#86efac',
+  closed_lost: '#fb7185',
   closed: '#86efac',
 };
 
@@ -216,7 +243,7 @@ function EmployeeReportChart({ report }) {
               <div className="mb-2 flex items-center justify-between gap-3">
                 <span className="truncate text-sm font-medium text-crm-text">{employee.name}</span>
                 <span className="shrink-0 text-xs tabular-nums text-crm-muted">
-                  {employee.total} лидов · {employee.active} активных
+                  взял {employee.total} · активно {employee.active}
                 </span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
@@ -225,9 +252,68 @@ function EmployeeReportChart({ report }) {
                   style={{ width: `${Math.max(4, percent(employee.total, max))}%` }}
                 />
               </div>
+              <div className="mt-3 grid grid-cols-2 gap-1.5 text-[11px] sm:grid-cols-3">
+                {PIPELINE_STATUSES.slice(1).map((status) => (
+                  <div key={status} className="rounded-md border border-crm-border/70 bg-black/10 px-2 py-1.5">
+                    <p className="truncate text-crm-muted">{STATUS_LABELS[status]}</p>
+                    <p className={`mt-0.5 font-semibold tabular-nums ${leadStatValueClass(status)}`}>
+                      {employee.stageCounts[status] || 0}
+                    </p>
+                  </div>
+                ))}
+                <div className="rounded-md border border-crm-danger/30 bg-crm-danger/10 px-2 py-1.5">
+                  <p className="truncate text-crm-muted">Отказ</p>
+                  <p className="mt-0.5 font-semibold tabular-nums text-crm-danger">{employee.stageCounts.closed_lost || 0}</p>
+                </div>
+              </div>
             </div>
           ))
         )}
+      </div>
+    </div>
+  );
+}
+
+function EmployeePersonalStats({ stats }) {
+  return (
+    <div className="crm-premium-panel rounded-crmXl p-4 shadow-crmCard">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-crm-accent">Моя статистика</p>
+          <h3 className="mt-1 text-lg font-semibold text-crm-text">Лиды в работе</h3>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-crmLg border border-crm-border bg-crm-surface/35 px-3 py-2">
+            <p className="text-[10px] uppercase tracking-wide text-crm-muted">Взял</p>
+            <p className="mt-1 text-xl font-semibold tabular-nums text-crm-text">{stats.total}</p>
+          </div>
+          <div className="rounded-crmLg border border-crm-warning/25 bg-crm-warning/10 px-3 py-2">
+            <p className="text-[10px] uppercase tracking-wide text-crm-muted">Активно</p>
+            <p className="mt-1 text-xl font-semibold tabular-nums text-crm-warning">{stats.active}</p>
+          </div>
+          <div className="rounded-crmLg border border-crm-success/25 bg-crm-success/10 px-3 py-2">
+            <p className="text-[10px] uppercase tracking-wide text-crm-muted">Успешно</p>
+            <p className="mt-1 text-xl font-semibold tabular-nums text-crm-success">{stats.closedWon}</p>
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {PIPELINE_STATUSES.slice(1).map((status) => (
+          <div key={status} className="rounded-crmLg border border-crm-border bg-crm-surface/30 px-3 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate text-xs text-crm-muted">{STATUS_LABELS[status]}</span>
+              <span className={`text-sm font-semibold tabular-nums ${leadStatValueClass(status)}`}>
+                {stats.stageCounts[status] || 0}
+              </span>
+            </div>
+          </div>
+        ))}
+        <div className="rounded-crmLg border border-crm-danger/30 bg-crm-danger/10 px-3 py-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate text-xs text-crm-muted">Отказ / сорвался</span>
+            <span className="text-sm font-semibold tabular-nums text-crm-danger">{stats.stageCounts.closed_lost || 0}</span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -556,13 +642,77 @@ function EmployeeCloseIcon() {
     </svg>
   );
 }
-const STATUSES = ['new', 'in_progress', 'closed'];
+const PIPELINE_STATUSES = ['new', 'in_progress', 'meeting', 'documents', 'deal', 'closed_won'];
+const ACTIVE_PIPELINE_STATUSES = ['new', 'in_progress', 'meeting', 'documents', 'deal'];
+const FINAL_STATUSES = ['closed_won', 'closed_lost', 'closed'];
+const STATUSES = [...PIPELINE_STATUSES, 'closed_lost', 'closed'];
 const FILTER_OPTIONS = [
-  { value: '',            label: 'Все' },
-  { value: 'new',         label: 'Новые' },
+  { value: '', label: 'Все' },
+  { value: 'new', label: 'Новые' },
   { value: 'in_progress', label: 'В работе' },
-  { value: 'closed',      label: 'Закрыты' },
+  { value: 'meeting', label: 'Встреча' },
+  { value: 'documents', label: 'Документы' },
+  { value: 'deal', label: 'Сделка' },
+  { value: 'closed_won', label: 'Успешно' },
+  { value: 'closed_lost', label: 'Отказ' },
 ];
+
+function isActiveLeadStatus(status) {
+  return ACTIVE_PIPELINE_STATUSES.includes(status);
+}
+
+function isFinalLeadStatus(status) {
+  return FINAL_STATUSES.includes(status);
+}
+
+function getLeadPipelineActions(status) {
+  if (status === 'new') {
+    return [{ status: 'in_progress', label: 'В работу', variant: 'primary' }];
+  }
+  if (status === 'in_progress') {
+    return [
+      { status: 'meeting', label: 'Договорились о встрече', variant: 'primary' },
+      { status: 'closed_lost', label: 'Отказ / ошибка', variant: 'danger', needsReason: true },
+    ];
+  }
+  if (status === 'meeting') {
+    return [
+      { status: 'documents', label: 'Документы', variant: 'primary' },
+      { status: 'closed_lost', label: 'Сорвалось', variant: 'danger', needsReason: true },
+    ];
+  }
+  if (status === 'documents') {
+    return [
+      { status: 'deal', label: 'Сделка', variant: 'primary' },
+      { status: 'closed_lost', label: 'Сорвалось', variant: 'danger', needsReason: true },
+    ];
+  }
+  if (status === 'deal') {
+    return [
+      { status: 'closed_won', label: 'Закрыть успешно', variant: 'success' },
+      { status: 'closed_lost', label: 'Сорвалось', variant: 'danger', needsReason: true },
+    ];
+  }
+  if (isFinalLeadStatus(status)) {
+    return [{ status: 'in_progress', label: 'Вернуть в работу', variant: 'secondary' }];
+  }
+  return [{ status: 'in_progress', label: 'Вернуть в работу', variant: 'secondary' }];
+}
+
+function filterMatchesLead(lead, filter) {
+  if (!filter) return true;
+  if (filter === 'closed_won') return lead.status === 'closed_won' || lead.status === 'closed';
+  return lead.status === filter;
+}
+
+function leadActionButtonClass(variant = 'secondary', compact = false) {
+  const size = compact ? 'rounded-crmLg px-2.5 py-1.5 text-xs' : 'min-h-11 rounded-crmLg px-3 py-2.5 text-xs';
+  const base = `crm-focus-ring border font-medium transition ${size}`;
+  if (variant === 'primary') return `${base} border-crm-accent/35 bg-crm-accent/12 text-crm-accent hover:bg-crm-accent/18`;
+  if (variant === 'success') return `${base} border-crm-success/35 bg-crm-success/12 text-crm-success hover:bg-crm-success/20`;
+  if (variant === 'danger') return `${base} border-crm-danger/35 bg-crm-danger/10 text-crm-danger hover:bg-crm-danger/16`;
+  return `${base} border-crm-border bg-crm-surface/40 text-crm-text hover:border-crm-accent/30 hover:bg-crm-accent/8`;
+}
 
 const MSG_LABELS = {
   'Тип': {
@@ -833,7 +983,7 @@ export default function DashboardClient({ user }) {
   const [exportLoading, setExportLoading] = useState(false);
 
   // Close reason modal
-  const [closeReasonModal, setCloseReasonModal] = useState(null); // { leadId, leadName }
+  const [closeReasonModal, setCloseReasonModal] = useState(null); // { leadId, leadName, targetStatus, title }
   const [closeReasonText, setCloseReasonText] = useState('');
   const [closeReasonLoading, setCloseReasonLoading] = useState(false);
   const [nudgeModal, setNudgeModal] = useState(null); // { leadId, leadName, assignedToName }
@@ -1168,8 +1318,7 @@ export default function DashboardClient({ user }) {
   const fetchLeads = useCallback(async () => {
     setLoading(true);
     try {
-      const url = filter ? `/api/leads?status=${filter}` : '/api/leads';
-      const res = await fetch(url);
+      const res = await fetch('/api/leads');
       if (res.status === 401) { router.push('/admin/login'); return; }
       const data = await res.json();
       if (data.ok) {
@@ -1181,7 +1330,7 @@ export default function DashboardClient({ user }) {
     } finally {
       setLoading(false);
     }
-  }, [filter, router]);
+  }, [router]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
@@ -1314,8 +1463,13 @@ export default function DashboardClient({ user }) {
     }
   };
 
-  const openCloseReason = (lead) => {
-    setCloseReasonModal({ leadId: lead.id, leadName: lead.name || `Лид #${lead.id}` });
+  const openCloseReason = (lead, targetStatus = 'closed_lost', title = 'Закрыть в отказ') => {
+    setCloseReasonModal({
+      leadId: lead.id,
+      leadName: lead.name || `Лид #${lead.id}`,
+      targetStatus,
+      title,
+    });
     setCloseReasonText('');
   };
 
@@ -1323,18 +1477,20 @@ export default function DashboardClient({ user }) {
     if (!closeReasonText.trim() || !closeReasonModal) return;
     setCloseReasonLoading(true);
     try {
+      const targetStatus = closeReasonModal.targetStatus || 'closed_lost';
+      const statusLabel = STATUS_LABELS[targetStatus] || 'Закрыто';
       await fetch(`/api/leads/${closeReasonModal.leadId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: `🔒 Закрыто: ${closeReasonText.trim()}` }),
+        body: JSON.stringify({ text: `${statusLabel}: ${closeReasonText.trim()}` }),
       });
       await fetch(`/api/leads/${closeReasonModal.leadId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'closed' }),
+        body: JSON.stringify({ status: targetStatus }),
       });
       setCloseReasonModal(null);
-      showToast('Лид закрыт с причиной', 'success');
+      showToast('Статус лида обновлен', 'success');
       fetchLeads();
     } finally {
       setCloseReasonLoading(false);
@@ -1717,7 +1873,7 @@ export default function DashboardClient({ user }) {
             setLeads((prev) =>
               prev.map((lead) =>
                 lead.assigned_to === emp.id
-                  ? { ...lead, assigned_to: null, assigned_to_name: null, status: lead.status === 'in_progress' ? 'new' : lead.status }
+                  ? { ...lead, assigned_to: null, assigned_to_name: null, status: isActiveLeadStatus(lead.status) ? 'new' : lead.status }
                   : lead
               )
             );
@@ -1733,16 +1889,41 @@ export default function DashboardClient({ user }) {
     });
   };
 
-  const commonLeads = isAdmin ? [] : leads.filter((lead) => lead.assigned_to === null);
-  const myLeads = isAdmin ? [] : leads.filter((lead) => lead.assigned_to === user.id);
-  const visibleLeads = isAdmin ? leads : employeeLeadTab === 'common' ? commonLeads : myLeads;
+  const commonLeads = useMemo(
+    () => isAdmin ? [] : leads.filter((lead) => lead.assigned_to === null),
+    [isAdmin, leads]
+  );
+  const myLeads = useMemo(
+    () => isAdmin ? [] : leads.filter((lead) => lead.assigned_to === user.id),
+    [isAdmin, leads, user.id]
+  );
+  const visibleLeads = useMemo(
+    () => isAdmin ? leads : employeeLeadTab === 'common' ? commonLeads : myLeads,
+    [commonLeads, employeeLeadTab, isAdmin, leads, myLeads]
+  );
+  const employeePersonalStats = useMemo(() => {
+    const stageCounts = STATUSES.reduce((acc, status) => {
+      acc[status] = myLeads.filter((lead) => filterMatchesLead(lead, status)).length;
+      return acc;
+    }, {});
+    return {
+      total: myLeads.length,
+      active: myLeads.filter((lead) => isActiveLeadStatus(lead.status)).length,
+      closedWon: myLeads.filter((lead) => lead.status === 'closed_won' || lead.status === 'closed').length,
+      stageCounts,
+    };
+  }, [myLeads]);
   const leadStats = useMemo(() => {
-    const countByStatus = (status) => leads.filter((lead) => lead.status === status).length;
+    const countByStatus = (status) => leads.filter((lead) => filterMatchesLead(lead, status)).length;
     return [
       { label: 'Всего', value: leads.length, accent: 'total' },
       { label: STATUS_LABELS.new, value: countByStatus('new'), accent: 'new' },
       { label: STATUS_LABELS.in_progress, value: countByStatus('in_progress'), accent: 'in_progress' },
-      { label: STATUS_LABELS.closed, value: countByStatus('closed'), accent: 'closed' },
+      { label: STATUS_LABELS.meeting, value: countByStatus('meeting'), accent: 'meeting' },
+      { label: STATUS_LABELS.documents, value: countByStatus('documents'), accent: 'documents' },
+      { label: STATUS_LABELS.deal, value: countByStatus('deal'), accent: 'deal' },
+      { label: 'Успешно', value: countByStatus('closed_won'), accent: 'closed_won' },
+      { label: 'Отказ', value: countByStatus('closed_lost'), accent: 'closed_lost' },
     ];
   }, [leads]);
   const leadReport = useMemo(() => {
@@ -1750,7 +1931,11 @@ export default function DashboardClient({ user }) {
     const byStatus = {
       new: leads.filter((lead) => lead.status === 'new').length,
       in_progress: leads.filter((lead) => lead.status === 'in_progress').length,
-      closed: leads.filter((lead) => lead.status === 'closed').length,
+      meeting: leads.filter((lead) => lead.status === 'meeting').length,
+      documents: leads.filter((lead) => lead.status === 'documents').length,
+      deal: leads.filter((lead) => lead.status === 'deal').length,
+      closed_won: leads.filter((lead) => lead.status === 'closed_won' || lead.status === 'closed').length,
+      closed_lost: leads.filter((lead) => lead.status === 'closed_lost').length,
     };
     const todayStart = startOfDay();
     const trend = Array.from({ length: 7 }, (_, index) => {
@@ -1765,7 +1950,7 @@ export default function DashboardClient({ user }) {
         key: day.toISOString(),
         label: formatShortDay(day),
         total: dayLeads.length,
-        closed: dayLeads.filter((lead) => lead.status === 'closed').length,
+        closed: dayLeads.filter((lead) => lead.status === 'closed_won' || lead.status === 'closed').length,
       };
     });
     const weekTotal = trend.reduce((sum, item) => sum + item.total, 0);
@@ -1778,12 +1963,17 @@ export default function DashboardClient({ user }) {
     const employeeRows = employees
       .map((employee) => {
         const employeeLeads = leads.filter((lead) => lead.assigned_to === employee.id);
+        const stageCounts = STATUSES.reduce((acc, status) => {
+          acc[status] = employeeLeads.filter((lead) => filterMatchesLead(lead, status)).length;
+          return acc;
+        }, {});
         return {
           id: employee.id,
           name: employee.name,
           total: employeeLeads.length,
-          active: employeeLeads.filter((lead) => lead.status === 'new' || lead.status === 'in_progress').length,
-          closed: employeeLeads.filter((lead) => lead.status === 'closed').length,
+          active: employeeLeads.filter((lead) => isActiveLeadStatus(lead.status)).length,
+          closed: employeeLeads.filter((lead) => lead.status === 'closed_won' || lead.status === 'closed').length,
+          stageCounts,
         };
       })
       .sort((a, b) => b.total - a.total || b.active - a.active);
@@ -1799,23 +1989,29 @@ export default function DashboardClient({ user }) {
       noComment,
       newLeads: byStatus.new,
       inProgress: byStatus.in_progress,
-      closed: byStatus.closed,
-      activeRate: percent(byStatus.new + byStatus.in_progress, total),
-      closedRate: percent(byStatus.closed, total),
+      closed: byStatus.closed_won,
+      lost: byStatus.closed_lost,
+      activeRate: percent(ACTIVE_PIPELINE_STATUSES.reduce((sum, status) => sum + (byStatus[status] || 0), 0), total),
+      closedRate: percent(byStatus.closed_won, total),
       avgPerDay: weekTotal ? (weekTotal / 7).toFixed(1) : '0',
       trend,
       employeeRows,
       statusSegments: [
         { key: 'new', label: STATUS_LABELS.new, value: byStatus.new, color: REPORT_STATUS_COLORS.new },
         { key: 'in_progress', label: STATUS_LABELS.in_progress, value: byStatus.in_progress, color: REPORT_STATUS_COLORS.in_progress },
-        { key: 'closed', label: STATUS_LABELS.closed, value: byStatus.closed, color: REPORT_STATUS_COLORS.closed },
+        { key: 'meeting', label: STATUS_LABELS.meeting, value: byStatus.meeting, color: REPORT_STATUS_COLORS.meeting },
+        { key: 'documents', label: STATUS_LABELS.documents, value: byStatus.documents, color: REPORT_STATUS_COLORS.documents },
+        { key: 'deal', label: STATUS_LABELS.deal, value: byStatus.deal, color: REPORT_STATUS_COLORS.deal },
+        { key: 'closed_won', label: 'Успешно', value: byStatus.closed_won, color: REPORT_STATUS_COLORS.closed_won },
+        { key: 'closed_lost', label: 'Отказ', value: byStatus.closed_lost, color: REPORT_STATUS_COLORS.closed_lost },
       ],
     };
   }, [employees, leads]);
   const filteredVisibleLeads = useMemo(() => {
+    const statusFilteredLeads = visibleLeads.filter((lead) => filterMatchesLead(lead, filter));
     const query = leadSearch.trim().toLowerCase();
-    if (!query) return visibleLeads;
-    return visibleLeads.filter((lead) => {
+    if (!query) return statusFilteredLeads;
+    return statusFilteredLeads.filter((lead) => {
       const assignee = employees.find((emp) => emp.id === lead.assigned_to);
       return [
         lead.name,
@@ -1825,7 +2021,7 @@ export default function DashboardClient({ user }) {
         assignee?.name,
       ].some((value) => String(value || '').toLowerCase().includes(query));
     });
-  }, [employees, leadSearch, visibleLeads]);
+  }, [employees, filter, leadSearch, visibleLeads]);
   const showWorkColumns = isAdmin || employeeLeadTab === 'my';
   const unassignedNewLeads = useMemo(
     () => leads.filter((lead) => lead.status === 'new' && !lead.assigned_to),
@@ -2163,6 +2359,10 @@ export default function DashboardClient({ user }) {
               </div>
             )}
 
+            {!isAdmin && (
+              <EmployeePersonalStats stats={employeePersonalStats} />
+            )}
+
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               {leadStats.map((stat) => (
                 <div key={stat.label} className={leadStatCardClass(stat.accent)}>
@@ -2313,13 +2513,13 @@ export default function DashboardClient({ user }) {
                         </button>
                       ) : (
                         <>
-                          {STATUSES.filter((s) => s !== lead.status).map((s) => (
+                          {getLeadPipelineActions(lead.status).map((action) => (
                             <button
-                              key={s}
-                              onClick={() => s === 'closed' ? openCloseReason(lead) : updateStatus(lead.id, s)}
-                              className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-border bg-crm-surface/40 px-3 py-2.5 text-xs text-crm-text transition hover:border-crm-accent/30 hover:bg-crm-accent/8"
+                              key={action.status}
+                              onClick={() => action.needsReason ? openCloseReason(lead, action.status, action.label) : updateStatus(lead.id, action.status)}
+                              className={leadActionButtonClass(action.variant)}
                             >
-                              → {STATUS_LABELS[s]}
+                              {action.label}
                             </button>
                           ))}
                           {isAdmin && (
@@ -2459,13 +2659,13 @@ export default function DashboardClient({ user }) {
                                 </button>
                               ) : (
                                 <>
-                                  {STATUSES.filter((s) => s !== lead.status).map((s) => (
+                                  {getLeadPipelineActions(lead.status).map((action) => (
                                     <button
-                                      key={s}
-                                      onClick={() => s === 'closed' ? openCloseReason(lead) : updateStatus(lead.id, s)}
-                                      className="crm-focus-ring rounded-crmLg border border-crm-border bg-crm-surface/40 px-2.5 py-1.5 text-xs text-crm-text transition hover:border-crm-accent/30 hover:bg-crm-accent/8"
+                                      key={action.status}
+                                      onClick={() => action.needsReason ? openCloseReason(lead, action.status, action.label) : updateStatus(lead.id, action.status)}
+                                      className={leadActionButtonClass(action.variant, true)}
                                     >
-                                      → {STATUS_LABELS[s]}
+                                      {action.label}
                                     </button>
                                   ))}
                                   {isAdmin && (
@@ -3222,7 +3422,7 @@ export default function DashboardClient({ user }) {
           <div className="crm-glass w-full max-w-md rounded-crm2xl border border-crm-border shadow-crmCard">
             <div className="flex items-center justify-between border-b border-crm-border px-5 py-4">
               <div>
-                <h2 className="font-semibold text-crm-text">Причина закрытия</h2>
+                <h2 className="font-semibold text-crm-text">{closeReasonModal.title || 'Причина закрытия'}</h2>
                 <p className="text-xs text-crm-muted">{closeReasonModal.leadName}</p>
               </div>
               <button
@@ -3234,6 +3434,18 @@ export default function DashboardClient({ user }) {
               </button>
             </div>
             <div className="space-y-4 px-5 py-5">
+              <div className="flex flex-wrap gap-2">
+                {['Неадекват', 'Ошибка / не туда', 'Не отвечает', 'Передумал', 'Не подходит бюджет', 'Сорвалась встреча'].map((reason) => (
+                  <button
+                    key={reason}
+                    type="button"
+                    onClick={() => setCloseReasonText(reason)}
+                    className="crm-focus-ring rounded-full border border-crm-border bg-crm-surface/40 px-3 py-1.5 text-xs text-crm-muted transition hover:border-crm-danger/35 hover:bg-crm-danger/10 hover:text-crm-danger"
+                  >
+                    {reason}
+                  </button>
+                ))}
+              </div>
               <textarea
                 autoFocus
                 value={closeReasonText}
@@ -3253,9 +3465,9 @@ export default function DashboardClient({ user }) {
                 <button
                   onClick={submitCloseReason}
                   disabled={!closeReasonText.trim() || closeReasonLoading}
-                  className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-success/40 bg-crm-success/15 px-4 py-2.5 text-sm font-medium text-crm-success transition hover:bg-crm-success/22 disabled:opacity-40"
+                  className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-danger/40 bg-crm-danger/12 px-4 py-2.5 text-sm font-medium text-crm-danger transition hover:bg-crm-danger/18 disabled:opacity-40"
                 >
-                  {closeReasonLoading ? 'Закрытие...' : 'Закрыть лид'}
+                  {closeReasonLoading ? 'Закрытие...' : (closeReasonModal.targetStatus === 'closed_lost' ? 'Закрыть в отказ' : 'Закрыть лид')}
                 </button>
               </div>
             </div>

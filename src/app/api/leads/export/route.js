@@ -5,7 +5,16 @@ import { getSql, ensureSchema } from '@/lib/admin/db';
 
 export const dynamic = 'force-dynamic';
 
-const STATUS_RU = { new: 'Новый', in_progress: 'В работе', closed: 'Закрыт' };
+const STATUS_RU = {
+  new: 'Новый',
+  in_progress: 'В работе',
+  meeting: 'Встреча',
+  documents: 'Документы',
+  deal: 'Сделка',
+  closed_won: 'Закрыт успешно',
+  closed_lost: 'Отказ / сорвался',
+  closed: 'Закрыт успешно',
+};
 
 function formatDate(value) {
   if (!value) return '';
