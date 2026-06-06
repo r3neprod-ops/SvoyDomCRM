@@ -755,7 +755,7 @@ export default function DashboardClient({ user }) {
   const isAdmin = user.role === 'admin';
   const { theme, toggle: toggleTheme } = useTheme();
 
-  const [activeTab, setActiveTab] = useState('chat');
+  const [activeTab, setActiveTab] = useState(isAdmin ? 'reports' : 'chat');
   const [leads, setLeads] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [filter, setFilter] = useState('');
@@ -1878,7 +1878,7 @@ export default function DashboardClient({ user }) {
   const navItems = [
     { key: 'leads', label: 'Лиды', icon: 'leads' },
     ...(isAdmin ? [
-      { key: 'reports', label: 'Отчеты', icon: 'reports' },
+      { key: 'reports', label: 'Статистика', icon: 'reports' },
       { key: 'employees', label: 'Сотрудники', icon: 'employees' },
     ] : []),
     { key: 'chat', label: 'Общий чат', icon: 'chat', badge: chatUnread },
@@ -2232,10 +2232,10 @@ export default function DashboardClient({ user }) {
               </span>
             </div>
 
-            <div className="space-y-3 md:hidden">
+            <div className="grid gap-3 lg:grid-cols-2 xl:hidden">
               {loading ? (
                 Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="crm-card animate-pulse rounded-crmXl p-4 shadow-crmCard">
+                  <div key={i} className="crm-premium-panel animate-pulse rounded-crmXl p-4 shadow-crmCard">
                     <div className="mb-3 h-4 w-32 rounded bg-crm-border/60" />
                     <div className="mb-2 h-3 w-48 rounded bg-crm-border/50" />
                     <div className="h-3 w-full rounded bg-crm-border/40" />
@@ -2245,18 +2245,35 @@ export default function DashboardClient({ user }) {
                 <LeadsEmptyState>{searchEmptyText}</LeadsEmptyState>
               ) : (
                 filteredVisibleLeads.map((lead) => (
-                  <article key={lead.id} className="crm-premium-panel crm-soft-rise rounded-crmXl border border-crm-border p-4 shadow-crmCard">
+                  <article key={lead.id} className="crm-premium-panel crm-soft-rise flex min-h-[23rem] flex-col rounded-crmXl border border-crm-border p-4 shadow-crmCard">
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-lg font-semibold text-crm-text">{lead.name || '—'}</p>
-                        <p className="mt-0.5 text-xs text-crm-muted">{formatDate(lead.created_at)}</p>
+                        <p className="mt-0.5 text-xs text-crm-muted">#{lead.id} · {formatDate(lead.created_at)}</p>
                       </div>
                       <span className={statusBadgeClass(lead.status)}>
                         {STATUS_LABELS[lead.status] ?? lead.status}
                       </span>
                     </div>
                     <LeadContactActions lead={lead} />
-                    <p className="mb-3 text-sm leading-relaxed text-crm-muted">{formatMessage(lead.message)}</p>
+                    <p className="mb-3 line-clamp-5 text-sm leading-relaxed text-crm-muted">{formatMessage(lead.message)}</p>
+                    <div className="mb-3 grid gap-2 text-xs sm:grid-cols-2">
+                      <div className="rounded-crmLg border border-crm-border bg-crm-surface/35 px-3 py-2">
+                        <p className="uppercase tracking-wide text-crm-muted">Ответственный</p>
+                        <p className="mt-1 truncate font-medium text-crm-text">
+                          {lead.assigned_to_name || employees.find((emp) => emp.id === lead.assigned_to)?.name || 'Не назначен'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => openComments(lead)}
+                        className="crm-focus-ring rounded-crmLg border border-crm-border bg-crm-surface/35 px-3 py-2 text-left transition hover:border-crm-accent/30 hover:bg-crm-accent/8"
+                      >
+                        <p className="uppercase tracking-wide text-crm-muted">Комментарии</p>
+                        <p className="mt-1 truncate font-medium text-crm-text">
+                          {lead.comment_count || 0}{lead.last_comment_text ? ` · ${lead.last_comment_text}` : ''}
+                        </p>
+                      </button>
+                    </div>
                     {isAdmin && (
                       <select
                         value={lead.assigned_to ?? ''}
@@ -2269,7 +2286,7 @@ export default function DashboardClient({ user }) {
                         ))}
                       </select>
                     )}
-                    {showWorkColumns && (
+                    {showWorkColumns && !isAdmin && (
                       <button
                         onClick={() => openComments(lead)}
                         className="crm-focus-ring mb-3 flex min-h-11 w-full flex-col justify-center rounded-crmLg border border-crm-border bg-crm-surface/40 px-3 py-2 text-left text-sm text-crm-text transition hover:border-crm-accent/30 hover:bg-crm-accent/8"
@@ -2280,7 +2297,12 @@ export default function DashboardClient({ user }) {
                         )}
                       </button>
                     )}
-                    <div className="flex flex-wrap gap-2">
+                    {(lead.status === 'new' && !lead.assigned_to) || !lead.comment_count ? (
+                      <div className="mb-3 rounded-crmLg border border-crm-warning/25 bg-crm-warning/10 px-3 py-2 text-xs text-crm-warning">
+                        {lead.status === 'new' && !lead.assigned_to ? 'Нужно назначить ответственного' : 'Нужен комментарий по контакту'}
+                      </div>
+                    ) : null}
+                    <div className="mt-auto flex flex-wrap gap-2">
                       {!isAdmin && employeeLeadTab === 'common' ? (
                         <button
                           onClick={() => claimLead(lead.id)}
@@ -2305,7 +2327,7 @@ export default function DashboardClient({ user }) {
                               <button
                                 onClick={() => openNudge(lead)}
                                 disabled={!lead.assigned_to}
-                                className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-warning/40 bg-crm-warning/12 px-3 py-2.5 text-xs font-medium text-crm-warning transition hover:bg-crm-warning/20 disabled:cursor-not-allowed disabled:opacity-40"
+                                className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-warning/45 bg-crm-warning/15 px-3 py-2.5 text-xs font-semibold text-crm-warning transition hover:bg-crm-warning/22 disabled:cursor-not-allowed disabled:opacity-40"
                               >
                                 Пнуть
                               </button>
@@ -2325,7 +2347,7 @@ export default function DashboardClient({ user }) {
               )}
             </div>
 
-            <div className="crm-premium-panel hidden overflow-hidden rounded-crmXl border border-crm-border shadow-crmCard md:block">
+            <div className="crm-premium-panel hidden overflow-hidden rounded-crmXl border border-crm-border shadow-crmCard xl:block">
               {loading ? (
                 <div className="crm-scrollbar overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
