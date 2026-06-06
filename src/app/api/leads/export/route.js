@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import * as XLSX from 'xlsx';
+import writeExcelFile from 'write-excel-file/node';
 import { getAuthUser } from '@/lib/admin/auth';
 import { getSql, ensureSchema } from '@/lib/admin/db';
 
@@ -50,37 +50,36 @@ export async function GET(request) {
   );
 
   const sheetData = [
-    ['№', 'Дата', 'Имя', 'Телефон', 'Сообщение', 'Статус', 'Назначен', 'Комментарий (последний)'],
+    ['№', 'Дата', 'Имя', 'Телефон', 'Сообщение', 'Статус', 'Назначен', 'Комментарий (последний)']
+      .map((value) => ({ value, fontWeight: 'bold', backgroundColor: '#EEF4FF' })),
     ...rows.map((r, i) => [
-      i + 1,
-      formatDate(r.created_at),
-      r.name || '',
-      r.phone || '',
-      r.message || '',
-      STATUS_RU[r.status] ?? r.status,
-      r.assigned_to_name || '',
-      r.last_comment || '',
+      { value: i + 1 },
+      { value: formatDate(r.created_at) },
+      { value: r.name || '' },
+      { value: r.phone || '' },
+      { value: r.message || '' },
+      { value: STATUS_RU[r.status] ?? r.status },
+      { value: r.assigned_to_name || '' },
+      { value: r.last_comment || '' },
     ]),
   ];
 
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(sheetData);
-
-  // Column widths
-  ws['!cols'] = [
-    { wch: 5 },  // №
-    { wch: 18 }, // Дата
-    { wch: 20 }, // Имя
-    { wch: 18 }, // Телефон
-    { wch: 40 }, // Сообщение
-    { wch: 12 }, // Статус
-    { wch: 18 }, // Назначен
-    { wch: 50 }, // Комментарий
+  const columns = [
+    { width: 5 },
+    { width: 18 },
+    { width: 20 },
+    { width: 18 },
+    { width: 40 },
+    { width: 14 },
+    { width: 20 },
+    { width: 50 },
   ];
 
-  XLSX.utils.book_append_sheet(wb, ws, 'Лиды');
-
-  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  const buffer = await writeExcelFile(sheetData, {
+    sheet: 'Лиды',
+    columns,
+    stickyRowsCount: 1,
+  }).toBuffer();
 
   const from = dateFrom || 'all';
   const to = dateTo || 'all';

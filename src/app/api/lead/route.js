@@ -1,7 +1,7 @@
 import { revalidateTag } from 'next/cache';
 import { addLead } from '@/lib/admin/store';
 import { sendPushToAll } from '@/lib/admin/push';
-import { pushDebugLog, getSql } from '@/lib/admin/db';
+import { getSql } from '@/lib/admin/db';
 
 const DEDUPE_WINDOW_MS = 30 * 1000;
 const recentLeadStore = new Map();
@@ -55,6 +55,12 @@ function jsonWithCors(request, body, init = {}) {
       ...(init.headers || {}),
     },
   });
+}
+
+function leadDebugLog(...args) {
+  if (process.env.LEAD_DEBUG_LOG === 'true') {
+    console.log(...args);
+  }
 }
 
 const APARTMENT_TYPE_LABELS = {
@@ -223,11 +229,11 @@ function validatePhone(rawPhone) {
 
 async function sendToBitrix24(payload) {
   const webhookUrl = process.env.BITRIX24_WEBHOOK_URL;
-  console.log('[Bitrix] URL configured:', !!webhookUrl);
+  leadDebugLog('[Bitrix] URL configured:', !!webhookUrl);
   if (!webhookUrl) return;
 
   const finalUrl = webhookUrl.replace(/\/+$/, '') + '/crm.lead.add.json';
-  console.log('[Bitrix] Final URL:', finalUrl);
+  leadDebugLog('[Bitrix] Final URL configured');
 
   const answers = asRecord(payload.answers);
   const bitrixPayload = {
@@ -256,7 +262,7 @@ async function sendToBitrix24(payload) {
     params: { REGISTER_SONET_EVENT: 'Y' },
   };
 
-  console.log('[Bitrix] Payload:', JSON.stringify(bitrixPayload));
+  leadDebugLog('[Bitrix] Payload:', JSON.stringify(bitrixPayload));
 
   try {
     const controller = new AbortController();
@@ -270,8 +276,8 @@ async function sendToBitrix24(payload) {
     });
     clearTimeout(timeoutId);
 
-    console.log('[Bitrix] Status:', response.status);
-    console.log('[Bitrix] Response:', await response.text());
+    leadDebugLog('[Bitrix] Status:', response.status);
+    leadDebugLog('[Bitrix] Response:', await response.text());
   } catch (error) {
     console.error('[Bitrix] Error:', error.message);
   }
@@ -286,56 +292,28 @@ export async function OPTIONS(request) {
 }
 
 export async function GET() {
-  const probeKey = `_dbg_get_probe_${Date.now()}`;
-  let dbOk = false;
-  let dbError = null;
-  let dbgRows = [];
-  let recentLeads = [];
-  let pushDebugRows = [];
-  try {
-    const s = getSql();
-    await s`INSERT INTO settings (key, value) VALUES (${probeKey}, ${'get_probe'}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
-    dbOk = true;
-    const rows = await s`SELECT key, value FROM settings WHERE key LIKE '_dbg_%' ORDER BY key DESC LIMIT 20`;
-    dbgRows = rows.map((r) => ({ key: r.key, value: r.value }));
-    const leads = await s`SELECT id, name, phone, created_at FROM leads ORDER BY id DESC LIMIT 10`;
-    recentLeads = leads.map((r) => ({ id: r.id, name: r.name, phone: r.phone, created_at: r.created_at }));
-
-    // Check if addLead() was called for recent leads (store.js writes _dbg_addlead_<id> inside tx)
-    const addLeadDbgRows = await s`SELECT key, value FROM settings WHERE key LIKE '_dbg_addlead_%' ORDER BY key DESC LIMIT 10`;
-    const addLeadDbgKeys = addLeadDbgRows.map((r) => r.key);
-
-    // lead_events for the last 10 leads — source / meta tells where the lead came from
-    const leadIds = leads.map((r) => r.id);
-    const leadEvents = leadIds.length
-      ? await s`SELECT lead_id, type, message, meta, created_at FROM lead_events WHERE lead_id = ANY(${leadIds}) ORDER BY lead_id DESC, id DESC`
-      : [];
-
-    const pdRows = await s`SELECT id, stage, lead_id, data, error, created_at FROM push_debug_log ORDER BY id DESC LIMIT 20`;
-    pushDebugRows = pdRows.map((r) => ({ id: r.id, stage: r.stage, lead_id: r.lead_id, data: r.data, error: r.error, created_at: r.created_at }));
-    return Response.json({ revision: 'dbg-20260521-listener', dbOk, dbError, probeKey, dbgRows, addLeadDbgKeys, recentLeads, leadEvents, pushDebugRows });
-  } catch (e) {
-    dbError = e?.message || String(e);
-  }
-  return Response.json({ revision: 'dbg-20260521-listener', dbOk, dbError, probeKey, dbgRows, recentLeads, pushDebugRows });
+  return Response.json({ ok: false, message: 'Method not allowed' }, { status: 405 });
 }
 
-// Raw DB probe — writes to settings table (plain TEXT, no JSONB) to avoid any type issues
-function _dblog(stage, data, leadId = null) {
-  const s = getSql();
-  const key = `_dbg_${stage}_${Date.now()}`;
-  const val = JSON.stringify({ stage, leadId, data, ts: new Date().toISOString() });
-  return s`INSERT INTO settings (key, value) VALUES (${key}, ${val}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+async function _dblog(stage, data, leadId = null) {
+  if (process.env.LEAD_DEBUG_LOG !== 'true') return;
+  try {
+    const s = getSql();
+    const key = `_dbg_${stage}_${Date.now()}`;
+    const val = JSON.stringify({ stage, leadId, data, ts: new Date().toISOString() });
+    await s`INSERT INTO settings (key, value) VALUES (${key}, ${val}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+  } catch (error) {
+    console.warn('[Lead] Debug log skipped:', error?.message || error);
+  }
 }
 
 export async function POST(request) {
-  // === BARE INSERT — FIRST LINE, NO TRY/CATCH — throws if getSql() or DB fails ===
   await _dblog('lead:handler_entered', { url: request.url, method: request.method });
 
   // === OUTER TRY/CATCH WRAPS EVERYTHING BELOW ===
   try {
     const startTime = Date.now();
-    console.log('[Lead] Request received at:', new Date().toISOString());
+    leadDebugLog('[Lead] Request received at:', new Date().toISOString());
     const cors = getCors(request);
 
     if (!cors.allowed) {
@@ -359,7 +337,7 @@ export async function POST(request) {
       return jsonWithCors(request, { ok: true });
     }
 
-    console.log('[Lead] Step: validation');
+    leadDebugLog('[Lead] Step: validation');
     const phoneValidation = validatePhone(payload.phone);
     if (!phoneValidation.ok) {
       _dblog('lead:returning', { status: phoneValidation.status, reason: 'phone_invalid' }).catch(() => {});
@@ -382,15 +360,15 @@ export async function POST(request) {
       answers: asRecord(payload.answers),
     };
 
-    console.log('[Lead] Step: dedup');
+    leadDebugLog('[Lead] Step: dedup');
     const dedupeKey = makeDedupKey(phoneValidation.phoneDigits, safePayload.answers);
     if (isDuplicateLead(dedupeKey)) {
-      console.log('[Lead] Duplicate detected, skipping bitrix:', dedupeKey);
+      leadDebugLog('[Lead] Duplicate detected, skipping bitrix');
       _dblog('lead:returning', { status: 200, reason: 'dedup' }).catch(() => {});
       return jsonWithCors(request, { ok: true, deduped: true });
     }
 
-    console.log('[Lead] Step: db');
+    leadDebugLog('[Lead] Step: db');
     let leadId = null;
     try {
       const lead = await addLead(safePayload);
@@ -399,7 +377,7 @@ export async function POST(request) {
       await _dblog('lead:after_addlead', null, leadId);
 
       const pushBody = buildReadableLeadPushBody(safePayload);
-      console.log('[Lead] triggering push for lead', leadId);
+      leadDebugLog('[Lead] triggering push for lead', leadId);
       try {
         await sendPushToAll({
           title: 'Новый лид!',
@@ -422,10 +400,10 @@ export async function POST(request) {
       );
     }
 
-    console.log('[Lead] Step: bitrix');
+    leadDebugLog('[Lead] Step: bitrix');
     await sendToBitrix24(safePayload);
 
-    console.log('[Lead] Completed in', Date.now() - startTime, 'ms');
+    leadDebugLog('[Lead] Completed in', Date.now() - startTime, 'ms');
     _dblog('lead:returning', { status: 200, reason: 'success', leadId }).catch(() => {});
     return jsonWithCors(request, { success: true, leadId });
 

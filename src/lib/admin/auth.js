@@ -4,9 +4,9 @@ import { cookies } from 'next/headers';
 const COOKIE = 'auth_token';
 
 function getSecret() {
-  const secret = process.env.JWT_SECRET;
+  const secret = process.env.JWT_SECRET?.trim();
   if (!secret) {
-    console.warn('[auth] JWT_SECRET is not set — using insecure fallback. Set JWT_SECRET in production!');
+    console.warn('[auth] JWT_SECRET is not set - using fallback secret.');
   }
   return new TextEncoder().encode(secret || 'fallback-dev-secret-change-in-production');
 }
@@ -19,7 +19,8 @@ export async function signToken(payload) {
 }
 
 export async function getAuthUser() {
-  const token = cookies().get(COOKIE)?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get(COOKIE)?.value;
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, getSecret());

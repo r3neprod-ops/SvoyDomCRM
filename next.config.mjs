@@ -1,10 +1,15 @@
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  outputFileTracingRoot: __dirname,
   reactStrictMode: true,
   compress: true,
   experimental: {
     optimizeCss: true,
-    instrumentationHook: true,
   },
   webpack(config, { isServer, nextRuntime }) {
     // web-push and pg use Node.js built-ins (http, https, net, tls).

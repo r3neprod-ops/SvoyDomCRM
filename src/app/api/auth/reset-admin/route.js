@@ -5,6 +5,7 @@ import { ensureSchema, getSql } from '@/lib/admin/db';
 // Emergency admin password reset.
 // Requires ADMIN_RESET_TOKEN env var to be set, and the matching token in the request body.
 // Usage: POST /api/auth/reset-admin  { "token": "<ADMIN_RESET_TOKEN>", "new_password": "..." }
+// If new_password is omitted, admin123 is used.
 // After use, unset ADMIN_RESET_TOKEN from environment.
 
 export async function POST(request) {
@@ -23,8 +24,11 @@ export async function POST(request) {
   }
 
   const newPassword = String(body.new_password || 'admin123');
-  if (newPassword.length < 4) {
-    return NextResponse.json({ ok: false, message: 'Пароль минимум 4 символа' }, { status: 400 });
+  if (!newPassword) {
+    return NextResponse.json({ ok: false, message: 'Укажите новый пароль' }, { status: 400 });
+  }
+  if (newPassword.length < 8) {
+    return NextResponse.json({ ok: false, message: 'Пароль минимум 8 символов' }, { status: 400 });
   }
 
   try {

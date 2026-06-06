@@ -31,6 +31,12 @@ export async function POST(request) {
     return response;
   } catch (error) {
     console.error('Login error:', error);
+    if (error?.message === 'DATABASE_URL environment variable is not set') {
+      return NextResponse.json(
+        { ok: false, message: 'База данных не подключена: задайте DATABASE_URL в окружении сервера или .env.local' },
+        { status: 503 }
+      );
+    }
     return NextResponse.json({ ok: false, message: 'Ошибка сервера' }, { status: 500 });
   }
 }
