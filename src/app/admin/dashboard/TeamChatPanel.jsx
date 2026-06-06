@@ -279,7 +279,7 @@ function Bubble({ msg, own, showAv, showName, isLast, isDm, onReply, onReact, re
   );
 
   return (
-    <div className={cx('group flex items-end gap-1.5', own ? 'flex-row-reverse' : 'flex-row')}
+    <div className={cx('group flex items-end gap-1.5 transition duration-200 ease-out', own ? 'flex-row-reverse' : 'flex-row')}
       onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
       <div className="w-8 shrink-0">
         {!own && showAv && (msg.author_avatar_url
@@ -294,7 +294,7 @@ function Bubble({ msg, own, showAv, showName, isLast, isDm, onReply, onReact, re
       {/* Desktop reply button (opposite side from avatar) */}
       <button onClick={() => onReply?.()}
         aria-label="Ответить"
-        className="mb-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-crm-border bg-[var(--crm-surface-strong)] text-crm-muted opacity-0 shadow transition hover:border-crm-accent/40 hover:text-crm-accent group-hover:opacity-100 crm-focus-ring">
+        className="mb-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-crm-border bg-[var(--crm-surface-strong)] text-crm-muted opacity-0 shadow transition duration-200 hover:border-crm-accent/40 hover:text-crm-accent group-hover:opacity-100 crm-focus-ring">
         <IconReply />
       </button>
 
@@ -324,7 +324,7 @@ function Bubble({ msg, own, showAv, showName, isLast, isDm, onReply, onReact, re
         )}
 
         <div className={cx(
-          'relative shadow-crmCard',
+          'relative shadow-crmCard transition duration-200 ease-out group-hover:shadow-crmGlow',
           tailCls,
           isVid ? '' : cx('rounded-2xl px-3 py-2', own
             ? 'bg-gradient-to-br from-crm-accent to-[var(--crm-accent-strong)] text-white'

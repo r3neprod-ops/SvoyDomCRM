@@ -27,7 +27,7 @@ function leadFilterChipClass(isActive) {
 }
 
 function leadStatCardClass(accent) {
-  const base = 'crm-card rounded-crmXl px-4 py-3.5 shadow-crmCard';
+  const base = 'crm-card crm-soft-rise rounded-crmXl px-4 py-3.5 shadow-crmCard';
   if (accent === 'total') return `${base} crm-card-strong`;
   if (accent === 'new') return `${base} border-crm-accent/25`;
   if (accent === 'in_progress') return `${base} border-crm-warning/25`;
@@ -40,6 +40,264 @@ function leadStatValueClass(accent) {
   if (accent === 'in_progress') return 'text-crm-warning';
   if (accent === 'closed') return 'text-crm-success';
   return 'text-crm-text';
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const REPORT_STATUS_COLORS = {
+  new: '#2dd4bf',
+  in_progress: '#f5c451',
+  closed: '#86efac',
+};
+
+function startOfDay(value = new Date()) {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function parseLeadDate(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatShortDay(value) {
+  return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'short' }).format(value);
+}
+
+function percent(value, total) {
+  if (!total) return 0;
+  return Math.round((value / total) * 100);
+}
+
+function makeDonutGradient(segments, total) {
+  if (!total) return 'conic-gradient(rgba(255,255,255,0.08) 0deg 360deg)';
+  let cursor = 0;
+  const stops = segments
+    .filter((segment) => segment.value > 0)
+    .map((segment) => {
+      const start = cursor;
+      const end = cursor + (segment.value / total) * 360;
+      cursor = end;
+      return `${segment.color} ${start}deg ${end}deg`;
+    });
+  return `conic-gradient(${stops.join(', ')}, rgba(255,255,255,0.08) ${cursor}deg 360deg)`;
+}
+
+function ReportMetricCard({ label, value, hint, tone = 'accent' }) {
+  const toneStyle = {
+    accent: { text: 'text-crm-accent', dot: 'bg-crm-accent' },
+    success: { text: 'text-crm-success', dot: 'bg-crm-success' },
+    warning: { text: 'text-crm-warning', dot: 'bg-crm-warning' },
+    danger: { text: 'text-crm-danger', dot: 'bg-crm-danger' },
+    info: { text: 'text-crm-info', dot: 'bg-crm-info' },
+  }[tone] || { text: 'text-crm-accent', dot: 'bg-crm-accent' };
+
+  return (
+    <div className="crm-premium-panel crm-soft-rise rounded-crmXl p-4">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs font-medium uppercase tracking-wide text-crm-muted">{label}</p>
+        <span className={`h-2.5 w-2.5 rounded-full ${toneStyle.dot}`} />
+      </div>
+      <p className={`mt-3 text-3xl font-semibold tabular-nums ${toneStyle.text}`}>{value}</p>
+      {hint && <p className="mt-2 text-xs leading-relaxed text-crm-muted">{hint}</p>}
+    </div>
+  );
+}
+
+function LeadStatusDonut({ report }) {
+  const segments = report.statusSegments;
+  const gradient = makeDonutGradient(segments, report.total);
+
+  return (
+    <div className="crm-premium-panel rounded-crmXl p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold text-crm-text">Воронка по статусам</h3>
+          <p className="mt-1 text-sm text-crm-muted">Сколько лидов сейчас в каждом состоянии</p>
+        </div>
+        <span className="rounded-full border border-crm-border bg-crm-surface/55 px-2.5 py-1 text-xs text-crm-muted">
+          {report.total} всего
+        </span>
+      </div>
+
+      <div className="mt-5 grid gap-5 sm:grid-cols-[11rem,1fr] sm:items-center">
+        <div className="relative mx-auto h-40 w-40 rounded-full p-4" style={{ background: gradient }}>
+          <div className="flex h-full w-full flex-col items-center justify-center rounded-full border border-crm-border bg-[var(--crm-bg-deep)]/88 text-center shadow-inner">
+            <span className="text-3xl font-semibold tabular-nums text-crm-text">{report.closedRate}%</span>
+            <span className="mt-1 text-xs text-crm-muted">закрыто</span>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {segments.map((segment) => (
+            <div key={segment.key}>
+              <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
+                <span className="flex items-center gap-2 text-crm-text">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: segment.color }} />
+                  {segment.label}
+                </span>
+                <span className="tabular-nums text-crm-muted">{segment.value} · {percent(segment.value, report.total)}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
+                <div
+                  className="h-full rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${percent(segment.value, report.total)}%`, backgroundColor: segment.color }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LeadTrendChart({ report }) {
+  const max = Math.max(1, ...report.trend.map((item) => item.total));
+
+  return (
+    <div className="crm-premium-panel rounded-crmXl p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold text-crm-text">Динамика за 7 дней</h3>
+          <p className="mt-1 text-sm text-crm-muted">Новые лиды по дням, чтобы видеть темп входящего потока</p>
+        </div>
+        <span className="rounded-full border border-crm-accent/25 bg-crm-accent/10 px-2.5 py-1 text-xs text-crm-accent">
+          {report.weekTotal} за неделю
+        </span>
+      </div>
+
+      <div className="mt-6 flex h-48 items-end gap-2 rounded-crmLg border border-crm-border bg-black/10 px-3 pb-3 pt-5">
+        {report.trend.map((item) => {
+          const height = Math.max(8, Math.round((item.total / max) * 100));
+          return (
+            <div key={item.key} className="flex h-full min-w-0 flex-1 flex-col justify-end gap-2">
+              <div className="flex min-h-0 flex-1 items-end">
+                <div
+                  className="w-full rounded-t-crmLg bg-[linear-gradient(180deg,var(--crm-accent),var(--crm-info))] shadow-crmGlow transition-all duration-500 ease-out"
+                  style={{ height: `${height}%` }}
+                  title={`${item.label}: ${item.total}`}
+                />
+              </div>
+              <div className="text-center">
+                <p className="text-xs font-semibold tabular-nums text-crm-text">{item.total}</p>
+                <p className="truncate text-[10px] text-crm-muted">{item.label}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function EmployeeReportChart({ report }) {
+  const max = Math.max(1, ...report.employeeRows.map((item) => item.total));
+
+  return (
+    <div className="crm-premium-panel rounded-crmXl p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold text-crm-text">Нагрузка по сотрудникам</h3>
+          <p className="mt-1 text-sm text-crm-muted">Кому назначены лиды и где есть перегруз</p>
+        </div>
+        <span className="rounded-full border border-crm-border bg-crm-surface/55 px-2.5 py-1 text-xs text-crm-muted">
+          {report.assigned} назначено
+        </span>
+      </div>
+
+      <div className="mt-5 space-y-3">
+        {report.employeeRows.length === 0 ? (
+          <p className="rounded-crmLg border border-dashed border-crm-border px-4 py-8 text-center text-sm text-crm-muted">
+            Сотрудники пока не добавлены
+          </p>
+        ) : (
+          report.employeeRows.map((employee) => (
+            <div key={employee.id} className="rounded-crmLg border border-crm-border bg-crm-surface/35 p-3">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <span className="truncate text-sm font-medium text-crm-text">{employee.name}</span>
+                <span className="shrink-0 text-xs tabular-nums text-crm-muted">
+                  {employee.total} лидов · {employee.active} активных
+                </span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
+                <div
+                  className="h-full rounded-full bg-[linear-gradient(90deg,var(--crm-accent),var(--crm-warning))] transition-all duration-500 ease-out"
+                  style={{ width: `${Math.max(4, percent(employee.total, max))}%` }}
+                />
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LeadReportsPanel({ report, isAdmin, onExport, onOpenLeads }) {
+  return (
+    <div className="crm-panel-enter space-y-5">
+      <div className="crm-premium-panel overflow-hidden rounded-crm2xl p-5 sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-wide text-crm-accent">Отчет по лидам</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-crm-text sm:text-3xl">Пульс продаж и обработки</h2>
+            <p className="mt-2 text-sm leading-relaxed text-crm-muted">
+              Видно, сколько заявок приходит, кто забирает лиды, где зависают новые обращения и как быстро команда доводит их до закрытия.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {isAdmin && (
+              <button
+                onClick={onExport}
+                className="crm-focus-ring inline-flex min-h-11 items-center justify-center rounded-crmLg border border-crm-border bg-crm-surface/50 px-4 py-2.5 text-sm font-medium text-crm-text transition hover:border-crm-accent/35 hover:bg-crm-accent/10 hover:text-crm-accent"
+              >
+                Скачать отчет
+              </button>
+            )}
+            <button
+              onClick={onOpenLeads}
+              className="crm-focus-ring inline-flex min-h-11 items-center justify-center rounded-crmLg border border-crm-accent/35 bg-crm-accent/15 px-4 py-2.5 text-sm font-semibold text-crm-accent shadow-crmGlow transition hover:bg-crm-accent/22"
+            >
+              Перейти к лидам
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <ReportMetricCard label="Всего лидов" value={report.total} hint={`Сегодня: ${report.today}`} tone="accent" />
+        <ReportMetricCard label="В работе" value={report.inProgress} hint={`${report.activeRate}% активной базы`} tone="warning" />
+        <ReportMetricCard label="Закрыто" value={`${report.closedRate}%`} hint={`${report.closed} из ${report.total || 0} лидов`} tone="success" />
+        <ReportMetricCard label="Без ответственного" value={report.unassigned} hint={report.unassigned ? 'Нужно распределить' : 'Все разобрано'} tone={report.unassigned ? 'danger' : 'info'} />
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
+        <LeadTrendChart report={report} />
+        <LeadStatusDonut report={report} />
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
+        <EmployeeReportChart report={report} />
+        <div className="crm-premium-panel rounded-crmXl p-5">
+          <h3 className="text-base font-semibold text-crm-text">Контрольные точки</h3>
+          <p className="mt-1 text-sm text-crm-muted">Что требует внимания руководителя прямо сейчас</p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            {[
+              { label: 'Новые без ответственного', value: report.unassignedNew, tone: report.unassignedNew ? 'text-crm-danger' : 'text-crm-success' },
+              { label: 'Без комментариев', value: report.noComment, tone: report.noComment ? 'text-crm-warning' : 'text-crm-success' },
+              { label: 'Среднее в день', value: report.avgPerDay, tone: 'text-crm-info' },
+              { label: 'Закрыто за неделю', value: report.weekClosed, tone: 'text-crm-success' },
+            ].map((item) => (
+              <div key={item.label} className="rounded-crmLg border border-crm-border bg-crm-surface/35 p-4">
+                <p className="text-xs uppercase tracking-wide text-crm-muted">{item.label}</p>
+                <p className={`mt-2 text-2xl font-semibold tabular-nums ${item.tone}`}>{item.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function LeadsEmptyState({ children }) {
@@ -451,6 +709,15 @@ function NavIcon({ name, className = 'h-5 w-5 shrink-0' }) {
           <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
           <circle cx="9" cy="7" r="4" />
           <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      );
+    case 'reports':
+      return (
+        <svg viewBox="0 0 24 24" {...props}>
+          <path d="M3 3v18h18" />
+          <rect x="7" y="12" width="3" height="5" rx="1" />
+          <rect x="12" y="8" width="3" height="9" rx="1" />
+          <rect x="17" y="5" width="3" height="12" rx="1" />
         </svg>
       );
     case 'chat':
@@ -1478,6 +1745,73 @@ export default function DashboardClient({ user }) {
       { label: STATUS_LABELS.closed, value: countByStatus('closed'), accent: 'closed' },
     ];
   }, [leads]);
+  const leadReport = useMemo(() => {
+    const total = leads.length;
+    const byStatus = {
+      new: leads.filter((lead) => lead.status === 'new').length,
+      in_progress: leads.filter((lead) => lead.status === 'in_progress').length,
+      closed: leads.filter((lead) => lead.status === 'closed').length,
+    };
+    const todayStart = startOfDay();
+    const trend = Array.from({ length: 7 }, (_, index) => {
+      const day = new Date(todayStart.getTime() - (6 - index) * DAY_MS);
+      const nextDay = new Date(day.getTime() + DAY_MS);
+      const dayLeads = leads.filter((lead) => {
+        const created = parseLeadDate(lead.created_at);
+        return created && created >= day && created < nextDay;
+      });
+
+      return {
+        key: day.toISOString(),
+        label: formatShortDay(day),
+        total: dayLeads.length,
+        closed: dayLeads.filter((lead) => lead.status === 'closed').length,
+      };
+    });
+    const weekTotal = trend.reduce((sum, item) => sum + item.total, 0);
+    const weekClosed = trend.reduce((sum, item) => sum + item.closed, 0);
+    const today = trend[trend.length - 1]?.total || 0;
+    const assigned = leads.filter((lead) => lead.assigned_to).length;
+    const unassigned = total - assigned;
+    const unassignedNew = leads.filter((lead) => lead.status === 'new' && !lead.assigned_to).length;
+    const noComment = leads.filter((lead) => !lead.comment_count).length;
+    const employeeRows = employees
+      .map((employee) => {
+        const employeeLeads = leads.filter((lead) => lead.assigned_to === employee.id);
+        return {
+          id: employee.id,
+          name: employee.name,
+          total: employeeLeads.length,
+          active: employeeLeads.filter((lead) => lead.status === 'new' || lead.status === 'in_progress').length,
+          closed: employeeLeads.filter((lead) => lead.status === 'closed').length,
+        };
+      })
+      .sort((a, b) => b.total - a.total || b.active - a.active);
+
+    return {
+      total,
+      today,
+      weekTotal,
+      weekClosed,
+      assigned,
+      unassigned,
+      unassignedNew,
+      noComment,
+      newLeads: byStatus.new,
+      inProgress: byStatus.in_progress,
+      closed: byStatus.closed,
+      activeRate: percent(byStatus.new + byStatus.in_progress, total),
+      closedRate: percent(byStatus.closed, total),
+      avgPerDay: weekTotal ? (weekTotal / 7).toFixed(1) : '0',
+      trend,
+      employeeRows,
+      statusSegments: [
+        { key: 'new', label: STATUS_LABELS.new, value: byStatus.new, color: REPORT_STATUS_COLORS.new },
+        { key: 'in_progress', label: STATUS_LABELS.in_progress, value: byStatus.in_progress, color: REPORT_STATUS_COLORS.in_progress },
+        { key: 'closed', label: STATUS_LABELS.closed, value: byStatus.closed, color: REPORT_STATUS_COLORS.closed },
+      ],
+    };
+  }, [employees, leads]);
   const filteredVisibleLeads = useMemo(() => {
     const query = leadSearch.trim().toLowerCase();
     if (!query) return visibleLeads;
@@ -1544,6 +1878,7 @@ export default function DashboardClient({ user }) {
   const navItems = [
     { key: 'leads', label: 'Лиды', icon: 'leads' },
     ...(isAdmin ? [
+      { key: 'reports', label: 'Отчеты', icon: 'reports' },
       { key: 'employees', label: 'Сотрудники', icon: 'employees' },
     ] : []),
     { key: 'chat', label: 'Общий чат', icon: 'chat', badge: chatUnread },
@@ -1910,7 +2245,7 @@ export default function DashboardClient({ user }) {
                 <LeadsEmptyState>{searchEmptyText}</LeadsEmptyState>
               ) : (
                 filteredVisibleLeads.map((lead) => (
-                  <article key={lead.id} className="crm-card rounded-crmXl border border-crm-border p-4 shadow-crmCard transition hover:border-crm-accent/20">
+                  <article key={lead.id} className="crm-premium-panel crm-soft-rise rounded-crmXl border border-crm-border p-4 shadow-crmCard">
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-lg font-semibold text-crm-text">{lead.name || '—'}</p>
@@ -1972,7 +2307,7 @@ export default function DashboardClient({ user }) {
                                 disabled={!lead.assigned_to}
                                 className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-warning/40 bg-crm-warning/12 px-3 py-2.5 text-xs font-medium text-crm-warning transition hover:bg-crm-warning/20 disabled:cursor-not-allowed disabled:opacity-40"
                               >
-                                Напомнить
+                                Пнуть
                               </button>
                               <button
                                 onClick={() => deleteLead(lead.id)}
@@ -1990,11 +2325,11 @@ export default function DashboardClient({ user }) {
               )}
             </div>
 
-            <div className="crm-glass hidden rounded-crmXl border border-crm-border shadow-crmCard md:block">
+            <div className="crm-premium-panel hidden overflow-hidden rounded-crmXl border border-crm-border shadow-crmCard md:block">
               {loading ? (
                 <div className="crm-scrollbar overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
-                    <thead className="border-b border-crm-border bg-crm-surface/95 text-xs uppercase tracking-wide text-crm-muted">
+                    <thead className="border-b border-crm-border bg-black/10 text-xs uppercase tracking-wide text-crm-muted">
                       <tr>
                         <th className="p-3 font-semibold">Дата</th>
                         <th className="p-3 font-semibold">Имя</th>
@@ -2029,7 +2364,7 @@ export default function DashboardClient({ user }) {
               ) : (
                 <div className="crm-scrollbar overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
-                    <thead className="border-b border-crm-border bg-crm-surface/95 text-xs uppercase tracking-wide text-crm-muted">
+                    <thead className="border-b border-crm-border bg-black/10 text-xs uppercase tracking-wide text-crm-muted">
                       <tr>
                         <th className="p-3 font-semibold">Дата</th>
                         <th className="p-3 font-semibold">Имя</th>
@@ -2043,7 +2378,7 @@ export default function DashboardClient({ user }) {
                     </thead>
                     <tbody>
                       {filteredVisibleLeads.map((lead) => (
-                        <tr key={lead.id} className="border-t border-crm-border/60 align-top transition hover:bg-white/[0.03]">
+                        <tr key={lead.id} className="border-t border-crm-border/60 align-top transition duration-200 hover:bg-crm-accent/10">
                           <td className="whitespace-nowrap p-3 text-crm-muted">{formatDate(lead.created_at)}</td>
                           <td className="p-3 font-medium text-crm-text">{lead.name || '—'}</td>
                           <td className="whitespace-nowrap p-3">
@@ -2118,7 +2453,7 @@ export default function DashboardClient({ user }) {
                                         disabled={!lead.assigned_to}
                                         className="crm-focus-ring rounded-crmLg border border-crm-warning/40 bg-crm-warning/12 px-2.5 py-1.5 text-xs font-medium text-crm-warning transition hover:bg-crm-warning/20 disabled:cursor-not-allowed disabled:opacity-40"
                                       >
-                                        Напомнить
+                                        Пнуть
                                       </button>
                                       <button
                                         onClick={() => deleteLead(lead.id)}
@@ -2140,6 +2475,16 @@ export default function DashboardClient({ user }) {
               )}
             </div>
           </>
+        )}
+
+        {/* ── Reports tab ── */}
+        {activeTab === 'reports' && isAdmin && (
+          <LeadReportsPanel
+            report={leadReport}
+            isAdmin={isAdmin}
+            onExport={() => setShowExportModal(true)}
+            onOpenLeads={() => selectTab('leads')}
+          />
         )}
 
         {/* ── Team chat tab ── */}
@@ -2906,7 +3251,7 @@ export default function DashboardClient({ user }) {
           <div className="crm-glass w-full max-w-md rounded-crm2xl border border-crm-border shadow-crmCard">
             <div className="flex items-center justify-between border-b border-crm-border px-5 py-4">
               <div>
-                <h2 className="font-semibold text-crm-text">Напоминание ответственному</h2>
+                <h2 className="font-semibold text-crm-text">Пнуть ответственного</h2>
                 <p className="text-xs text-crm-muted">
                   {nudgeModal.leadName} → {nudgeModal.assignedToName}
                 </p>
@@ -2921,7 +3266,7 @@ export default function DashboardClient({ user }) {
             </div>
             <div className="space-y-4 px-5 py-5">
               <div className="rounded-crmLg border border-crm-warning/30 bg-crm-warning/10 px-3 py-2.5 text-sm leading-relaxed text-crm-muted">
-                Если оставить поле пустым, сотрудник получит стандартный текст: связаться с клиентом и обновить статус или комментарий.
+                В интерфейсе сотрудника это придет как обычное напоминание. Если оставить поле пустым, уйдет стандартный текст: связаться с клиентом и обновить статус или комментарий.
               </div>
               <textarea
                 autoFocus
@@ -2944,7 +3289,7 @@ export default function DashboardClient({ user }) {
                   disabled={nudgeLoading}
                   className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-warning/45 bg-crm-warning/15 px-4 py-2.5 text-sm font-semibold text-crm-warning transition hover:bg-crm-warning/22 disabled:opacity-40"
                 >
-                  {nudgeLoading ? 'Отправляю...' : nudgeText.trim() ? 'Отправить напоминание' : 'Отправить стандартное напоминание'}
+                  {nudgeLoading ? 'Отправляю...' : nudgeText.trim() ? 'Пнуть с комментарием' : 'Пнуть стандартно'}
                 </button>
               </div>
             </div>

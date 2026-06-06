@@ -19,6 +19,7 @@ module.exports = {
           success: 'var(--crm-success)',
           warning: 'var(--crm-warning)',
           danger: 'var(--crm-danger)',
+          info: 'var(--crm-info)',
         },
       },
       boxShadow: {

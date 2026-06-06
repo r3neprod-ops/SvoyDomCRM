@@ -25,36 +25,36 @@
    Separate token block — does not override legacy landing vars.
    ═══════════════════════════════════════════════════════════ */
 :root {
-  --crm-bg: #07111f;
-  --crm-bg-deep: #030913;
-  --crm-surface: rgba(15, 29, 48, 0.82);
-  --crm-surface-strong: rgba(20, 36, 58, 0.95);
-  --crm-surface-soft: rgba(15, 29, 48, 0.55);
-  --crm-border: rgba(255, 255, 255, 0.08);
-  --crm-border-strong: rgba(255, 255, 255, 0.14);
-  --crm-border-accent: rgba(19, 216, 232, 0.35);
+  --crm-bg: #0b0f14;
+  --crm-bg-deep: #05070a;
+  --crm-surface: rgba(18, 24, 31, 0.84);
+  --crm-surface-strong: rgba(24, 31, 40, 0.96);
+  --crm-surface-soft: rgba(18, 24, 31, 0.58);
+  --crm-border: rgba(255, 255, 255, 0.09);
+  --crm-border-strong: rgba(255, 255, 255, 0.16);
+  --crm-border-accent: rgba(45, 212, 191, 0.35);
   --crm-text: #f4f7fb;
-  --crm-text-secondary: #aeb9c8;
-  --crm-text-muted: rgba(174, 185, 200, 0.62);
-  --crm-accent: #13d8e8;
-  --crm-accent-strong: #0b88d8;
-  --crm-accent-soft: rgba(19, 216, 232, 0.14);
-  --crm-success: #34d399;
-  --crm-warning: #fbbf24;
-  --crm-danger: #f87171;
-  --crm-info: #38bdf8;
+  --crm-text-secondary: #b7c2cf;
+  --crm-text-muted: rgba(183, 194, 207, 0.64);
+  --crm-accent: #2dd4bf;
+  --crm-accent-strong: #38bdf8;
+  --crm-accent-soft: rgba(45, 212, 191, 0.14);
+  --crm-success: #86efac;
+  --crm-warning: #f5c451;
+  --crm-danger: #fb7185;
+  --crm-info: #60a5fa;
   --crm-radius-sm: 0.5rem;
   --crm-radius-md: 0.75rem;
   --crm-radius-lg: 1rem;
   --crm-radius-xl: 1.25rem;
-  --crm-shadow-card: 0 18px 48px rgba(3, 9, 19, 0.55), 0 2px 8px rgba(3, 9, 19, 0.35);
-  --crm-shadow-soft: 0 8px 24px rgba(3, 9, 19, 0.35);
-  --crm-shadow-glow: 0 0 32px rgba(19, 216, 232, 0.18);
-  --crm-gradient-app: linear-gradient(165deg, #07111f 0%, #030913 100%);
-  --crm-gradient-card: linear-gradient(155deg, rgba(20, 36, 58, 0.92) 0%, rgba(15, 29, 48, 0.78) 100%);
-  --crm-gradient-primary: linear-gradient(135deg, #13d8e8 0%, #0b88d8 100%);
-  --crm-accent-rgb: 19, 216, 232;
-  --crm-info-rgb: 56, 189, 248;
+  --crm-shadow-card: 0 22px 58px rgba(0, 0, 0, 0.48), 0 2px 10px rgba(0, 0, 0, 0.28);
+  --crm-shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.32);
+  --crm-shadow-glow: 0 0 34px rgba(45, 212, 191, 0.18);
+  --crm-gradient-app: linear-gradient(160deg, #10151b 0%, #070a0f 58%, #05070a 100%);
+  --crm-gradient-card: linear-gradient(155deg, rgba(29, 37, 46, 0.94) 0%, rgba(17, 24, 31, 0.82) 100%);
+  --crm-gradient-primary: linear-gradient(135deg, #2dd4bf 0%, #60a5fa 100%);
+  --crm-accent-rgb: 45, 212, 191;
+  --crm-info-rgb: 96, 165, 250;
 }
 
 *,
@@ -171,6 +171,7 @@ body {
     border: 1px solid var(--crm-border);
     border-radius: var(--crm-radius-lg);
     box-shadow: var(--crm-shadow-card);
+    transition: border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease, background-color 220ms ease;
   }
 
   .crm-card-strong {
@@ -185,6 +186,29 @@ body {
     border: 1px solid var(--crm-border);
     backdrop-filter: blur(16px) saturate(140%);
     -webkit-backdrop-filter: blur(16px) saturate(140%);
+    transition: border-color 220ms ease, box-shadow 220ms ease, background-color 220ms ease;
+  }
+
+  .crm-premium-panel {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)),
+      var(--crm-gradient-card);
+    border: 1px solid var(--crm-border-strong);
+    box-shadow: var(--crm-shadow-card);
+  }
+
+  .crm-soft-rise {
+    transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease, background-color 220ms ease;
+  }
+
+  .crm-soft-rise:hover {
+    transform: translateY(-2px);
+    border-color: rgba(var(--crm-accent-rgb), 0.26);
+    box-shadow: var(--crm-shadow-card), 0 0 28px rgba(var(--crm-accent-rgb), 0.10);
+  }
+
+  .crm-panel-enter {
+    animation: crm-panel-enter 260ms ease both;
   }
 
   .crm-gradient-text {
@@ -228,6 +252,11 @@ body {
   .crm-mobile-safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+}
+
+@keyframes crm-panel-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
