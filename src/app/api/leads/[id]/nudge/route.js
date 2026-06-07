@@ -3,6 +3,8 @@ import { getAuthUser } from '@/lib/admin/auth';
 import { ensureSchema, getSql } from '@/lib/admin/db';
 import { addLeadEvent } from '@/lib/admin/leadEvents';
 import { sendPushToUser } from '@/lib/admin/push';
+import { canManageLeads } from '@/lib/admin/roles';
+import { logActivity } from '@/lib/admin/activityLog';
 
 const DEFAULT_NUDGE_TEXT = 'Пожалуйста, свяжитесь с клиентом и обновите статус или комментарий в CRM.';
 
@@ -28,7 +30,7 @@ async function getOrCreateDirectChat(sql, userId, otherUserId) {
 export async function POST(request, { params }) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-  if (user.role !== 'admin') return NextResponse.json({ ok: false }, { status: 403 });
+  if (!canManageLeads(user)) return NextResponse.json({ ok: false }, { status: 403 });
 
   const { id: rawId } = await params;
   const id = Number(rawId);
@@ -56,6 +58,10 @@ export async function POST(request, { params }) {
     return NextResponse.json({ ok: false, message: 'Сначала назначьте ответственного сотрудника' }, { status: 400 });
   }
 
+  if (lead.assigned_to === user.id) {
+    return NextResponse.json({ ok: false, message: 'Лид назначен на вас. Напоминание самому себе не отправляется.' }, { status: 400 });
+  }
+
   const leadTitle = `${lead.name || `Заявка #${lead.id}`}${lead.phone ? `, ${lead.phone}` : ''}`;
   const messageText = [
     `Напоминание по заявке: ${leadTitle}`,
@@ -80,6 +86,14 @@ export async function POST(request, { params }) {
       direct_chat_id: chatId,
       message_id: message.id,
     },
+  });
+  await logActivity({
+    userId: user.id,
+    action: 'lead_nudge_sent',
+    entityType: 'lead',
+    entityId: id,
+    message: `${user.name || user.username} отправил напоминание ответственному по лиду #${id}`,
+    meta: { assigned_to: lead.assigned_to, default_used: !customText, text: nudgeText.slice(0, 240) },
   });
 
   let pushResult = null;

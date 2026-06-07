@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/admin/auth';
 import { getSql, ensureSchema } from '@/lib/admin/db';
+import { canManageTeam } from '@/lib/admin/roles';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-  if (user.role !== 'admin') return NextResponse.json({ ok: false }, { status: 403 });
+  if (!canManageTeam(user)) return NextResponse.json({ ok: false }, { status: 403 });
 
   await ensureSchema();
   const sql = getSql();

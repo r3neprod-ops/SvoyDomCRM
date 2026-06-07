@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { roleLabel } from '@/lib/admin/roles';
 
 /* ─── Constants ─────────────────────────────────────────────────────────────── */
 const SWIPE_CANCEL_PX = 80;
@@ -76,7 +77,7 @@ const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '😡', '🔥', '👏'
 const cx = (...parts) => parts.filter(Boolean).join(' ');
 const btnGlass = 'flex shrink-0 items-center justify-center rounded-crmXl border border-crm-border bg-[var(--crm-surface-strong)] text-crm-muted transition hover:border-crm-accent/25 hover:bg-[var(--crm-accent-soft)] hover:text-crm-accent crm-focus-ring';
 const btnPrimaryRound = (size = 'h-11 w-11') => cx(
-  'flex items-center justify-center rounded-full bg-gradient-to-br from-crm-accent to-[var(--crm-accent-strong)] text-[var(--crm-bg-deep)] shadow-crmGlow transition hover:opacity-90 disabled:opacity-40 crm-focus-ring',
+  'flex items-center justify-center rounded-full bg-gradient-to-br from-crm-accent to-[var(--crm-accent-strong)] text-white shadow-crmGlow transition hover:opacity-90 disabled:opacity-40 crm-focus-ring',
   size,
 );
 const popoverPanel = 'overflow-hidden rounded-crmXl border border-crm-border bg-[var(--crm-surface-strong)] shadow-crmCard backdrop-blur-xl';
@@ -160,11 +161,11 @@ function AudioPlayer({ src, msgId, own }) {
   const actCol = own ? 'var(--crm-accent)' : 'var(--crm-info)';
   const inactCol = own ? 'rgba(var(--crm-accent-rgb), 0.22)' : 'rgba(var(--crm-info-rgb), 0.2)';
   const btnCls = own
-    ? 'bg-gradient-to-br from-crm-accent to-[var(--crm-accent-strong)] text-[var(--crm-bg-deep)] shadow-crmGlow hover:opacity-90'
+    ? 'bg-gradient-to-br from-crm-accent to-[var(--crm-accent-strong)] text-white shadow-crmGlow hover:opacity-90'
     : 'border border-crm-border bg-[var(--crm-accent-soft)] text-crm-accent hover:border-crm-accent/40';
 
   return (
-    <div className="flex w-[248px] max-w-[62vw] items-center gap-2.5">
+    <div className="flex w-[min(232px,66vw)] max-w-full items-center gap-2.5">
       <audio ref={aRef} src={src} preload="metadata" />
       <button onClick={toggle} className={cx('flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition crm-focus-ring', btnCls)} aria-label={playing ? 'Пауза' : 'Воспроизвести'}>
         {playing ? <IconPause /> : <IconPlay />}
@@ -189,7 +190,7 @@ function VideoNote({ src }) {
   const vRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [prog, setProg] = useState(0);
-  const S = 188, R = S / 2 - 5, CIRC = 2 * Math.PI * R;
+  const S = 166, R = S / 2 - 5, CIRC = 2 * Math.PI * R;
 
   useEffect(() => {
     const v = vRef.current; if (!v) return;
@@ -294,11 +295,11 @@ function Bubble({ msg, own, showAv, showName, isLast, isDm, onReply, onReact, re
       {/* Desktop reply button (opposite side from avatar) */}
       <button onClick={() => onReply?.()}
         aria-label="Ответить"
-        className="mb-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-crm-border bg-[var(--crm-surface-strong)] text-crm-muted opacity-0 shadow transition duration-200 hover:border-crm-accent/40 hover:text-crm-accent group-hover:opacity-100 crm-focus-ring">
+        className="mb-1 hidden h-7 w-7 shrink-0 items-center justify-center rounded-full border border-crm-border bg-[var(--crm-surface-strong)] text-crm-muted opacity-0 shadow transition duration-200 hover:border-crm-accent/40 hover:text-crm-accent group-hover:opacity-100 sm:flex crm-focus-ring">
         <IconReply />
       </button>
 
-      <div className={cx('relative flex min-w-0 max-w-[68%] flex-col', own ? 'items-end' : 'items-start')}>
+      <div className={cx('relative flex min-w-0 max-w-[min(78vw,34rem)] flex-col sm:max-w-[68%]', own ? 'items-end' : 'items-start')}>
         {!own && showName && (
           <span className="mb-0.5 ml-1 text-[11px] font-semibold" style={{ color: nameCol(msg.user_id) }}>{msg.author_name}</span>
         )}
@@ -365,7 +366,7 @@ function Bubble({ msg, own, showAv, showName, isLast, isDm, onReply, onReact, re
           {msg.media_type === 'file' && msg.media_url && (
             <div>
               <a href={msg.media_url} target="_blank" rel="noreferrer"
-                className="crm-card-strong flex items-center gap-2.5 rounded-crmXl border border-crm-border/80 p-2 transition hover:border-crm-accent/25" style={{ minWidth: 200 }}>
+                className="crm-card-strong flex w-[min(220px,70vw)] max-w-full items-center gap-2.5 rounded-crmXl border border-crm-border/80 p-2 transition hover:border-crm-accent/25">
                 <span className={cx('flex h-10 w-10 shrink-0 items-center justify-center rounded-crmLg', own ? 'bg-white/15 text-white' : 'bg-[var(--crm-accent-soft)] text-crm-accent')}><IconFile /></span>
                 <span className="min-w-0">
                   <span className={cx('block truncate text-sm font-medium', own ? 'text-white' : 'text-crm-text')}>{msg.media_name || 'Открыть файл'}</span>
@@ -420,7 +421,7 @@ function DateSep({ iso }) {
 function UnreadBadge({ count }) {
   if (!count) return null;
   return (
-    <span className="ml-1 flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-crm-accent to-[var(--crm-accent-strong)] px-1.5 text-[11px] font-bold text-[var(--crm-bg-deep)] shadow-crmGlow">
+    <span className="ml-1 flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-crm-accent to-[var(--crm-accent-strong)] px-1.5 text-[11px] font-bold text-white shadow-crmGlow">
       {count > 99 ? '99+' : count}
     </span>
   );
@@ -951,7 +952,7 @@ export default function TeamChatPanel({
               }
               <div className="min-w-0 flex-1">
                 <h2 className="truncate text-sm font-semibold text-crm-text">{dmOtherUser?.name}</h2>
-                <p className="truncate text-[11px] text-crm-muted">{dmOtherUser?.role === 'admin' ? 'Администратор' : 'Сотрудник'} · личный чат</p>
+                <p className="truncate text-[11px] text-crm-muted">{roleLabel(dmOtherUser?.role)} · личный чат</p>
               </div>
             </>
           ) : activeRoomId ? (
@@ -972,7 +973,7 @@ export default function TeamChatPanel({
             </>
           ) : (
             <>
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-[var(--crm-bg-deep)] shadow-crmGlow"
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow-crmGlow"
                 style={{ background: 'var(--crm-gradient-primary)' }}>CRM</div>
               <div className="min-w-0 flex-1">
                 <h2 className="truncate text-sm font-semibold text-crm-text">Общий чат</h2>
@@ -984,7 +985,7 @@ export default function TeamChatPanel({
 
         {/* Messages */}
         <div className="relative min-h-0 flex-1 overflow-hidden">
-          <div ref={listRef} onScroll={handleScroll} onClick={() => setReactionPickerMsgId(null)} className="crm-scrollbar h-full overflow-y-auto overflow-x-hidden pb-2">
+          <div ref={listRef} onScroll={handleScroll} onClick={() => setReactionPickerMsgId(null)} className="crm-chat-wallpaper crm-scrollbar h-full overflow-y-auto overflow-x-hidden pb-2">
             {loading ? (
               <div className="flex flex-col items-center justify-center gap-3 px-6 py-20">
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-crm-border border-t-crm-accent" aria-hidden />
@@ -1030,7 +1031,7 @@ export default function TeamChatPanel({
           </div>
           {newMsgBadge && (
             <button onClick={() => scrollToBottom('smooth')}
-              className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border border-[var(--crm-border-accent)] bg-gradient-to-r from-crm-accent to-[var(--crm-accent-strong)] px-4 py-1.5 text-sm font-medium text-[var(--crm-bg-deep)] shadow-crmGlow transition hover:opacity-90 crm-focus-ring">
+              className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border border-[var(--crm-border-accent)] bg-gradient-to-r from-crm-accent to-[var(--crm-accent-strong)] px-4 py-1.5 text-sm font-medium text-white shadow-crmGlow transition hover:opacity-90 crm-focus-ring">
               ↓ Новые сообщения
             </button>
           )}
@@ -1143,7 +1144,7 @@ export default function TeamChatPanel({
                 </span>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                {recMode === 'audio' && <LiveWave analyserRef={analyserRef} />}
+                {recMode === 'audio' && <span className="hidden sm:block"><LiveWave analyserRef={analyserRef} /></span>}
                 <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-crm-danger" />
                 <span className="min-w-[36px] text-sm font-medium tabular-nums text-crm-text">{fmtSecs(recSecs)}</span>
               </div>
@@ -1194,7 +1195,7 @@ export default function TeamChatPanel({
           <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onFiles(e.target.files, 'image')} />
           <input ref={fileRef} type="file" multiple className="hidden" onChange={(e) => onFiles(e.target.files, 'file')} />
           {!isRec && (
-            <p className="mt-1.5 flex flex-wrap items-center gap-x-1 text-[11px] text-crm-muted">
+            <p className="mt-1.5 hidden flex-wrap items-center gap-x-1 text-[11px] text-crm-muted sm:flex">
               <span>Enter — отправить</span>
               <span aria-hidden>·</span>
               <span>Shift+Enter — строка</span>

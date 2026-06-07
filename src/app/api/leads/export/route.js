@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
 import { getAuthUser } from '@/lib/admin/auth';
 import { getSql, ensureSchema } from '@/lib/admin/db';
+import { canViewReports } from '@/lib/admin/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,7 @@ function formatDate(value) {
 export async function GET(request) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-  if (user.role !== 'admin') return NextResponse.json({ ok: false }, { status: 403 });
+  if (!canViewReports(user)) return NextResponse.json({ ok: false }, { status: 403 });
 
   await ensureSchema();
   const sql = getSql();

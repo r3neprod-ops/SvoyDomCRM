@@ -4,6 +4,8 @@ import { getAuthUser } from '@/lib/admin/auth';
 import { getSql, ensureSchema } from '@/lib/admin/db';
 import { addLeadEvent } from '@/lib/admin/leadEvents';
 import { sendPushToAll } from '@/lib/admin/push';
+import { canManageLeads } from '@/lib/admin/roles';
+import { logActivity } from '@/lib/admin/activityLog';
 
 const STATUS_LABELS = {
   new: 'Новый',
@@ -28,7 +30,9 @@ async function getActiveEmployee(sql, id) {
   const [employee] = await sql`
     SELECT id, name
     FROM users
-    WHERE id = ${id} AND role = 'employee' AND is_active = true
+    WHERE id = ${id}
+      AND role IN ('admin', 'manager', 'agent', 'employee')
+      AND is_active = true
   `;
   return employee || null;
 }
@@ -37,7 +41,7 @@ async function runManualLeadAssignment(sql, { id, updates, user, wantsAssignee }
   return sql.begin(async (tx) => {
     await tx`SET LOCAL app.manual_lead_assignment = 'on'`;
 
-    if (user.role !== 'admin' && wantsAssignee) {
+    if (!canManageLeads(user) && wantsAssignee) {
       const [claimed] = await tx`
         UPDATE leads SET ${tx(updates)}
         WHERE id = ${id} AND assigned_to IS NULL
@@ -72,7 +76,7 @@ export async function PATCH(request, { params }) {
   const wantsStatus = body.status !== undefined;
   const wantsAssignee = body.assigned_to !== undefined;
 
-  if (user.role === 'admin') {
+  if (canManageLeads(user)) {
     if (wantsStatus) {
       if (!VALID_STATUSES.has(body.status)) {
         return NextResponse.json({ ok: false, message: 'Некорректный статус' }, { status: 400 });
@@ -146,6 +150,16 @@ export async function PATCH(request, { params }) {
         : 'Ответственный снят',
       meta: { from: oldAssignee, to: freshLead.assigned_to },
     });
+    await logActivity({
+      userId: user.id,
+      action: freshLead.assigned_to ? 'lead_assigned' : 'lead_unassigned',
+      entityType: 'lead',
+      entityId: id,
+      message: freshLead.assigned_to
+        ? `${user.name || user.username} назначил ответственного: ${freshLead.assigned_to_name || `#${freshLead.assigned_to}`}`
+        : `${user.name || user.username} снял ответственного`,
+      meta: { from: oldAssignee, to: freshLead.assigned_to },
+    });
   }
 
   if (updates.status !== undefined && oldStatus !== freshLead.status) {
@@ -154,6 +168,14 @@ export async function PATCH(request, { params }) {
       userId: user.id,
       type: 'status_changed',
       message: `Статус: ${STATUS_LABELS[oldStatus] || oldStatus} -> ${STATUS_LABELS[freshLead.status] || freshLead.status}`,
+      meta: { from: oldStatus, to: freshLead.status },
+    });
+    await logActivity({
+      userId: user.id,
+      action: 'lead_status_changed',
+      entityType: 'lead',
+      entityId: id,
+      message: `${user.name || user.username} изменил статус лида: ${STATUS_LABELS[oldStatus] || oldStatus} -> ${STATUS_LABELS[freshLead.status] || freshLead.status}`,
       meta: { from: oldStatus, to: freshLead.status },
     });
   }
@@ -188,7 +210,7 @@ export async function PATCH(request, { params }) {
 export async function DELETE(request, { params }) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-  if (user.role !== 'admin') return NextResponse.json({ ok: false }, { status: 403 });
+  if (!canManageLeads(user)) return NextResponse.json({ ok: false }, { status: 403 });
 
   const id = Number(params.id);
   if (!id) return NextResponse.json({ ok: false }, { status: 400 });
@@ -203,6 +225,14 @@ export async function DELETE(request, { params }) {
       await tx`DELETE FROM comments WHERE lead_id = ${id}`;
       await tx`DELETE FROM lead_events WHERE lead_id = ${id}`;
       await tx`DELETE FROM leads WHERE id = ${id}`;
+    });
+    await logActivity({
+      userId: user.id,
+      action: 'lead_deleted',
+      entityType: 'lead',
+      entityId: id,
+      message: `${user.name || user.username} удалил лид${lead.name ? `: ${lead.name}` : ''}${lead.phone ? `, ${lead.phone}` : ''}`,
+      meta: { name: lead.name, phone: lead.phone },
     });
     try {
       await sendPushToAll({

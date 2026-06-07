@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 function EyeIcon({ open }) {
   if (open) {
@@ -29,6 +29,7 @@ function ShieldIcon() {
 
 export default function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -60,17 +61,20 @@ export default function LoginForm() {
 
   const inputClassName =
     'crm-focus-ring w-full rounded-crmXl border border-crm-border bg-crm-surface/60 px-4 text-base text-crm-text placeholder:text-crm-muted outline-none transition-colors duration-200 focus:border-crm-accent/50 h-[48px]';
+  const oauthError = searchParams.get('oauth_error');
+  const oauthErrorText = oauthError
+    ? oauthError.includes('not_configured')
+      ? 'Провайдер входа еще не настроен на сервере. Нужно добавить client_id и client_secret.'
+      : 'Не удалось войти через внешний аккаунт. Попробуйте еще раз или войдите по логину.'
+    : '';
+  const oauthProviders = [
+    { id: 'google', label: 'Google', mark: 'G' },
+    { id: 'yandex', label: 'Яндекс', mark: 'Я' },
+    { id: 'vk', label: 'VK', mark: 'VK' },
+  ];
 
   return (
     <main className="crm-app-bg crm-mobile-safe-bottom relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
-      {/* Decorative gradient blobs */}
-      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-        <div className="absolute -left-24 top-[-10%] h-[420px] w-[420px] rounded-full bg-crm-accent/[0.12] blur-[100px]" />
-        <div className="absolute -right-20 top-[20%] h-[360px] w-[360px] rounded-full bg-[var(--crm-accent-strong)]/[0.14] blur-[90px]" />
-        <div className="absolute bottom-[-8%] left-[30%] h-[320px] w-[320px] rounded-full bg-crm-accent/[0.08] blur-[80px]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(19,216,232,0.06),transparent_55%)]" />
-      </div>
-
       <div className="relative z-10 w-full max-w-[420px] min-w-0">
         {/* Brand mark */}
         <div className="mb-8 text-center">
@@ -165,7 +169,7 @@ export default function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="crm-focus-ring flex min-h-[48px] w-full items-center justify-center rounded-crmXl bg-gradient-to-r from-crm-accent to-[var(--crm-accent-strong)] px-4 text-base font-semibold text-[var(--crm-bg-deep)] shadow-crmGlow transition-all duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+              className="crm-focus-ring flex min-h-[48px] w-full items-center justify-center rounded-crmXl bg-gradient-to-r from-crm-accent to-[var(--crm-accent-strong)] px-4 text-base font-semibold text-white shadow-crmGlow transition-all duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? (
                 <span className="flex items-center gap-2">
@@ -180,6 +184,33 @@ export default function LoginForm() {
               )}
             </button>
           </form>
+
+          <div className="my-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-crm-border" />
+            <span className="text-xs uppercase tracking-wide text-crm-muted">или</span>
+            <div className="h-px flex-1 bg-crm-border" />
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-3">
+            {oauthProviders.map((provider) => (
+              <a
+                key={provider.id}
+                href={`/api/auth/oauth/${provider.id}`}
+                className="crm-focus-ring flex min-h-11 items-center justify-center gap-2 rounded-crmXl border border-crm-border bg-crm-surface/45 px-3 text-sm font-semibold text-crm-text transition hover:border-crm-accent/35 hover:bg-crm-accent/10 hover:text-crm-accent"
+              >
+                <span className="flex h-6 min-w-6 items-center justify-center rounded-full border border-crm-border bg-crm-surface/70 text-[11px]">
+                  {provider.mark}
+                </span>
+                {provider.label}
+              </a>
+            ))}
+          </div>
+
+          {oauthErrorText && (
+            <div className="mt-4 rounded-crmXl border border-crm-warning/35 bg-crm-warning/10 px-4 py-3 text-sm leading-relaxed text-crm-warning">
+              {oauthErrorText}
+            </div>
+          )}
 
           <div className="mt-6 flex items-start gap-2.5 rounded-crmXl border border-crm-border/60 bg-crm-surface/40 px-4 py-3">
             <ShieldIcon />

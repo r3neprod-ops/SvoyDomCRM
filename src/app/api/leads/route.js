@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/admin/auth';
 import { getSql, ensureSchema } from '@/lib/admin/db';
+import { canViewAllLeads } from '@/lib/admin/roles';
 
-async function fetchLeadsData(userId, userRole, status) {
+async function fetchLeadsData(user, status) {
   const sql = getSql();
+  const viewAll = canViewAllLeads(user);
 
   const filters = [
-    userRole === 'employee' && sql`(l.assigned_to = ${userId} OR l.assigned_to IS NULL)`,
+    !viewAll && sql`(l.assigned_to = ${user.id} OR l.assigned_to IS NULL)`,
     status === 'closed_won'
       ? sql`l.status IN ('closed_won', 'closed')`
       : status && sql`l.status = ${status}`,
@@ -25,15 +27,25 @@ async function fetchLeadsData(userId, userRole, status) {
     ORDER BY l.created_at DESC
   `;
 
-  const employees = userRole === 'admin'
+  const employees = viewAll
     ? await sql`
-        SELECT u.id, u.name, u.username, u.is_active,
+        SELECT u.id, u.name, u.username, u.role, u.is_active,
                COUNT(l.id) FILTER (WHERE l.status IN ('new', 'in_progress', 'meeting', 'documents', 'deal'))::int AS active_leads_count
         FROM users u
         LEFT JOIN leads l ON l.assigned_to = u.id
-        WHERE u.role = 'employee'
+        WHERE u.role <> 'owner'
         GROUP BY u.id
-        ORDER BY u.id
+        ORDER BY
+          CASE u.role
+            WHEN 'admin' THEN 1
+            WHEN 'manager' THEN 2
+            WHEN 'agent' THEN 3
+            WHEN 'employee' THEN 4
+            WHEN 'marketer' THEN 5
+            WHEN 'tech' THEN 6
+            ELSE 9
+          END,
+          u.id
       `
     : [];
 
@@ -49,11 +61,7 @@ export async function GET(request) {
 
   await ensureSchema();
 
-  const { leads, employees } = await fetchLeadsData(
-    user.role === 'employee' ? user.id : 0,
-    user.role,
-    status
-  );
+  const { leads, employees } = await fetchLeadsData(user, status);
 
   return NextResponse.json({ ok: true, leads, employees });
 }

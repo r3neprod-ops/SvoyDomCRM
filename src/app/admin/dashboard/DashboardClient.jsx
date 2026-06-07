@@ -6,6 +6,7 @@ import TeamChatPanel from './TeamChatPanel';
 import { ConfirmDialog, ToastStack } from './Feedback';
 import LeadContactActions from './LeadContactActions';
 import { useTheme } from '@/app/ThemeProvider';
+import { ROLE_OPTIONS, canManageLeads, canManageTeam, canViewReports, isOwner, roleLabel } from '@/lib/admin/roles';
 
 const STATUS_LABELS = {
   new: 'Новый',
@@ -21,8 +22,8 @@ const STATUS_COLORS = {
   new: 'border border-crm-accent/35 bg-crm-accent/12 text-crm-accent',
   in_progress: 'border border-crm-info/35 bg-crm-info/12 text-crm-info',
   meeting: 'border border-crm-warning/35 bg-crm-warning/12 text-crm-warning',
-  documents: 'border border-violet-300/35 bg-violet-400/12 text-violet-200',
-  deal: 'border border-emerald-300/35 bg-emerald-400/12 text-emerald-200',
+  documents: 'border border-violet-400/35 bg-violet-400/12 text-violet-500 dark:text-violet-200',
+  deal: 'border border-emerald-500/35 bg-emerald-400/12 text-emerald-600 dark:text-emerald-200',
   closed_won: 'border border-crm-success/35 bg-crm-success/12 text-crm-success',
   closed_lost: 'border border-crm-danger/40 bg-crm-danger/12 text-crm-danger',
   closed: 'border border-crm-success/35 bg-crm-success/12 text-crm-success',
@@ -57,8 +58,8 @@ function leadStatValueClass(accent) {
   if (accent === 'new') return 'text-crm-accent';
   if (accent === 'in_progress') return 'text-crm-info';
   if (accent === 'meeting') return 'text-crm-warning';
-  if (accent === 'documents') return 'text-violet-200';
-  if (accent === 'deal') return 'text-emerald-200';
+  if (accent === 'documents') return 'text-violet-500 dark:text-violet-200';
+  if (accent === 'deal') return 'text-emerald-600 dark:text-emerald-200';
   if (accent === 'closed_won' || accent === 'closed') return 'text-crm-success';
   if (accent === 'closed_lost') return 'text-crm-danger';
   return 'text-crm-text';
@@ -149,7 +150,7 @@ function LeadStatusDonut({ report }) {
 
       <div className="mt-5 grid gap-5 sm:grid-cols-[11rem,1fr] sm:items-center">
         <div className="relative mx-auto h-40 w-40 rounded-full p-4" style={{ background: gradient }}>
-          <div className="flex h-full w-full flex-col items-center justify-center rounded-full border border-crm-border bg-[var(--crm-bg-deep)]/88 text-center shadow-inner">
+          <div className="flex h-full w-full flex-col items-center justify-center rounded-full border border-crm-border bg-[var(--crm-surface-strong)]/90 text-center shadow-inner">
             <span className="text-3xl font-semibold tabular-nums text-crm-text">{report.closedRate}%</span>
             <span className="mt-1 text-xs text-crm-muted">закрыто</span>
           </div>
@@ -164,7 +165,7 @@ function LeadStatusDonut({ report }) {
                 </span>
                 <span className="tabular-nums text-crm-muted">{segment.value} · {percent(segment.value, report.total)}%</span>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
+              <div className="h-2 overflow-hidden rounded-full bg-crm-border/45">
                 <div
                   className="h-full rounded-full transition-all duration-500 ease-out"
                   style={{ width: `${percent(segment.value, report.total)}%`, backgroundColor: segment.color }}
@@ -178,40 +179,70 @@ function LeadStatusDonut({ report }) {
   );
 }
 
-function LeadTrendChart({ report }) {
+function LeadTrendChart({ report, trendDays, onTrendDaysChange }) {
   const max = Math.max(1, ...report.trend.map((item) => item.total));
+  const chartMinWidth = Math.max(0, report.trend.length * 42);
 
   return (
     <div className="crm-premium-panel rounded-crmXl p-5">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="text-base font-semibold text-crm-text">Динамика за 7 дней</h3>
+          <h3 className="text-base font-semibold text-crm-text">Динамика за {trendDays} дней</h3>
           <p className="mt-1 text-sm text-crm-muted">Новые лиды по дням, чтобы видеть темп входящего потока</p>
         </div>
-        <span className="rounded-full border border-crm-accent/25 bg-crm-accent/10 px-2.5 py-1 text-xs text-crm-accent">
-          {report.weekTotal} за неделю
-        </span>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {[7, 14, 30, 90].map((days) => (
+            <button
+              key={days}
+              type="button"
+              onClick={() => onTrendDaysChange(days)}
+              className={`crm-focus-ring rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                trendDays === days
+                  ? 'border-crm-accent/45 bg-crm-accent/15 text-crm-accent'
+                  : 'border-crm-border bg-crm-surface/45 text-crm-muted hover:border-crm-accent/30 hover:text-crm-text'
+              }`}
+            >
+              {days}
+            </button>
+          ))}
+          <input
+            type="number"
+            min="1"
+            max="365"
+            value={trendDays}
+            onChange={(e) => onTrendDaysChange(e.target.value)}
+            className="crm-focus-ring h-8 w-20 rounded-full border border-crm-border bg-crm-surface/50 px-3 text-xs font-medium tabular-nums text-crm-text"
+            aria-label="Количество дней динамики"
+          />
+        </div>
       </div>
 
-      <div className="mt-6 flex h-48 items-end gap-2 rounded-crmLg border border-crm-border bg-black/10 px-3 pb-3 pt-5">
-        {report.trend.map((item) => {
-          const height = Math.max(8, Math.round((item.total / max) * 100));
-          return (
-            <div key={item.key} className="flex h-full min-w-0 flex-1 flex-col justify-end gap-2">
-              <div className="flex min-h-0 flex-1 items-end">
-                <div
-                  className="w-full rounded-t-crmLg bg-[linear-gradient(180deg,var(--crm-accent),var(--crm-info))] shadow-crmGlow transition-all duration-500 ease-out"
-                  style={{ height: `${height}%` }}
-                  title={`${item.label}: ${item.total}`}
-                />
+      <div className="mt-3 flex items-center justify-between rounded-crmLg border border-crm-accent/25 bg-crm-accent/10 px-3 py-2 text-xs text-crm-accent">
+        <span>{report.periodTotal} за период</span>
+        <span>в среднем {report.avgPerDay} в день</span>
+      </div>
+
+      <div className="crm-scrollbar mt-6 overflow-x-auto rounded-crmLg border border-crm-border bg-crm-surface/45">
+        <div className="flex h-48 items-end gap-2 px-3 pb-3 pt-5" style={{ minWidth: chartMinWidth ? `${chartMinWidth}px` : '100%' }}>
+          {report.trend.map((item) => {
+            const height = Math.max(8, Math.round((item.total / max) * 100));
+            return (
+              <div key={item.key} className="flex h-full min-w-8 flex-1 flex-col justify-end gap-2">
+                <div className="flex min-h-0 flex-1 items-end">
+                  <div
+                    className="w-full rounded-t-crmLg bg-[linear-gradient(180deg,var(--crm-accent),var(--crm-info))] shadow-crmGlow transition-all duration-500 ease-out"
+                    style={{ height: `${height}%` }}
+                    title={`${item.label}: ${item.total}`}
+                  />
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-semibold tabular-nums text-crm-text">{item.total}</p>
+                  <p className="truncate text-[10px] text-crm-muted">{item.label}</p>
+                </div>
               </div>
-              <div className="text-center">
-                <p className="text-xs font-semibold tabular-nums text-crm-text">{item.total}</p>
-                <p className="truncate text-[10px] text-crm-muted">{item.label}</p>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -246,7 +277,7 @@ function EmployeeReportChart({ report }) {
                   взял {employee.total} · активно {employee.active}
                 </span>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
+              <div className="h-2 overflow-hidden rounded-full bg-crm-border/45">
                 <div
                   className="h-full rounded-full bg-[linear-gradient(90deg,var(--crm-accent),var(--crm-warning))] transition-all duration-500 ease-out"
                   style={{ width: `${Math.max(4, percent(employee.total, max))}%` }}
@@ -254,7 +285,7 @@ function EmployeeReportChart({ report }) {
               </div>
               <div className="mt-3 grid grid-cols-2 gap-1.5 text-[11px] sm:grid-cols-3">
                 {PIPELINE_STATUSES.slice(1).map((status) => (
-                  <div key={status} className="rounded-md border border-crm-border/70 bg-black/10 px-2 py-1.5">
+                  <div key={status} className="rounded-md border border-crm-border/70 bg-crm-surface/45 px-2 py-1.5">
                     <p className="truncate text-crm-muted">{STATUS_LABELS[status]}</p>
                     <p className={`mt-0.5 font-semibold tabular-nums ${leadStatValueClass(status)}`}>
                       {employee.stageCounts[status] || 0}
@@ -319,7 +350,7 @@ function EmployeePersonalStats({ stats }) {
   );
 }
 
-function LeadReportsPanel({ report, isAdmin, onExport, onOpenLeads }) {
+function LeadReportsPanel({ report, isAdmin, trendDays, onTrendDaysChange, onExport, onOpenLeads }) {
   return (
     <div className="crm-panel-enter space-y-5">
       <div className="crm-premium-panel overflow-hidden rounded-crm2xl p-5 sm:p-6">
@@ -354,11 +385,11 @@ function LeadReportsPanel({ report, isAdmin, onExport, onOpenLeads }) {
         <ReportMetricCard label="Всего лидов" value={report.total} hint={`Сегодня: ${report.today}`} tone="accent" />
         <ReportMetricCard label="В работе" value={report.inProgress} hint={`${report.activeRate}% активной базы`} tone="warning" />
         <ReportMetricCard label="Закрыто" value={`${report.closedRate}%`} hint={`${report.closed} из ${report.total || 0} лидов`} tone="success" />
-        <ReportMetricCard label="Без ответственного" value={report.unassigned} hint={report.unassigned ? 'Нужно распределить' : 'Все разобрано'} tone={report.unassigned ? 'danger' : 'info'} />
+        <ReportMetricCard label="За период" value={report.periodTotal} hint={`${trendDays} дней · сегодня ${report.today}`} tone="info" />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
-        <LeadTrendChart report={report} />
+        <LeadTrendChart report={report} trendDays={trendDays} onTrendDaysChange={onTrendDaysChange} />
         <LeadStatusDonut report={report} />
       </div>
 
@@ -372,7 +403,7 @@ function LeadReportsPanel({ report, isAdmin, onExport, onOpenLeads }) {
               { label: 'Новые без ответственного', value: report.unassignedNew, tone: report.unassignedNew ? 'text-crm-danger' : 'text-crm-success' },
               { label: 'Без комментариев', value: report.noComment, tone: report.noComment ? 'text-crm-warning' : 'text-crm-success' },
               { label: 'Среднее в день', value: report.avgPerDay, tone: 'text-crm-info' },
-              { label: 'Закрыто за неделю', value: report.weekClosed, tone: 'text-crm-success' },
+              { label: `Закрыто за ${trendDays} дней`, value: report.periodClosed, tone: 'text-crm-success' },
             ].map((item) => (
               <div key={item.label} className="rounded-crmLg border border-crm-border bg-crm-surface/35 p-4">
                 <p className="text-xs uppercase tracking-wide text-crm-muted">{item.label}</p>
@@ -381,6 +412,84 @@ function LeadReportsPanel({ report, isAdmin, onExport, onOpenLeads }) {
             ))}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ActivityLogsPanel({ logs, loading, onRefresh }) {
+  const actionLabels = {
+    user_login: 'Вход',
+    user_created: 'Пользователь',
+    user_updated: 'Пользователь',
+    user_deleted: 'Пользователь',
+    user_activated: 'Доступ',
+    user_deactivated: 'Доступ',
+    lead_assigned: 'Лид',
+    lead_unassigned: 'Лид',
+    lead_status_changed: 'Лид',
+    lead_comment_added: 'Комментарий',
+    lead_nudge_sent: 'Напоминание',
+    lead_deleted: 'Лид',
+  };
+
+  return (
+    <div className="crm-panel-enter space-y-5">
+      <div className="crm-premium-panel rounded-crm2xl p-5 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-crm-accent">Журнал владельца</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-crm-text">Логи действий</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-crm-muted">
+              Только рабочие события: входы, назначение лидов, смена статусов, комментарии, напоминания и управление командой.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="crm-focus-ring inline-flex min-h-11 items-center justify-center rounded-crmLg border border-crm-border bg-crm-surface/50 px-4 py-2.5 text-sm font-medium text-crm-text transition hover:border-crm-accent/35 hover:bg-crm-accent/10 hover:text-crm-accent"
+          >
+            Обновить
+          </button>
+        </div>
+      </div>
+
+      <div className="crm-premium-panel overflow-hidden rounded-crmXl border border-crm-border shadow-crmCard">
+        {loading ? (
+          <div className="space-y-3 p-4">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="h-16 animate-pulse rounded-crmLg bg-crm-border/30" />
+            ))}
+          </div>
+        ) : logs.length === 0 ? (
+          <p className="px-6 py-14 text-center text-sm text-crm-muted">Логов пока нет.</p>
+        ) : (
+          <div className="crm-scrollbar max-h-[calc(100dvh-15rem)] overflow-y-auto">
+            {logs.map((log) => (
+              <div key={log.id} className="border-b border-crm-border/70 px-4 py-3 last:border-b-0 sm:px-5">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-crm-accent/30 bg-crm-accent/10 px-2.5 py-1 text-xs font-semibold text-crm-accent">
+                        {actionLabels[log.action] || log.action}
+                      </span>
+                      <span className="text-xs text-crm-muted">
+                        {log.user_name || log.username || 'Система'} · {roleLabel(log.user_role)}
+                      </span>
+                    </div>
+                    <p className="mt-2 break-words text-sm font-medium text-crm-text">{log.message}</p>
+                    {log.entity_type && (
+                      <p className="mt-1 text-xs text-crm-muted">
+                        {log.entity_type} {log.entity_id ? `#${log.entity_id}` : ''}
+                      </p>
+                    )}
+                  </div>
+                  <span className="shrink-0 text-xs tabular-nums text-crm-muted">{formatDate(log.created_at)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -873,6 +982,14 @@ function NavIcon({ name, className = 'h-5 w-5 shrink-0' }) {
           <rect x="17" y="5" width="3" height="12" rx="1" />
         </svg>
       );
+    case 'logs':
+      return (
+        <svg viewBox="0 0 24 24" {...props}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+          <path d="M14 2v6h6" />
+          <path d="M8 13h8M8 17h5" />
+        </svg>
+      );
     case 'chat':
       return (
         <svg viewBox="0 0 24 24" {...props}>
@@ -894,7 +1011,7 @@ function NavIcon({ name, className = 'h-5 w-5 shrink-0' }) {
 function shellNavItemClass(isActive) {
   return isActive
     ? 'border border-crm-accent/35 bg-crm-accent/12 text-crm-accent shadow-crmGlow'
-    : 'border border-transparent text-crm-muted hover:bg-white/[0.04] hover:text-crm-text';
+    : 'border border-transparent text-crm-muted hover:bg-crm-accent/8 hover:text-crm-text';
 }
 
 function shellChatSubItemClass(isActive) {
@@ -905,13 +1022,18 @@ function shellChatSubItemClass(isActive) {
 
 export default function DashboardClient({ user }) {
   const router = useRouter();
-  const isAdmin = user.role === 'admin';
+  const isLeadManager = canManageLeads(user);
+  const canManageTeamAccess = canManageTeam(user);
+  const canViewReportsAccess = canViewReports(user);
+  const isOwnerUser = isOwner(user);
+  const isAdmin = isLeadManager;
   const { theme, toggle: toggleTheme } = useTheme();
 
-  const [activeTab, setActiveTab] = useState(isAdmin ? 'reports' : 'chat');
+  const [activeTab, setActiveTab] = useState(canViewReportsAccess ? 'reports' : 'chat');
   const [leads, setLeads] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [filter, setFilter] = useState('');
+  const [trendDaysInput, setTrendDaysInput] = useState(7);
   const [leadSearch, setLeadSearch] = useState('');
   const [employeeLeadTab, setEmployeeLeadTab] = useState('common');
   const [loading, setLoading] = useState(true);
@@ -971,11 +1093,12 @@ export default function DashboardClient({ user }) {
   // Employee editing
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [editName, setEditName] = useState('');
+  const [editRole, setEditRole] = useState('agent');
   const editInputRef = useRef(null);
 
   // Employee create modal
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createForm, setCreateForm] = useState({ name: '', username: '', password: '', confirmPassword: '' });
+  const [createForm, setCreateForm] = useState({ name: '', username: '', role: 'agent', password: '', confirmPassword: '' });
   const [createError, setCreateError] = useState('');
   const [createLoading, setCreateLoading] = useState(false);
 
@@ -994,6 +1117,13 @@ export default function DashboardClient({ user }) {
   const [nudgeLoading, setNudgeLoading] = useState(false);
   const [toasts, setToasts] = useState([]);
   const [confirmState, setConfirmState] = useState(null);
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [activityLogsLoading, setActivityLogsLoading] = useState(false);
+
+  const trendDays = Math.min(365, Math.max(1, Number(trendDaysInput) || 7));
+  const setTrendDays = useCallback((value) => {
+    setTrendDaysInput(Math.min(365, Math.max(1, Number(value) || 1)));
+  }, []);
 
   const closeToast = useCallback((id) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
@@ -1617,10 +1747,25 @@ export default function DashboardClient({ user }) {
     router.push('/admin/login');
   };
 
+  const fetchActivityLogs = useCallback(async () => {
+    if (!isOwnerUser) return;
+    setActivityLogsLoading(true);
+    try {
+      const res = await fetch('/api/activity-logs?limit=160', { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) setActivityLogs(data.logs || []);
+    } catch (err) {
+      console.error('Activity logs fetch error:', err);
+    } finally {
+      setActivityLogsLoading(false);
+    }
+  }, [isOwnerUser]);
+
   const selectTab = (key) => {
     setActiveTab(key);
     setDrawerOpen(false);
     if (key === 'chat') setChatUnread(0);
+    if (key === 'logs') fetchActivityLogs();
   };
 
   const saveProfile = async (event) => {
@@ -1756,11 +1901,13 @@ export default function DashboardClient({ user }) {
   const startEditEmployee = (emp) => {
     setEditingEmployee(emp.id);
     setEditName(emp.name);
+    setEditRole(emp.role || 'agent');
   };
 
   const cancelEditEmployee = () => {
     setEditingEmployee(null);
     setEditName('');
+    setEditRole('agent');
   };
 
   const saveEmployeeName = async (empId) => {
@@ -1768,14 +1915,16 @@ export default function DashboardClient({ user }) {
     const res = await fetch(`/api/users/${empId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: editName.trim() }),
+      body: JSON.stringify({ name: editName.trim(), role: editRole }),
     });
     const data = await res.json();
     if (data.ok) {
       setEmployees((prev) =>
-        prev.map((e) => (e.id === empId ? { ...e, name: editName.trim() } : e))
+        prev.map((e) => (e.id === empId ? { ...e, ...(data.user || {}), name: editName.trim(), role: editRole } : e))
       );
       setEditingEmployee(null);
+      setEditRole('agent');
+      showToast('Сотрудник обновлен', 'success');
     }
   };
 
@@ -1787,7 +1936,7 @@ export default function DashboardClient({ user }) {
   // --- Employee create ---
 
   const openCreateModal = () => {
-    setCreateForm({ name: '', username: '', password: '', confirmPassword: '' });
+    setCreateForm({ name: '', username: '', role: 'agent', password: '', confirmPassword: '' });
     setCreateError('');
     setShowCreateModal(true);
   };
@@ -1799,7 +1948,7 @@ export default function DashboardClient({ user }) {
 
   const submitCreateEmployee = async (e) => {
     e.preventDefault();
-    const { name, username, password, confirmPassword } = createForm;
+    const { name, username, role, password, confirmPassword } = createForm;
     if (!name.trim() || !username.trim() || !password || !confirmPassword) {
       setCreateError('Все поля обязательны');
       return;
@@ -1818,7 +1967,7 @@ export default function DashboardClient({ user }) {
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), username: username.trim(), password }),
+        body: JSON.stringify({ name: name.trim(), username: username.trim(), role, password }),
       });
       const data = await res.json();
       if (!data.ok) { setCreateError(data.message || 'Ошибка создания'); return; }
@@ -1941,8 +2090,8 @@ export default function DashboardClient({ user }) {
       closed_lost: leads.filter((lead) => lead.status === 'closed_lost').length,
     };
     const todayStart = startOfDay();
-    const trend = Array.from({ length: 7 }, (_, index) => {
-      const day = new Date(todayStart.getTime() - (6 - index) * DAY_MS);
+    const trend = Array.from({ length: trendDays }, (_, index) => {
+      const day = new Date(todayStart.getTime() - (trendDays - 1 - index) * DAY_MS);
       const nextDay = new Date(day.getTime() + DAY_MS);
       const dayLeads = leads.filter((lead) => {
         const created = parseLeadDate(lead.created_at);
@@ -1956,8 +2105,8 @@ export default function DashboardClient({ user }) {
         closed: dayLeads.filter((lead) => lead.status === 'closed_won' || lead.status === 'closed').length,
       };
     });
-    const weekTotal = trend.reduce((sum, item) => sum + item.total, 0);
-    const weekClosed = trend.reduce((sum, item) => sum + item.closed, 0);
+    const periodTotal = trend.reduce((sum, item) => sum + item.total, 0);
+    const periodClosed = trend.reduce((sum, item) => sum + item.closed, 0);
     const today = trend[trend.length - 1]?.total || 0;
     const assigned = leads.filter((lead) => lead.assigned_to).length;
     const unassigned = total - assigned;
@@ -1984,8 +2133,8 @@ export default function DashboardClient({ user }) {
     return {
       total,
       today,
-      weekTotal,
-      weekClosed,
+      periodTotal,
+      periodClosed,
       assigned,
       unassigned,
       unassignedNew,
@@ -1996,7 +2145,7 @@ export default function DashboardClient({ user }) {
       lost: byStatus.closed_lost,
       activeRate: percent(ACTIVE_PIPELINE_STATUSES.reduce((sum, status) => sum + (byStatus[status] || 0), 0), total),
       closedRate: percent(byStatus.closed_won, total),
-      avgPerDay: weekTotal ? (weekTotal / 7).toFixed(1) : '0',
+      avgPerDay: periodTotal ? (periodTotal / trendDays).toFixed(1) : '0',
       trend,
       employeeRows,
       statusSegments: [
@@ -2009,7 +2158,7 @@ export default function DashboardClient({ user }) {
         { key: 'closed_lost', label: 'Отказ', value: byStatus.closed_lost, color: REPORT_STATUS_COLORS.closed_lost },
       ],
     };
-  }, [employees, leads]);
+  }, [employees, leads, trendDays]);
   const filteredVisibleLeads = useMemo(() => {
     const statusFilteredLeads = visibleLeads.filter((lead) => filterMatchesLead(lead, filter));
     const query = leadSearch.trim().toLowerCase();
@@ -2076,9 +2225,14 @@ export default function DashboardClient({ user }) {
   const searchEmptyText = leadSearch.trim() ? 'По этому поиску лидов нет.' : emptyLeadsText;
   const navItems = [
     { key: 'leads', label: 'Лиды', icon: 'leads' },
-    ...(isAdmin ? [
+    ...(canViewReportsAccess ? [
       { key: 'reports', label: 'Статистика', icon: 'reports' },
+    ] : []),
+    ...(canManageTeamAccess ? [
       { key: 'employees', label: 'Сотрудники', icon: 'employees' },
+    ] : []),
+    ...(isOwnerUser ? [
+      { key: 'logs', label: 'Логи', icon: 'logs' },
     ] : []),
     { key: 'chat', label: 'Общий чат', icon: 'chat', badge: chatUnread },
     { key: 'profile', label: 'Профиль', icon: 'profile' },
@@ -2106,7 +2260,7 @@ export default function DashboardClient({ user }) {
     ? 'border-crm-danger/30 bg-crm-danger/10 text-crm-danger'
     : notifStatus === 'error'
     ? 'border-crm-warning/30 bg-crm-warning/10 text-crm-warning hover:bg-crm-warning/15'
-    : 'border-crm-border bg-crm-surface/60 text-crm-muted hover:border-white/[0.14] hover:bg-crm-surfaceStrong hover:text-crm-text';
+    : 'border-crm-border bg-crm-surface/60 text-crm-muted hover:border-crm-accent/25 hover:bg-crm-surfaceStrong hover:text-crm-text';
 
   const notificationBlocked = ['denied', 'unsupported', 'unsupported_ios', 'ios_install_required', 'not_configured'].includes(notifStatus);
 
@@ -2114,7 +2268,7 @@ export default function DashboardClient({ user }) {
     <div className="flex h-full min-h-0 flex-col">
       <button
         onClick={() => selectTab('profile')}
-        className="crm-focus-ring group flex items-center gap-3 border-b border-crm-border px-4 py-4 text-left transition hover:bg-white/[0.03] sm:px-5 sm:py-5"
+        className="crm-focus-ring group flex items-center gap-3 border-b border-crm-border px-4 py-4 text-left transition hover:bg-crm-accent/8 sm:px-5 sm:py-5"
       >
         <div className="rounded-full ring-2 ring-crm-border transition group-hover:ring-crm-accent/35">
           <AvatarCircle profile={profile} size="lg" />
@@ -2122,7 +2276,7 @@ export default function DashboardClient({ user }) {
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-crm-text">{profile.name}</p>
           <p className="truncate text-xs text-crm-muted">
-            {profile.status_text || (isAdmin ? 'Администратор' : 'Сотрудник')}
+            {profile.status_text || roleLabel(profile.role)}
           </p>
         </div>
       </button>
@@ -2223,7 +2377,7 @@ export default function DashboardClient({ user }) {
       <div className="crm-mobile-safe-bottom space-y-2 border-t border-crm-border p-3 sm:p-4">
         <button
           onClick={toggleTheme}
-          className="crm-focus-ring flex w-full items-center justify-between rounded-crmLg border border-crm-border bg-crm-surface/60 px-3 py-2 text-sm text-crm-muted transition hover:border-white/[0.14] hover:bg-crm-surfaceStrong hover:text-crm-text"
+          className="crm-focus-ring flex w-full items-center justify-between rounded-crmLg border border-crm-border bg-crm-surface/60 px-3 py-2 text-sm text-crm-muted transition hover:border-crm-accent/25 hover:bg-crm-surfaceStrong hover:text-crm-text"
         >
           <span>{theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}</span>
           <span className="text-crm-accent">{theme === 'dark' ? '☀️' : '🌙'}</span>
@@ -2277,7 +2431,7 @@ export default function DashboardClient({ user }) {
               type="button"
               onClick={() => setDrawerOpen(false)}
               aria-label="Закрыть меню"
-              className="crm-focus-ring absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-crmLg border border-crm-border bg-crm-surfaceStrong/90 text-crm-muted transition hover:border-white/[0.14] hover:text-crm-text"
+              className="crm-focus-ring absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-crmLg border border-crm-border bg-crm-surfaceStrong/90 text-crm-muted transition hover:border-crm-accent/25 hover:text-crm-text"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                 <path d="M18 6 6 18M6 6l12 12" />
@@ -2448,7 +2602,7 @@ export default function DashboardClient({ user }) {
                 <LeadsEmptyState>{searchEmptyText}</LeadsEmptyState>
               ) : (
                 filteredVisibleLeads.map((lead) => (
-                  <article key={lead.id} className="crm-premium-panel crm-soft-rise flex min-h-[23rem] flex-col rounded-crmXl border border-crm-border p-4 shadow-crmCard">
+                  <article key={lead.id} className="crm-premium-panel crm-soft-rise flex min-w-0 max-w-full flex-col overflow-hidden rounded-crmXl border border-crm-border p-4 shadow-crmCard">
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-lg font-semibold text-crm-text">{lead.name || '—'}</p>
@@ -2554,7 +2708,7 @@ export default function DashboardClient({ user }) {
               {loading ? (
                 <div className="crm-scrollbar overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
-                    <thead className="border-b border-crm-border bg-black/10 text-xs uppercase tracking-wide text-crm-muted">
+                    <thead className="border-b border-crm-border bg-crm-surface/55 text-xs uppercase tracking-wide text-crm-muted">
                       <tr>
                         <th className="p-3 font-semibold">Дата</th>
                         <th className="p-3 font-semibold">Имя</th>
@@ -2589,7 +2743,7 @@ export default function DashboardClient({ user }) {
               ) : (
                 <div className="crm-scrollbar overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
-                    <thead className="border-b border-crm-border bg-black/10 text-xs uppercase tracking-wide text-crm-muted">
+                    <thead className="border-b border-crm-border bg-crm-surface/55 text-xs uppercase tracking-wide text-crm-muted">
                       <tr>
                         <th className="p-3 font-semibold">Дата</th>
                         <th className="p-3 font-semibold">Имя</th>
@@ -2703,10 +2857,12 @@ export default function DashboardClient({ user }) {
         )}
 
         {/* ── Reports tab ── */}
-        {activeTab === 'reports' && isAdmin && (
+        {activeTab === 'reports' && canViewReportsAccess && (
           <LeadReportsPanel
             report={leadReport}
             isAdmin={isAdmin}
+            trendDays={trendDays}
+            onTrendDaysChange={setTrendDays}
             onExport={() => setShowExportModal(true)}
             onOpenLeads={() => selectTab('leads')}
           />
@@ -2730,6 +2886,14 @@ export default function DashboardClient({ user }) {
             onOpenMenu={() => setDrawerOpen(true)}
             showToast={showToast}
             askConfirm={askConfirm}
+          />
+        )}
+
+        {activeTab === 'logs' && isOwnerUser && (
+          <ActivityLogsPanel
+            logs={activityLogs}
+            loading={activityLogsLoading}
+            onRefresh={fetchActivityLogs}
           />
         )}
 
@@ -2760,7 +2924,7 @@ export default function DashboardClient({ user }) {
                   </div>
                 </div>
                 <span className="inline-flex shrink-0 self-start rounded-full border border-crm-accent/30 bg-crm-accent/10 px-3 py-1 text-xs font-medium text-crm-accent sm:self-center">
-                  {isAdmin ? 'Администратор' : 'Сотрудник'}
+                  {roleLabel(profile.role)}
                 </span>
               </div>
             </div>
@@ -3078,8 +3242,8 @@ export default function DashboardClient({ user }) {
           </div>
         )}
 
-        {/* ── Employees tab (admin only) ── */}
-        {isAdmin && activeTab === 'employees' && (
+        {/* ── Employees tab ── */}
+        {canManageTeamAccess && activeTab === 'employees' && (
           <>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="min-w-0">
@@ -3124,13 +3288,26 @@ export default function DashboardClient({ user }) {
                         <div className="min-w-0">
                           <p className="text-xs font-medium uppercase tracking-wide text-crm-muted">#{emp.id}</p>
                           {editingEmployee === emp.id ? (
-                            <input
-                              ref={editInputRef}
-                              value={editName}
-                              onChange={(e) => setEditName(e.target.value)}
-                              onKeyDown={(e) => handleEditKey(e, emp.id)}
-                              className={`${employeeInputClass()} mt-1`}
-                            />
+                            <div className="mt-1 space-y-2">
+                              <input
+                                ref={editInputRef}
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                onKeyDown={(e) => handleEditKey(e, emp.id)}
+                                className={employeeInputClass()}
+                              />
+                              {emp.role !== 'owner' && (
+                                <select
+                                  value={editRole}
+                                  onChange={(e) => setEditRole(e.target.value)}
+                                  className={employeeInputClass()}
+                                >
+                                  {ROLE_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                  ))}
+                                </select>
+                              )}
+                            </div>
                           ) : (
                             <p className="truncate text-base font-semibold text-crm-text">{emp.name}</p>
                           )}
@@ -3139,7 +3316,7 @@ export default function DashboardClient({ user }) {
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1.5">
                         <span className="rounded-full border border-crm-border bg-crm-surface/60 px-2.5 py-1 text-xs font-medium text-crm-muted">
-                          Сотрудник
+                          {roleLabel(emp.role)}
                         </span>
                         <span className={employeeStatusBadgeClass(emp.is_active)}>
                           {emp.is_active !== false ? 'Активен' : 'Неактивен'}
@@ -3210,6 +3387,7 @@ export default function DashboardClient({ user }) {
                         <th className="p-3 font-semibold">ID</th>
                         <th className="p-3 font-semibold">Имя</th>
                         <th className="p-3 font-semibold">Логин</th>
+                        <th className="p-3 font-semibold">Роль</th>
                         <th className="p-3 font-semibold">Статус</th>
                         <th className="p-3 font-semibold">Действия</th>
                       </tr>
@@ -3225,6 +3403,7 @@ export default function DashboardClient({ user }) {
                             </div>
                           </td>
                           <td className="p-3"><div className="h-4 w-24 animate-pulse rounded bg-crm-border/50" /></td>
+                          <td className="p-3"><div className="h-5 w-20 animate-pulse rounded-full bg-crm-border/50" /></td>
                           <td className="p-3"><div className="h-5 w-16 animate-pulse rounded-full bg-crm-border/50" /></td>
                           <td className="p-3"><div className="h-9 w-24 animate-pulse rounded-crmLg bg-crm-border/50" /></td>
                         </tr>
@@ -3244,31 +3423,50 @@ export default function DashboardClient({ user }) {
                         <th className="p-3 font-semibold">ID</th>
                         <th className="p-3 font-semibold">Имя</th>
                         <th className="p-3 font-semibold">Логин</th>
+                        <th className="p-3 font-semibold">Роль</th>
                         <th className="p-3 font-semibold">Статус</th>
                         <th className="p-3 font-semibold">Действия</th>
                       </tr>
                     </thead>
                     <tbody>
                       {employees.map((emp) => (
-                        <tr key={emp.id} className="border-t border-crm-border/60 transition hover:bg-white/[0.03]">
+                        <tr key={emp.id} className="border-t border-crm-border/60 transition hover:bg-crm-accent/8">
                           <td className="whitespace-nowrap p-3 tabular-nums text-crm-muted">#{emp.id}</td>
                           <td className="p-3">
                             <div className="flex items-center gap-3">
                               <EmployeeInitialCircle name={emp.name} />
                               {editingEmployee === emp.id ? (
-                                <input
-                                  ref={editInputRef}
-                                  value={editName}
-                                  onChange={(e) => setEditName(e.target.value)}
-                                  onKeyDown={(e) => handleEditKey(e, emp.id)}
-                                  className={`${employeeInputClass()} max-w-xs`}
-                                />
+                                <div className="grid min-w-[18rem] gap-2">
+                                  <input
+                                    ref={editInputRef}
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    onKeyDown={(e) => handleEditKey(e, emp.id)}
+                                    className={employeeInputClass()}
+                                  />
+                                  {emp.role !== 'owner' && (
+                                    <select
+                                      value={editRole}
+                                      onChange={(e) => setEditRole(e.target.value)}
+                                      className={employeeInputClass()}
+                                    >
+                                      {ROLE_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                      ))}
+                                    </select>
+                                  )}
+                                </div>
                               ) : (
                                 <span className="font-medium text-crm-text">{emp.name}</span>
                               )}
                             </div>
                           </td>
                           <td className="whitespace-nowrap p-3 text-crm-muted">@{emp.username || '—'}</td>
+                          <td className="p-3">
+                            <span className="rounded-full border border-crm-border bg-crm-surface/60 px-2.5 py-1 text-xs font-medium text-crm-muted">
+                              {roleLabel(emp.role)}
+                            </span>
+                          </td>
                           <td className="p-3">
                             <span className={employeeStatusBadgeClass(emp.is_active)}>
                               {emp.is_active !== false ? 'Активен' : 'Неактивен'}
@@ -3367,6 +3565,18 @@ export default function DashboardClient({ user }) {
                   autoComplete="off"
                   className={employeeInputClass()}
                 />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-crm-muted">Роль</label>
+                <select
+                  value={createForm.role}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, role: e.target.value }))}
+                  className={employeeInputClass()}
+                >
+                  {ROLE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-crm-muted">Пароль</label>

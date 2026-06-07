@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/admin/auth';
 import { ensureSchema, getSql } from '@/lib/admin/db';
-
-function roleLabel(role) {
-  return role === 'admin' ? 'Админ' : 'Сотрудник';
-}
+import { roleLabel } from '@/lib/admin/roles';
 
 export async function GET() {
   const user = await getAuthUser();
@@ -16,7 +13,17 @@ export async function GET() {
     SELECT id, username, role, name, avatar_url, status_text
     FROM users
     WHERE COALESCE(is_active, true) = true
-    ORDER BY (role = 'admin') DESC, name ASC
+    ORDER BY
+      CASE role
+        WHEN 'owner' THEN 0
+        WHEN 'admin' THEN 1
+        WHEN 'manager' THEN 2
+        WHEN 'agent' THEN 3
+        WHEN 'marketer' THEN 4
+        WHEN 'tech' THEN 5
+        ELSE 9
+      END,
+      name ASC
   `;
 
   return NextResponse.json({

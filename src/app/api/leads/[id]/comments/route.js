@@ -3,6 +3,8 @@ import { getAuthUser } from '@/lib/admin/auth';
 import { getSql, ensureSchema } from '@/lib/admin/db';
 import { addLeadEvent } from '@/lib/admin/leadEvents';
 import { sendPushToAll } from '@/lib/admin/push';
+import { canViewAllLeads } from '@/lib/admin/roles';
+import { logActivity } from '@/lib/admin/activityLog';
 
 export async function GET(request, { params }) {
   const user = await getAuthUser();
@@ -14,7 +16,7 @@ export async function GET(request, { params }) {
   await ensureSchema();
   const sql = getSql();
 
-  if (user.role === 'employee') {
+  if (!canViewAllLeads(user)) {
     const [lead] = await sql`SELECT assigned_to FROM leads WHERE id = ${leadId}`;
     if (!lead || lead.assigned_to !== user.id) {
       return NextResponse.json({ ok: false }, { status: 403 });
@@ -54,7 +56,7 @@ export async function POST(request, { params }) {
 
   const [lead] = await sql`SELECT assigned_to FROM leads WHERE id = ${leadId}`;
   if (!lead) return NextResponse.json({ ok: false, message: 'Лид не найден' }, { status: 404 });
-  if (user.role === 'employee' && lead.assigned_to !== user.id) {
+  if (!canViewAllLeads(user) && lead.assigned_to !== user.id) {
     return NextResponse.json({ ok: false }, { status: 403 });
   }
 
@@ -68,6 +70,14 @@ export async function POST(request, { params }) {
     userId: user.id,
     type: 'comment_added',
     message: 'Добавлен комментарий',
+  });
+  await logActivity({
+    userId: user.id,
+    action: 'lead_comment_added',
+    entityType: 'lead',
+    entityId: leadId,
+    message: `${user.name || user.username} добавил комментарий к лиду #${leadId}`,
+    meta: { text: text.slice(0, 240) },
   });
 
   try {

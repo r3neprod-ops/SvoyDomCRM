@@ -37,17 +37,17 @@ export default function LeadContactActions({ lead, compact = false }) {
   }
 
   return (
-    <div className={`flex flex-wrap gap-2 ${compact ? '' : 'mb-3'}`}>
+    <div className={`flex max-w-full flex-wrap gap-2 ${compact ? '' : 'mb-3'}`}>
       {tel && (
-        <a href={tel} className={buttonClass} onClick={(event) => event.stopPropagation()}>
+        <a href={tel} className={`${buttonClass} min-w-0 max-w-full`} onClick={(event) => event.stopPropagation()}>
           <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.8 19.8 0 0 1 3 5.18 2 2 0 0 1 5 3h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L9 10.9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
           </svg>
-          {compact ? 'Звонок' : lead.phone}
+          <span className="min-w-0 truncate">{compact ? 'Звонок' : lead.phone}</span>
         </a>
       )}
       {tg && (
-        <a href={tg} target="_blank" rel="noreferrer" className={buttonClass} onClick={(event) => event.stopPropagation()}>
+        <a href={tg} target="_blank" rel="noreferrer" className={`${buttonClass} min-w-0 max-w-full`} onClick={(event) => event.stopPropagation()}>
           TG
         </a>
       )}

@@ -163,7 +163,7 @@ export async function ensureSchema() {
       id SERIAL PRIMARY KEY,
       username TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
-      role TEXT NOT NULL CHECK(role IN ('admin', 'employee')),
+      role TEXT NOT NULL CHECK(role IN ('owner', 'admin', 'manager', 'marketer', 'agent', 'tech', 'employee')),
       name TEXT NOT NULL
     )
   `;
@@ -230,6 +230,16 @@ export async function ensureSchema() {
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS status_text TEXT`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_storage_key TEXT`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`;
+  await sql`
+    ALTER TABLE users
+    ADD CONSTRAINT users_role_check
+    CHECK(role IN ('owner', 'admin', 'manager', 'marketer', 'agent', 'tech', 'employee'))
+  `;
+  await sql`UPDATE users SET role = 'agent' WHERE role = 'employee'`;
+  await sql`UPDATE users SET role = 'owner' WHERE username = 'admin' AND role = 'admin'`;
   await sql`ALTER TABLE leads ALTER COLUMN assigned_to DROP DEFAULT`;
   await sql`ALTER TABLE leads ALTER COLUMN status SET DEFAULT 'new'`;
   await sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`;
@@ -254,6 +264,35 @@ export async function ensureSchema() {
        OR (subscription->'keys'->>'auth') IS NULL
   `;
   await sql`CREATE INDEX IF NOT EXISTS push_subscriptions_user_id_idx ON push_subscriptions (user_id)`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS user_auth_accounts (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL,
+      provider_account_id TEXT NOT NULL,
+      email TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(provider, provider_account_id)
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS user_auth_accounts_user_id_idx ON user_auth_accounts (user_id)`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS activity_logs (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      action TEXT NOT NULL,
+      entity_type TEXT,
+      entity_id INTEGER,
+      message TEXT NOT NULL,
+      meta JSONB,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS activity_logs_created_at_idx ON activity_logs (created_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS activity_logs_user_id_idx ON activity_logs (user_id, created_at DESC)`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS chat_reads (
@@ -404,7 +443,7 @@ export async function ensureSchema() {
     const hash = await bcrypt.hash('admin123', 10);
     await sql`
       INSERT INTO users (username, password_hash, role, name)
-      VALUES ('admin', ${hash}, 'admin', 'Администратор')
+      VALUES ('admin', ${hash}, 'owner', 'Администратор')
       ON CONFLICT (username) DO NOTHING
     `;
     console.log('[db] Admin user created with default password admin123');

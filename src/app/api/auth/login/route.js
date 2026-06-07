@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { getSql, ensureSchema } from '@/lib/admin/db';
 import { signToken } from '@/lib/admin/auth';
+import { logActivity } from '@/lib/admin/activityLog';
 
 export async function POST(request) {
   try {
@@ -14,11 +15,20 @@ export async function POST(request) {
     const sql = getSql();
     const [user] = await sql`SELECT * FROM users WHERE username = ${username}`;
 
-    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+    if (!user || !user.password_hash || !(await bcrypt.compare(password, user.password_hash))) {
       return NextResponse.json({ ok: false, message: 'Неверный логин или пароль' }, { status: 401 });
     }
 
     const token = await signToken({ id: user.id, role: user.role, name: user.name, username: user.username });
+    await sql`UPDATE users SET last_login_at = NOW() WHERE id = ${user.id}`;
+    await logActivity({
+      userId: user.id,
+      action: 'user_login',
+      entityType: 'user',
+      entityId: user.id,
+      message: `${user.name || user.username} вошел в CRM`,
+      meta: { method: 'password' },
+    });
 
     const response = NextResponse.json({ ok: true, role: user.role, name: user.name });
     response.cookies.set('auth_token', token, {
