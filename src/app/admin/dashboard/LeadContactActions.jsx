@@ -37,7 +37,7 @@ export default function LeadContactActions({ lead, compact = false }) {
   }
 
   return (
-    <div className={`flex max-w-full flex-wrap gap-2 ${compact ? '' : 'mb-3'}`}>
+    <div className={`flex min-w-0 max-w-full flex-wrap gap-2 overflow-hidden ${compact ? '' : 'mb-3'}`}>
       {tel && (
         <a href={tel} className={`${buttonClass} min-w-0 max-w-full`} onClick={(event) => event.stopPropagation()}>
           <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

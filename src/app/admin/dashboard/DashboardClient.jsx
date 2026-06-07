@@ -2616,8 +2616,8 @@ export default function DashboardClient({ user }) {
                     </div>
                     <LeadContactActions lead={lead} />
                     <p className="mb-3 line-clamp-5 text-sm leading-relaxed text-crm-muted">{formatMessage(lead.message)}</p>
-                    <div className="mb-3 grid gap-2 text-xs sm:grid-cols-2">
-                      <div className="rounded-crmLg border border-crm-border bg-crm-surface/35 px-3 py-2">
+                    <div className="mb-3 grid min-w-0 max-w-full grid-cols-1 gap-2 overflow-hidden text-xs sm:grid-cols-2">
+                      <div className="min-w-0 max-w-full overflow-hidden rounded-crmLg border border-crm-border bg-crm-surface/35 px-3 py-2">
                         <p className="uppercase tracking-wide text-crm-muted">Ответственный</p>
                         <p className="mt-1 truncate font-medium text-crm-text">
                           {lead.assigned_to_name || employees.find((emp) => emp.id === lead.assigned_to)?.name || 'Не назначен'}
@@ -2625,7 +2625,7 @@ export default function DashboardClient({ user }) {
                       </div>
                       <button
                         onClick={() => openComments(lead)}
-                        className="crm-focus-ring rounded-crmLg border border-crm-border bg-crm-surface/35 px-3 py-2 text-left transition hover:border-crm-accent/30 hover:bg-crm-accent/8"
+                        className="crm-focus-ring min-w-0 max-w-full overflow-hidden rounded-crmLg border border-crm-border bg-crm-surface/35 px-3 py-2 text-left transition hover:border-crm-accent/30 hover:bg-crm-accent/8"
                       >
                         <p className="uppercase tracking-wide text-crm-muted">Комментарии</p>
                         <p className="mt-1 truncate font-medium text-crm-text">
