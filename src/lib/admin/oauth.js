@@ -40,7 +40,18 @@ export function getOAuthConfig(provider) {
 }
 
 export function getBaseUrl(request) {
-  return (process.env.APP_BASE_URL || request.nextUrl.origin).replace(/\/+$/, '');
+  const configured = process.env.APP_BASE_URL;
+  if (configured) return configured.replace(/\/+$/, '');
+
+  const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host');
+  if (forwardedHost) {
+    const host = forwardedHost.split(',')[0].trim();
+    const forwardedProto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
+    const proto = forwardedProto || (host.includes('localhost') || host.includes('127.0.0.1') ? 'http' : 'https');
+    return `${proto}://${host}`.replace(/\/+$/, '');
+  }
+
+  return request.nextUrl.origin.replace(/\/+$/, '');
 }
 
 export function getRedirectUri(request, provider) {

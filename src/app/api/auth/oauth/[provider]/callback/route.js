@@ -5,13 +5,14 @@ import {
   exchangeCode,
   fetchOAuthProfile,
   findOrCreateOAuthUser,
+  getBaseUrl,
   getOAuthConfig,
 } from '@/lib/admin/oauth';
 
 export const runtime = 'nodejs';
 
 function loginRedirect(request, code) {
-  return NextResponse.redirect(new URL(`/admin/login?oauth_error=${encodeURIComponent(code)}`, request.url));
+  return NextResponse.redirect(new URL(`/admin/login?oauth_error=${encodeURIComponent(code)}`, getBaseUrl(request)));
 }
 
 export async function GET(request, { params }) {
@@ -37,7 +38,7 @@ export async function GET(request, { params }) {
     if (!profile.provider_account_id) throw new Error('oauth_profile_error');
     const user = await findOrCreateOAuthUser(sql, provider, profile);
     const session = await buildOAuthSessionResponse(user, provider);
-    const response = NextResponse.redirect(new URL(session.redirectTo, request.url));
+    const response = NextResponse.redirect(new URL(session.redirectTo, getBaseUrl(request)));
     response.cookies.set('auth_token', session.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

@@ -1,15 +1,19 @@
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
-import { getOAuthConfig, getRedirectUri } from '@/lib/admin/oauth';
+import { getBaseUrl, getOAuthConfig, getRedirectUri } from '@/lib/admin/oauth';
+
+function loginUrl(request, code) {
+  return new URL(`/admin/login?oauth_error=${encodeURIComponent(code)}`, getBaseUrl(request));
+}
 
 export async function GET(request, { params }) {
   const provider = String(params.provider || '').toLowerCase();
   const config = getOAuthConfig(provider);
   if (!config) {
-    return NextResponse.redirect(new URL('/admin/login?oauth_error=unknown_provider', request.url));
+    return NextResponse.redirect(loginUrl(request, 'unknown_provider'));
   }
   if (!config.configured) {
-    return NextResponse.redirect(new URL(`/admin/login?oauth_error=${provider}_not_configured`, request.url));
+    return NextResponse.redirect(loginUrl(request, `${provider}_not_configured`));
   }
 
   const state = randomUUID();
