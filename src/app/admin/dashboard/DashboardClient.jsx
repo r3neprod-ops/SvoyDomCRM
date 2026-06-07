@@ -2445,29 +2445,31 @@ export default function DashboardClient({ user }) {
       <section
         className={
           activeTab === 'chat'
-            ? 'min-w-0 px-4 py-4 md:ml-72 md:px-8 md:py-5'
+            ? 'min-w-0'
             : 'min-h-dvh min-w-0 px-4 py-4 md:ml-72 md:px-8 md:py-5'
         }
       >
-        <div className="w-full min-w-0 space-y-6">
-          <header className="crm-glass -mx-4 mb-1 flex items-center justify-between gap-3 rounded-crmXl border border-crm-border px-3 py-2.5 shadow-crmCard sm:-mx-6 md:hidden">
-            <button
-              onClick={() => setDrawerOpen(true)}
-              className="crm-focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-crmLg border border-crm-border bg-crm-surface/60 text-crm-text transition hover:border-crm-accent/35 hover:bg-crm-accent/10 hover:text-crm-accent"
-              aria-label="Открыть меню"
-            >
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                <path d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <div className="min-w-0 flex-1">
-              <h1 className="truncate text-base font-semibold crm-gradient-text">СвойДом CRM</h1>
-              <p className="truncate text-xs text-crm-muted">{profile.name}</p>
-            </div>
-            <button onClick={() => selectTab('profile')} className="crm-focus-ring shrink-0 rounded-full ring-2 ring-crm-border transition hover:ring-crm-accent/35">
-              <AvatarCircle profile={profile} />
-            </button>
-          </header>
+        <div className={activeTab === 'chat' ? 'w-full min-w-0' : 'w-full min-w-0 space-y-6'}>
+          {activeTab !== 'chat' && (
+            <header className="crm-glass -mx-4 mb-1 flex items-center justify-between gap-3 rounded-crmXl border border-crm-border px-3 py-2.5 shadow-crmCard sm:-mx-6 md:hidden">
+              <button
+                onClick={() => setDrawerOpen(true)}
+                className="crm-focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-crmLg border border-crm-border bg-crm-surface/60 text-crm-text transition hover:border-crm-accent/35 hover:bg-crm-accent/10 hover:text-crm-accent"
+                aria-label="Открыть меню"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <path d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              <div className="min-w-0 flex-1">
+                <h1 className="truncate text-base font-semibold crm-gradient-text">СвойДом CRM</h1>
+                <p className="truncate text-xs text-crm-muted">{profile.name}</p>
+              </div>
+              <button onClick={() => selectTab('profile')} className="crm-focus-ring shrink-0 rounded-full ring-2 ring-crm-border transition hover:ring-crm-accent/35">
+                <AvatarCircle profile={profile} />
+              </button>
+            </header>
+          )}
 
         {/* ── Leads tab ── */}
         {activeTab === 'leads' && (
