@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 
 let sql;
 let initialized = false;
+let initializing = null;
 
 function cleanEnvValue(value) {
   return String(value || '').trim().replace(/^['"]+|['"]+$/g, '');
@@ -155,6 +156,16 @@ export function getSql() {
 }
 
 export async function ensureSchema() {
+  if (initialized) return;
+  if (!initializing) {
+    initializing = ensureSchemaInner().finally(() => {
+      initializing = null;
+    });
+  }
+  return initializing;
+}
+
+async function ensureSchemaInner() {
   if (initialized) return;
   const sql = getSql();
 
@@ -435,11 +446,16 @@ export async function ensureSchema() {
     END;
     $$ LANGUAGE plpgsql
   `;
-  await sql`DROP TRIGGER IF EXISTS trg_svoydom_notify_new_lead ON leads`;
   await sql`
-    CREATE TRIGGER trg_svoydom_notify_new_lead
-    AFTER INSERT ON leads
-    FOR EACH ROW EXECUTE FUNCTION svoydom_notify_new_lead()
+    DO $$
+    BEGIN
+      CREATE TRIGGER trg_svoydom_notify_new_lead
+      AFTER INSERT ON leads
+      FOR EACH ROW EXECUTE FUNCTION svoydom_notify_new_lead();
+    EXCEPTION WHEN duplicate_object THEN
+      NULL;
+    END;
+    $$;
   `;
 
   // Ensure admin account always exists — but never overwrite an existing password.
