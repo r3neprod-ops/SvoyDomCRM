@@ -1,4 +1,5 @@
 import './globals.css';
+import InstallAppPrompt from './InstallAppPrompt';
 import ServiceWorkerRegistration from './ServiceWorkerRegistration';
 import { ThemeProvider } from './ThemeProvider';
 
@@ -43,6 +44,7 @@ export default function RootLayout({ children }) {
         <ThemeProvider>
           <ServiceWorkerRegistration />
           {children}
+          <InstallAppPrompt />
         </ThemeProvider>
       </body>
     </html>

@@ -1,5 +1,5 @@
-const CACHE_NAME = 'svoydom-crm-static-v6';
-const PRECACHE_URLS = ['/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
+const CACHE_NAME = 'svoydom-crm-static-v7';
+const PRECACHE_URLS = ['/manifest.json', '/admin-manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
