@@ -1,6 +1,6 @@
 import postgres from 'postgres';
 import { getSql, ensureSchema, getSslOptions, normalizeDatabaseUrl, pushDebugLog } from './db.js';
-import { sendPushToAll } from './push.js';
+import { sendPushToAll, sendPushToUser } from './push.js';
 
 let started = false;
 let pollTimer = null;
@@ -72,16 +72,86 @@ async function pollOnce() {
     const newLeads = await sql`
       SELECT id, name, phone FROM leads WHERE id > ${lastId} ORDER BY id ASC LIMIT 20
     `;
-    if (!newLeads.length) return;
+    if (!newLeads.length) {
+      await sendDueCallbackReminders();
+      return;
+    }
 
     await pushDebugLog('listener:poll_found', { data: { count: newLeads.length, fromId: lastId } });
     for (const lead of newLeads) {
       await handleNewLead(lead.id, lead.name, lead.phone);
       await setLastSeenLeadId(lead.id);
     }
+
+    await sendDueCallbackReminders();
   } catch (e) {
     console.error('[listener] Poll error:', e.message);
     await pushDebugLog('listener:poll_error', { error: String(e?.message || e) }).catch(() => {});
+  }
+}
+
+async function sendDueCallbackReminders() {
+  const sql = getSql();
+  const dueLeads = await sql`
+    SELECT
+      l.id,
+      l.name,
+      l.phone,
+      l.callback_at,
+      l.callback_note,
+      l.assigned_to,
+      u.name AS assigned_to_name
+    FROM leads l
+    JOIN users u ON u.id = l.assigned_to
+    WHERE l.callback_at IS NOT NULL
+      AND l.callback_at <= NOW()
+      AND l.status IN ('new', 'in_progress', 'meeting', 'documents', 'deal')
+      AND u.is_active IS DISTINCT FROM false
+      AND NOT EXISTS (
+        SELECT 1
+        FROM lead_events le
+        WHERE le.lead_id = l.id
+          AND le.type = 'callback_reminder_sent'
+          AND le.created_at >= l.callback_at
+      )
+    ORDER BY l.callback_at ASC
+    LIMIT 25
+  `;
+
+  for (const lead of dueLeads) {
+    const title = `Пора перезвонить: ${lead.name || `Лид #${lead.id}`}`;
+    const body = `${lead.phone ? `${lead.phone}. ` : ''}${lead.callback_note || 'Свяжитесь с клиентом и обновите статус в CRM.'}`;
+    let pushResult = null;
+    try {
+      pushResult = await sendPushToUser({
+        userId: lead.assigned_to,
+        title,
+        body,
+        url: '/admin/dashboard',
+        tag: `svoydom-crm-callback-due-${lead.id}-${new Date(lead.callback_at).getTime()}`,
+        type: 'lead_callback_due',
+      });
+    } catch (error) {
+      console.error('[listener] callback reminder push error:', error?.message);
+      await pushDebugLog('listener:callback_due_push_error', { leadId: lead.id, error: String(error?.message || error) });
+    }
+
+    await sql`
+      INSERT INTO lead_events (lead_id, user_id, type, message, meta)
+      VALUES (
+        ${lead.id},
+        ${lead.assigned_to},
+        'callback_reminder_sent',
+        ${`Напоминание о перезвоне отправлено ответственному: ${lead.assigned_to_name || `#${lead.assigned_to}`}`},
+        ${sql.json({
+          callback_at: lead.callback_at,
+          callback_note: lead.callback_note,
+          assigned_to: lead.assigned_to,
+          assigned_to_name: lead.assigned_to_name,
+          push: pushResult ? { sent: pushResult.sent, failed: pushResult.failed, total: pushResult.total } : null,
+        })}
+      )
+    `;
   }
 }
 

@@ -7,16 +7,23 @@ import { logActivity } from '@/lib/admin/activityLog';
 export async function POST(request) {
   try {
     const { username, password } = await request.json();
-    if (!username || !password) {
-      return NextResponse.json({ ok: false, message: 'Укажите логин и пароль' }, { status: 400 });
+    const login = String(username || '').trim();
+    const normalizedLogin = login.replace(/^@+/, '').toLowerCase();
+    if (!login || !password) {
+      return NextResponse.json({ ok: false, message: 'Укажите логин или @никнейм и пароль' }, { status: 400 });
     }
 
     await ensureSchema();
     const sql = getSql();
-    const [user] = await sql`SELECT * FROM users WHERE username = ${username}`;
+    const [user] = await sql`
+      SELECT *
+      FROM users
+      WHERE lower(username) = ${normalizedLogin}
+      LIMIT 1
+    `;
 
     if (!user || !user.password_hash || !(await bcrypt.compare(password, user.password_hash))) {
-      return NextResponse.json({ ok: false, message: 'Неверный логин или пароль' }, { status: 401 });
+      return NextResponse.json({ ok: false, message: 'Неверный логин/@никнейм или пароль' }, { status: 401 });
     }
 
     const token = await signToken({ id: user.id, role: user.role, name: user.name, username: user.username });

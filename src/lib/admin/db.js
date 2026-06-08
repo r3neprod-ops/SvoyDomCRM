@@ -232,6 +232,7 @@ export async function ensureSchema() {
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_storage_key TEXT`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_idx ON users (lower(email)) WHERE email IS NOT NULL AND email <> ''`;
   await sql`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`;
   await sql`
     ALTER TABLE users
@@ -242,6 +243,11 @@ export async function ensureSchema() {
   await sql`UPDATE users SET role = 'owner' WHERE username = 'admin' AND role = 'admin'`;
   await sql`ALTER TABLE leads ALTER COLUMN assigned_to DROP DEFAULT`;
   await sql`ALTER TABLE leads ALTER COLUMN status SET DEFAULT 'new'`;
+  await sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS callback_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS callback_note TEXT`;
+  await sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_call_result TEXT`;
+  await sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_call_at TIMESTAMPTZ`;
+  await sql`CREATE INDEX IF NOT EXISTS leads_callback_at_idx ON leads (callback_at) WHERE callback_at IS NOT NULL`;
   await sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`;
   await sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS user_agent TEXT`;
   await sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS platform TEXT`;

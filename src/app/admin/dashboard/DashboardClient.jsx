@@ -430,6 +430,8 @@ function ActivityLogsPanel({ logs, loading, onRefresh }) {
     lead_status_changed: 'Лид',
     lead_comment_added: 'Комментарий',
     lead_nudge_sent: 'Напоминание',
+    lead_call_no_answer: 'Звонок',
+    lead_callback_scheduled: 'Перезвон',
     lead_deleted: 'Лид',
   };
 
@@ -755,6 +757,17 @@ const PIPELINE_STATUSES = ['new', 'in_progress', 'meeting', 'documents', 'deal',
 const ACTIVE_PIPELINE_STATUSES = ['new', 'in_progress', 'meeting', 'documents', 'deal'];
 const FINAL_STATUSES = ['closed_won', 'closed_lost', 'closed'];
 const STATUSES = [...PIPELINE_STATUSES, 'closed_lost', 'closed'];
+const CALLBACK_PRESETS = [
+  { label: '30 мин', minutes: 30 },
+  { label: '1 час', minutes: 60 },
+  { label: '2 часа', minutes: 120 },
+  { label: '4 часа', minutes: 240 },
+  { label: 'Завтра', minutes: 1440 },
+];
+const CALL_RESULT_LABELS = {
+  no_answer: 'Не дозвонился',
+  callback: 'Перезвонить',
+};
 const FILTER_OPTIONS = [
   { value: '', label: 'Все' },
   { value: 'new', label: 'Новые' },
@@ -822,6 +835,7 @@ function leadActionButtonClass(variant = 'secondary', compact = false) {
   const base = `crm-focus-ring border font-medium transition ${size}`;
   if (variant === 'primary') return `${base} border-crm-accent/35 bg-crm-accent/12 text-crm-accent hover:bg-crm-accent/18`;
   if (variant === 'success') return `${base} border-crm-success/35 bg-crm-success/12 text-crm-success hover:bg-crm-success/20`;
+  if (variant === 'warning') return `${base} border-crm-warning/40 bg-crm-warning/12 text-crm-warning hover:bg-crm-warning/20`;
   if (variant === 'danger') return `${base} border-crm-danger/35 bg-crm-danger/10 text-crm-danger hover:bg-crm-danger/16`;
   return `${base} border-crm-border bg-crm-surface/40 text-crm-text hover:border-crm-accent/30 hover:bg-crm-accent/8`;
 }
@@ -878,6 +892,17 @@ function formatMessage(message) {
 function formatDate(value) {
   if (!value) return '—';
   return new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
+}
+
+function isPastDate(value) {
+  if (!value) return false;
+  return new Date(value).getTime() <= Date.now();
+}
+
+function callbackPanelClass(value) {
+  return isPastDate(value)
+    ? 'mb-3 rounded-crmLg border border-crm-danger/30 bg-crm-danger/10 px-3 py-2 text-xs text-crm-danger'
+    : 'mb-3 rounded-crmLg border border-crm-warning/30 bg-crm-warning/10 px-3 py-2 text-xs text-crm-warning';
 }
 
 function urlBase64ToUint8Array(base64String) {
@@ -1115,6 +1140,11 @@ export default function DashboardClient({ user }) {
   const [nudgeModal, setNudgeModal] = useState(null); // { leadId, leadName, assignedToName }
   const [nudgeText, setNudgeText] = useState('');
   const [nudgeLoading, setNudgeLoading] = useState(false);
+  const [callModal, setCallModal] = useState(null); // { leadId, leadName }
+  const [callResult, setCallResult] = useState('callback');
+  const [callMinutes, setCallMinutes] = useState(60);
+  const [callNote, setCallNote] = useState('');
+  const [callLoading, setCallLoading] = useState(false);
   const [toasts, setToasts] = useState([]);
   const [confirmState, setConfirmState] = useState(null);
   const [activityLogs, setActivityLogs] = useState([]);
@@ -1675,6 +1705,68 @@ export default function DashboardClient({ user }) {
       showToast(err?.message || 'Не удалось отправить напоминание', 'error');
     } finally {
       setNudgeLoading(false);
+    }
+  };
+
+  const openCallModal = (lead, result = 'callback') => {
+    if (!lead.assigned_to) {
+      showToast('Сначала назначьте ответственного сотрудника', 'error');
+      return;
+    }
+    setCallModal({
+      leadId: lead.id,
+      leadName: lead.name || `Лид #${lead.id}`,
+      phone: lead.phone || '',
+    });
+    setCallResult(result);
+    setCallMinutes(result === 'no_answer' ? 30 : 60);
+    setCallNote('');
+  };
+
+  const closeCallModal = () => {
+    setCallModal(null);
+    setCallResult('callback');
+    setCallMinutes(60);
+    setCallNote('');
+  };
+
+  const submitLeadCall = async () => {
+    if (!callModal || callLoading) return;
+    setCallLoading(true);
+    try {
+      const res = await fetch(`/api/leads/${callModal.leadId}/callback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          result: callResult,
+          minutes: callMinutes,
+          note: callNote.trim(),
+        }),
+      });
+      const data = await readApiJson(res);
+      if (!res.ok || data.ok === false) {
+        showToast(data.message || 'Не удалось сохранить перезвон', 'error');
+        return;
+      }
+      setLeads((prev) =>
+        prev.map((lead) =>
+          lead.id === callModal.leadId
+            ? {
+                ...lead,
+                callback_at: data.lead?.callback_at,
+                callback_note: data.lead?.callback_note,
+                last_call_result: data.lead?.last_call_result,
+                last_call_at: data.lead?.last_call_at,
+              }
+            : lead
+        )
+      );
+      showToast(callResult === 'no_answer' ? 'Отмечено: не дозвонился' : 'Перезвон запланирован', 'success');
+      closeCallModal();
+    } catch (err) {
+      showToast(err?.message || 'Не удалось сохранить перезвон', 'error');
+    } finally {
+      setCallLoading(false);
     }
   };
 
@@ -2616,6 +2708,13 @@ export default function DashboardClient({ user }) {
                     </div>
                     <LeadContactActions lead={lead} />
                     <p className="mb-3 line-clamp-5 text-sm leading-relaxed text-crm-muted">{formatMessage(lead.message)}</p>
+                    {lead.callback_at && (
+                      <div className={callbackPanelClass(lead.callback_at)}>
+                        <p className="font-semibold">{isPastDate(lead.callback_at) ? 'Перезвон просрочен' : 'Перезвон запланирован'}</p>
+                        <p className="mt-1 text-crm-text">{formatDate(lead.callback_at)}</p>
+                        {lead.callback_note && <p className="mt-1 text-crm-muted">{lead.callback_note}</p>}
+                      </div>
+                    )}
                     <div className="mb-3 grid min-w-0 max-w-full grid-cols-1 gap-2 overflow-hidden text-xs sm:grid-cols-2">
                       <div className="min-w-0 max-w-full overflow-hidden rounded-crmLg border border-crm-border bg-crm-surface/35 px-3 py-2">
                         <p className="uppercase tracking-wide text-crm-muted">Ответственный</p>
@@ -2672,6 +2771,22 @@ export default function DashboardClient({ user }) {
                         </button>
                       ) : (
                         <>
+                          {lead.assigned_to && !isFinalLeadStatus(lead.status) && (isAdmin || lead.assigned_to === user.id) && (
+                            <>
+                              <button
+                                onClick={() => openCallModal(lead, 'no_answer')}
+                                className={leadActionButtonClass('warning')}
+                              >
+                                Не дозвонился
+                              </button>
+                              <button
+                                onClick={() => openCallModal(lead, 'callback')}
+                                className={leadActionButtonClass('secondary')}
+                              >
+                                Перезвонить
+                              </button>
+                            </>
+                          )}
                           {getLeadPipelineActions(lead.status).map((action) => (
                             <button
                               key={action.status}
@@ -2770,6 +2885,12 @@ export default function DashboardClient({ user }) {
                             <span className={statusBadgeClass(lead.status)}>
                               {STATUS_LABELS[lead.status] ?? lead.status}
                             </span>
+                            {lead.callback_at && (
+                              <div className={isPastDate(lead.callback_at) ? 'mt-2 text-xs text-crm-danger' : 'mt-2 text-xs text-crm-warning'}>
+                                <p>{isPastDate(lead.callback_at) ? 'Перезвон просрочен' : 'Перезвон'}</p>
+                                <p className="mt-0.5 whitespace-nowrap tabular-nums">{formatDate(lead.callback_at)}</p>
+                              </div>
+                            )}
                           </td>
                           {isAdmin && (
                             <td className="p-3">
@@ -2818,6 +2939,22 @@ export default function DashboardClient({ user }) {
                                 </button>
                               ) : (
                                 <>
+                                  {lead.assigned_to && !isFinalLeadStatus(lead.status) && (isAdmin || lead.assigned_to === user.id) && (
+                                    <>
+                                      <button
+                                        onClick={() => openCallModal(lead, 'no_answer')}
+                                        className={leadActionButtonClass('warning', true)}
+                                      >
+                                        Не дозвонился
+                                      </button>
+                                      <button
+                                        onClick={() => openCallModal(lead, 'callback')}
+                                        className={leadActionButtonClass('secondary', true)}
+                                      >
+                                        Перезвонить
+                                      </button>
+                                    </>
+                                  )}
                                   {getLeadPipelineActions(lead.status).map((action) => (
                                     <button
                                       key={action.status}
@@ -3866,6 +4003,130 @@ export default function DashboardClient({ user }) {
                   className="crm-focus-ring rounded-crmLg border border-crm-border px-4 py-2.5 text-sm text-crm-text transition hover:bg-crm-surface/60 disabled:opacity-50"
                 >
                   Скачать всё
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lead callback modal */}
+      {callModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) closeCallModal(); }}
+        >
+          <div className="crm-glass w-full max-w-md rounded-crm2xl border border-crm-border shadow-crmCard">
+            <div className="flex items-center justify-between border-b border-crm-border px-5 py-4">
+              <div>
+                <h2 className="font-semibold text-crm-text">Звонок по лиду</h2>
+                <p className="text-xs text-crm-muted">
+                  {callModal.leadName}{callModal.phone ? ` · ${callModal.phone}` : ''}
+                </p>
+              </div>
+              <button
+                onClick={closeCallModal}
+                className="crm-focus-ring flex h-11 w-11 items-center justify-center rounded-crmLg text-crm-muted transition hover:bg-crm-accent/10 hover:text-crm-accent"
+                aria-label="Закрыть"
+              >
+                ×
+              </button>
+            </div>
+            <div className="space-y-4 px-5 py-5">
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(CALL_RESULT_LABELS).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => {
+                      setCallResult(value);
+                      if (value === 'no_answer' && callMinutes > 120) setCallMinutes(30);
+                    }}
+                    className={`crm-focus-ring min-h-11 rounded-crmLg border px-3 py-2 text-sm font-medium transition ${
+                      callResult === value
+                        ? 'border-crm-accent/45 bg-crm-accent/15 text-crm-accent shadow-crmGlow'
+                        : 'border-crm-border bg-crm-surface/40 text-crm-muted hover:border-crm-accent/30 hover:bg-crm-accent/8 hover:text-crm-text'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div>
+                <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-crm-muted">
+                  Когда напомнить
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {CALLBACK_PRESETS.map((preset) => (
+                    <button
+                      key={preset.minutes}
+                      type="button"
+                      onClick={() => setCallMinutes(preset.minutes)}
+                      className={`crm-focus-ring rounded-crmLg border px-3 py-2 text-xs font-medium transition ${
+                        callMinutes === preset.minutes
+                          ? 'border-crm-warning/45 bg-crm-warning/15 text-crm-warning'
+                          : 'border-crm-border bg-crm-surface/40 text-crm-muted hover:border-crm-warning/35 hover:bg-crm-warning/10 hover:text-crm-warning'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCallMinutes((value) => Math.max(5, Number(value || 30) - 15))}
+                    className="crm-focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-crmLg border border-crm-border bg-crm-surface/40 text-crm-text transition hover:border-crm-warning/35 hover:bg-crm-warning/10"
+                    aria-label="Уменьшить время"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="5"
+                    max="10080"
+                    step="5"
+                    value={callMinutes}
+                    onChange={(e) => setCallMinutes(Math.min(10080, Math.max(5, Number(e.target.value) || 30)))}
+                    className="crm-focus-ring min-h-11 min-w-0 flex-1 rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2 text-center text-sm font-semibold tabular-nums text-crm-text"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCallMinutes((value) => Math.min(10080, Number(value || 30) + 15))}
+                    className="crm-focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-crmLg border border-crm-border bg-crm-surface/40 text-crm-text transition hover:border-crm-warning/35 hover:bg-crm-warning/10"
+                    aria-label="Увеличить время"
+                  >
+                    +
+                  </button>
+                </div>
+                <p className="mt-1.5 text-xs text-crm-muted">В минутах. 30 = полчаса, 60 = час, 120 = два часа.</p>
+              </div>
+
+              <textarea
+                value={callNote}
+                onChange={(e) => setCallNote(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitLeadCall(); }}
+                placeholder="Комментарий к перезвону: что уточнить, о чем договорились"
+                rows={3}
+                className="crm-focus-ring w-full resize-none rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2.5 text-sm text-crm-text placeholder:text-crm-muted"
+              />
+
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={closeCallModal}
+                  className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-border px-4 py-2.5 text-sm text-crm-muted transition hover:bg-crm-surface/60 hover:text-crm-text"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  onClick={submitLeadCall}
+                  disabled={callLoading}
+                  className="crm-focus-ring min-h-11 rounded-crmLg border border-crm-warning/45 bg-crm-warning/15 px-4 py-2.5 text-sm font-semibold text-crm-warning transition hover:bg-crm-warning/22 disabled:opacity-40"
+                >
+                  {callLoading ? 'Сохраняю...' : 'Сохранить напоминание'}
                 </button>
               </div>
             </div>

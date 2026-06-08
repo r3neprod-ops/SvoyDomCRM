@@ -71,6 +71,7 @@ export default function LoginForm() {
     { id: 'google', label: 'Google', mark: 'G' },
     { id: 'yandex', label: 'Яндекс', mark: 'Я' },
     { id: 'vk', label: 'VK', mark: 'VK' },
+    { id: 'mailru', label: 'Mail.ru', mark: '@' },
   ];
 
   return (
@@ -112,7 +113,7 @@ export default function LoginForm() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label htmlFor="username" className="mb-2 block text-sm font-medium text-crm-text">
-                Логин
+                Логин или @никнейм
               </label>
               <input
                 id="username"
@@ -121,7 +122,7 @@ export default function LoginForm() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className={inputClassName}
-                placeholder="Введите логин"
+                placeholder="admin или @nickname"
                 required
                 autoComplete="username"
                 disabled={loading}
@@ -191,7 +192,7 @@ export default function LoginForm() {
             <div className="h-px flex-1 bg-crm-border" />
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2">
             {oauthProviders.map((provider) => (
               <a
                 key={provider.id}

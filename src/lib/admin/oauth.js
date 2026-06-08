@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { signToken } from './auth';
 import { logActivity } from './activityLog';
 
@@ -27,6 +27,14 @@ export const OAUTH_PROVIDERS = {
     scope: 'email',
     clientIdEnv: 'VK_CLIENT_ID',
     clientSecretEnv: 'VK_CLIENT_SECRET',
+  },
+  mailru: {
+    label: 'Mail.ru',
+    authUrl: 'https://connect.mail.ru/oauth/authorize',
+    tokenUrl: 'https://connect.mail.ru/oauth/token',
+    scope: '',
+    clientIdEnv: 'MAILRU_CLIENT_ID',
+    clientSecretEnv: 'MAILRU_CLIENT_SECRET',
   },
 };
 
@@ -77,6 +85,15 @@ async function uniqueUsername(sql, preferred) {
     if (!existing) return username;
   }
   return `user_${Date.now().toString(36)}`.slice(0, 32);
+}
+
+function buildMailRuSignature(params, secret) {
+  const source = Object.entries(params)
+    .filter(([key]) => key !== 'sig')
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `${key}=${value}`)
+    .join('');
+  return createHash('md5').update(`${source}${secret}`).digest('hex');
 }
 
 export async function exchangeCode({ provider, code, request }) {
@@ -150,6 +167,44 @@ export async function fetchOAuthProfile(provider, tokenData) {
       email: tokenData.email || '',
       name: [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'VK user',
       avatar_url: profile.photo_200 || '',
+    };
+  }
+
+  if (provider === 'mailru') {
+    const config = getOAuthConfig(provider);
+    const accountId = String(tokenData.x_mailru_vid || tokenData.user_id || '');
+    let mailProfile = null;
+
+    if (accountId && config?.configured) {
+      const params = {
+        app_id: config.clientId,
+        format: 'json',
+        method: 'users.getInfo',
+        secure: '1',
+        session_key: tokenData.access_token,
+        uids: accountId,
+      };
+      const url = new URL('https://www.appsmail.ru/platform/api');
+      for (const [key, value] of Object.entries(params)) {
+        url.searchParams.set(key, value);
+      }
+      url.searchParams.set('sig', buildMailRuSignature(params, config.clientSecret));
+
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+        const data = await res.json();
+        mailProfile = Array.isArray(data) ? data[0] : null;
+      } catch (error) {
+        console.error('[OAuth Mail.ru] profile fetch failed:', error?.message);
+      }
+    }
+
+    const name = [mailProfile?.first_name, mailProfile?.last_name].filter(Boolean).join(' ');
+    return {
+      provider_account_id: accountId,
+      email: '',
+      name: name || mailProfile?.nick || 'Mail.ru user',
+      avatar_url: mailProfile?.pic_big || mailProfile?.pic || '',
     };
   }
 

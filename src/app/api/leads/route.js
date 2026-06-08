@@ -16,6 +16,7 @@ async function fetchLeadsData(user, status) {
 
   const leads = await sql`
     SELECT l.id, l.name, l.phone, l.message, l.status, l.assigned_to, l.created_at,
+           l.callback_at, l.callback_note, l.last_call_result, l.last_call_at,
            u.name AS assigned_to_name,
            COUNT(c.id)::int AS comment_count,
            (SELECT text FROM comments WHERE lead_id = l.id ORDER BY created_at DESC LIMIT 1) AS last_comment_text

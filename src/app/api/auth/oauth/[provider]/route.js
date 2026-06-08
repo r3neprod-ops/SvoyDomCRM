@@ -21,7 +21,7 @@ export async function GET(request, { params }) {
   authUrl.searchParams.set('client_id', config.clientId);
   authUrl.searchParams.set('redirect_uri', getRedirectUri(request, provider));
   authUrl.searchParams.set('response_type', 'code');
-  authUrl.searchParams.set('scope', config.scope);
+  if (config.scope) authUrl.searchParams.set('scope', config.scope);
   authUrl.searchParams.set('state', state);
   if (provider === 'vk') {
     authUrl.searchParams.set('display', 'page');
