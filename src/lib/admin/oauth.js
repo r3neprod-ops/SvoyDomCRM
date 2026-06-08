@@ -16,7 +16,7 @@ export const OAUTH_PROVIDERS = {
     label: 'Яндекс',
     authUrl: 'https://oauth.yandex.ru/authorize',
     tokenUrl: 'https://oauth.yandex.ru/token',
-    scope: 'login:email login:info',
+    scope: 'login:info',
     clientIdEnv: 'YANDEX_CLIENT_ID',
     clientSecretEnv: 'YANDEX_CLIENT_SECRET',
   },
