@@ -11,7 +11,12 @@ export async function middleware(request) {
   const { pathname } = request.nextUrl;
 
   // Страница логина — пропускаем без проверки
-  if (pathname === '/admin/login' || pathname.startsWith('/admin/login/')) {
+  if (
+    pathname === '/admin/login' ||
+    pathname.startsWith('/admin/login/') ||
+    pathname === '/admin/onboarding' ||
+    pathname.startsWith('/admin/onboarding/')
+  ) {
     return NextResponse.next();
   }
 
@@ -36,6 +41,8 @@ export async function middleware(request) {
         username: payload.username,
         role: payload.role,
         name: payload.name,
+        profile_completed: payload.profile_completed,
+        active_company_id: payload.active_company_id,
       })
         .setProtectedHeader({ alg: 'HS256' })
         .setExpirationTime('30d')

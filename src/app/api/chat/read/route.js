@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getAuthUser } from '@/lib/admin/auth';
 import { ensureSchema, getSql } from '@/lib/admin/db';
+import { getCurrentUserContext, onboardingResponse } from '@/lib/admin/company';
 
-async function getUnreadState(sql, userId) {
+async function getUnreadState(sql, userId, companyId) {
   const [{ latest_message_id: latestMessageId = 0 } = {}] = await sql`
     SELECT COALESCE(MAX(id), 0)::int AS latest_message_id
-    FROM chat_messages WHERE direct_chat_id IS NULL AND room_id IS NULL
+    FROM chat_messages
+    WHERE company_id = ${companyId}
+      AND direct_chat_id IS NULL
+      AND room_id IS NULL
   `;
   const [{ last_read_message_id: lastReadMessageId = 0 } = {}] = await sql`
     SELECT last_read_message_id
@@ -15,7 +18,9 @@ async function getUnreadState(sql, userId) {
   const [{ unread_count: unreadCount = 0 } = {}] = await sql`
     SELECT COUNT(*)::int AS unread_count
     FROM chat_messages
-    WHERE direct_chat_id IS NULL AND room_id IS NULL
+    WHERE company_id = ${companyId}
+      AND direct_chat_id IS NULL
+      AND room_id IS NULL
       AND user_id <> ${userId}
       AND id > ${lastReadMessageId || 0}
   `;
@@ -28,17 +33,20 @@ async function getUnreadState(sql, userId) {
 }
 
 export async function GET() {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
 
   await ensureSchema();
   const sql = getSql();
-  return NextResponse.json({ ok: true, ...(await getUnreadState(sql, user.id)) });
+  return NextResponse.json({ ok: true, ...(await getUnreadState(sql, context.user.id, context.companyId)) });
 }
 
 export async function PATCH(request) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
+  const { user, companyId } = context;
 
   await ensureSchema();
   const sql = getSql();
@@ -46,7 +54,10 @@ export async function PATCH(request) {
   const requestedId = Number(body.last_read_message_id) || null;
   const [{ latest_message_id: latestMessageId = 0 } = {}] = await sql`
     SELECT COALESCE(MAX(id), 0)::int AS latest_message_id
-    FROM chat_messages WHERE direct_chat_id IS NULL AND room_id IS NULL
+    FROM chat_messages
+    WHERE company_id = ${companyId}
+      AND direct_chat_id IS NULL
+      AND room_id IS NULL
   `;
   const lastReadMessageId = requestedId ? Math.min(requestedId, latestMessageId || requestedId) : latestMessageId;
 
@@ -58,5 +69,5 @@ export async function PATCH(request) {
       updated_at = EXCLUDED.updated_at
   `;
 
-  return NextResponse.json({ ok: true, ...(await getUnreadState(sql, user.id)) });
+  return NextResponse.json({ ok: true, ...(await getUnreadState(sql, user.id, companyId)) });
 }

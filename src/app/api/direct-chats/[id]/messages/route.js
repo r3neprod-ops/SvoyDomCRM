@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getAuthUser } from '@/lib/admin/auth';
 import { ensureSchema, getSql } from '@/lib/admin/db';
 import { sendPushToUser } from '@/lib/admin/push';
+import { getCurrentUserContext, onboardingResponse } from '@/lib/admin/company';
 
-async function checkAccess(sql, userId, chatId) {
+async function checkAccess(sql, userId, chatId, companyId) {
   const [row] = await sql`
     SELECT id FROM direct_chats
-    WHERE id = ${chatId} AND (user1_id = ${userId} OR user2_id = ${userId})
+    WHERE id = ${chatId}
+      AND company_id = ${companyId}
+      AND (user1_id = ${userId} OR user2_id = ${userId})
   `;
   return !!row;
 }
@@ -29,8 +31,10 @@ async function buildReactionsMap(sql, msgIds, userId) {
 }
 
 export async function GET(request, { params }) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
+  const { user, companyId } = context;
 
   const chatId = Number(params.id);
   if (!chatId) return NextResponse.json({ ok: false }, { status: 400 });
@@ -38,7 +42,7 @@ export async function GET(request, { params }) {
   await ensureSchema();
   const sql = getSql();
 
-  if (!await checkAccess(sql, user.id, chatId)) {
+  if (!await checkAccess(sql, user.id, chatId, companyId)) {
     return NextResponse.json({ ok: false }, { status: 403 });
   }
 
@@ -55,6 +59,7 @@ export async function GET(request, { params }) {
       FROM chat_messages cm
       LEFT JOIN users u ON u.id = cm.user_id
       WHERE cm.direct_chat_id = ${chatId}
+        AND cm.company_id = ${companyId}
       ORDER BY cm.created_at DESC
       LIMIT ${limit}
     ) latest
@@ -70,6 +75,7 @@ export async function GET(request, { params }) {
   const [{ unread_count: unreadCount = 0 } = {}] = await sql`
     SELECT COUNT(*)::int AS unread_count FROM chat_messages
     WHERE direct_chat_id = ${chatId}
+      AND company_id = ${companyId}
       AND user_id <> ${user.id} AND id > ${lastReadMessageId}
   `;
 
@@ -101,8 +107,10 @@ export async function GET(request, { params }) {
 }
 
 export async function POST(request, { params }) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
+  const { user, companyId } = context;
 
   const chatId = Number(params.id);
   if (!chatId) return NextResponse.json({ ok: false }, { status: 400 });
@@ -110,7 +118,7 @@ export async function POST(request, { params }) {
   await ensureSchema();
   const sql = getSql();
 
-  if (!await checkAccess(sql, user.id, chatId)) {
+  if (!await checkAccess(sql, user.id, chatId, companyId)) {
     return NextResponse.json({ ok: false }, { status: 403 });
   }
 
@@ -126,19 +134,21 @@ export async function POST(request, { params }) {
     const [ref] = await sql`
       SELECT cm.text, u.name AS author_name FROM chat_messages cm
       LEFT JOIN users u ON u.id = cm.user_id
-      WHERE cm.id = ${replyToId} AND cm.direct_chat_id = ${chatId}
+      WHERE cm.id = ${replyToId}
+        AND cm.company_id = ${companyId}
+        AND cm.direct_chat_id = ${chatId}
     `;
     if (ref) { replyToText = ref.text; replyToAuthor = ref.author_name; }
   }
 
   const [message] = await sql`
-    INSERT INTO chat_messages (user_id, direct_chat_id, text, media_type, reply_to_id, reply_to_text, reply_to_author)
-    VALUES (${user.id}, ${chatId}, ${text}, 'text', ${replyToId}, ${replyToText}, ${replyToAuthor})
+    INSERT INTO chat_messages (user_id, company_id, direct_chat_id, text, media_type, reply_to_id, reply_to_text, reply_to_author)
+    VALUES (${user.id}, ${companyId}, ${chatId}, ${text}, 'text', ${replyToId}, ${replyToText}, ${replyToAuthor})
     RETURNING id, text, media_url, media_type, media_mime, media_size, media_name,
               reply_to_id, reply_to_text, reply_to_author, created_at
   `;
 
-  const [chatRow] = await sql`SELECT user1_id, user2_id FROM direct_chats WHERE id = ${chatId}`;
+  const [chatRow] = await sql`SELECT user1_id, user2_id FROM direct_chats WHERE id = ${chatId} AND company_id = ${companyId}`;
   const otherId = chatRow.user1_id === user.id ? chatRow.user2_id : chatRow.user1_id;
   try {
     await sendPushToUser({
@@ -146,6 +156,7 @@ export async function POST(request, { params }) {
       title: `Личное от ${user.name}`,
       body: text.length > 120 ? `${text.slice(0, 117)}...` : text,
       url: '/admin/dashboard',
+      companyId,
       tag: `svoydom-crm-dm-${message.id}`,
       type: 'direct_chat',
     });

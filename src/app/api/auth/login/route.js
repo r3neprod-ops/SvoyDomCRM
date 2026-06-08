@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { getSql, ensureSchema } from '@/lib/admin/db';
-import { signToken } from '@/lib/admin/auth';
 import { logActivity } from '@/lib/admin/activityLog';
+import { setAuthCookie } from '@/lib/admin/company';
 
 export async function POST(request) {
   try {
@@ -16,9 +16,14 @@ export async function POST(request) {
     await ensureSchema();
     const sql = getSql();
     const [user] = await sql`
-      SELECT *
-      FROM users
-      WHERE lower(username) = ${normalizedLogin}
+      SELECT u.*, COALESCE(cm.role, u.role) AS session_role
+      FROM users u
+      LEFT JOIN company_members cm
+        ON cm.user_id = u.id
+       AND cm.company_id = u.active_company_id
+       AND cm.status = 'active'
+      WHERE lower(u.username) = ${normalizedLogin}
+         OR lower(u.email) = ${normalizedLogin}
       LIMIT 1
     `;
 
@@ -26,7 +31,6 @@ export async function POST(request) {
       return NextResponse.json({ ok: false, message: 'Неверный логин/@никнейм или пароль' }, { status: 401 });
     }
 
-    const token = await signToken({ id: user.id, role: user.role, name: user.name, username: user.username });
     await sql`UPDATE users SET last_login_at = NOW() WHERE id = ${user.id}`;
     await logActivity({
       userId: user.id,
@@ -37,14 +41,9 @@ export async function POST(request) {
       meta: { method: 'password' },
     });
 
-    const response = NextResponse.json({ ok: true, role: user.role, name: user.name });
-    response.cookies.set('auth_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 30 * 24 * 60 * 60,
-    });
+    const redirectTo = user.profile_completed && user.active_company_id ? '/admin/dashboard' : '/admin/onboarding';
+    const response = NextResponse.json({ ok: true, role: user.session_role || user.role, name: user.name, redirectTo });
+    await setAuthCookie(response, user.id);
     return response;
   } catch (error) {
     console.error('Login error:', error);

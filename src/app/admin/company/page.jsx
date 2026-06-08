@@ -1,12 +1,13 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUserContext } from '@/lib/admin/company';
-import DashboardClient from './DashboardClient';
+import CompanyClient from './CompanyClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function DashboardPage() {
+export default async function CompanyPage() {
   const context = await getCurrentUserContext({ requireCompany: true });
   if (!context.user) redirect('/admin/login');
   if (context.needsOnboarding) redirect('/admin/onboarding');
-  return <DashboardClient user={context.user} company={context.company} />;
+
+  return <CompanyClient user={context.user} />;
 }

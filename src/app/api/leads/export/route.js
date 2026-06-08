@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
-import { getAuthUser } from '@/lib/admin/auth';
 import { getSql, ensureSchema } from '@/lib/admin/db';
 import { canViewReports } from '@/lib/admin/roles';
+import { getCurrentUserContext, onboardingResponse } from '@/lib/admin/company';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,8 +23,10 @@ function formatDate(value) {
 }
 
 export async function GET(request) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
+  const { user, companyId } = context;
   if (!canViewReports(user)) return NextResponse.json({ ok: false }, { status: 403 });
 
   await ensureSchema();
@@ -34,8 +36,8 @@ export async function GET(request) {
   const dateFrom = searchParams.get('date_from');
   const dateTo = searchParams.get('date_to');
 
-  const conditions = [];
-  const params = [];
+  const conditions = ['l.company_id = $1'];
+  const params = [companyId];
 
   if (dateFrom) {
     params.push(dateFrom);
@@ -51,7 +53,7 @@ export async function GET(request) {
   const rows = await sql.query(
     `SELECT l.id, l.name, l.phone, l.message, l.status, l.assigned_to, l.created_at,
             u.name AS assigned_to_name,
-            (SELECT text FROM comments WHERE lead_id = l.id ORDER BY created_at DESC LIMIT 1) AS last_comment
+            (SELECT text FROM comments WHERE lead_id = l.id AND company_id = l.company_id ORDER BY created_at DESC LIMIT 1) AS last_comment
      FROM leads l
      LEFT JOIN users u ON l.assigned_to = u.id
      ${where}

@@ -167,19 +167,18 @@ export async function sendPushRows(rows, payload, { label = 'push' } = {}) {
   };
 }
 
-export async function sendPushToAll({ title, body, url = DEFAULT_URL, excludeUserId = null, tag = 'svoydom-crm-all', type = 'broadcast' }) {
-  console.log('[Push] sendPushToAll called', { title, type, excludeUserId });
+export async function sendPushToAll({ title, body, url = DEFAULT_URL, excludeUserId = null, companyId = null, tag = 'svoydom-crm-all', type = 'broadcast' }) {
+  console.log('[Push] sendPushToAll called', { title, type, excludeUserId, companyId });
   await ensureSchema();
-  await pushDebugLog('sendPushToAll:called', { data: { title, type, excludeUserId } });
+  await pushDebugLog('sendPushToAll:called', { data: { title, type, excludeUserId, companyId } });
 
   const sql = getSql();
-  const rows = excludeUserId
-    ? await sql`
-        SELECT id, endpoint, subscription
-        FROM push_subscriptions
-        WHERE user_id IS NULL OR user_id <> ${excludeUserId}
-      `
-    : await sql`SELECT id, endpoint, subscription FROM push_subscriptions`;
+  const rows = await sql`
+    SELECT id, endpoint, subscription
+    FROM push_subscriptions
+    WHERE (${companyId}::int IS NULL OR company_id = ${companyId})
+      AND (${excludeUserId}::int IS NULL OR user_id IS NULL OR user_id <> ${excludeUserId})
+  `;
 
   await pushDebugLog('sendPushToAll:rows_loaded', { data: { count: rows.length } });
 
@@ -195,7 +194,7 @@ export async function sendPushToAll({ title, body, url = DEFAULT_URL, excludeUse
   return result;
 }
 
-export async function sendPushToUsers({ userIds, title, body, url = DEFAULT_URL, tag = null, type = 'user' }) {
+export async function sendPushToUsers({ userIds, title, body, url = DEFAULT_URL, companyId = null, tag = null, type = 'user' }) {
   const ids = [...new Set((userIds || []).map(Number).filter(Boolean))];
   if (!ids.length) {
     return { ok: false, code: 'no_users', sent: 0, failed: 0, total: 0, results: [] };
@@ -207,12 +206,13 @@ export async function sendPushToUsers({ userIds, title, body, url = DEFAULT_URL,
     SELECT id, endpoint, subscription
     FROM push_subscriptions
     WHERE user_id = ANY(${ids})
+      AND (${companyId}::int IS NULL OR company_id = ${companyId})
   `;
 
   const payload = buildPushPayload({ title, body, url, tag: tag || `svoydom-crm-users-${ids.join('-')}`, type });
   return sendPushRows(rows, payload, { label: `users:${ids.join(',')}` });
 }
 
-export async function sendPushToUser({ userId, title, body, url = DEFAULT_URL, tag = null, type = 'user' }) {
-  return sendPushToUsers({ userIds: [userId], title, body, url, tag, type });
+export async function sendPushToUser({ userId, title, body, url = DEFAULT_URL, companyId = null, tag = null, type = 'user' }) {
+  return sendPushToUsers({ userIds: [userId], title, body, url, companyId, tag, type });
 }

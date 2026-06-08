@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getAuthUser } from '@/lib/admin/auth';
 import { ensureSchema, getSql } from '@/lib/admin/db';
 import { uploadChatMedia } from '@/lib/admin/s3';
 import { sendPushToAll } from '@/lib/admin/push';
+import { getCurrentUserContext, onboardingResponse } from '@/lib/admin/company';
 
 export const runtime = 'nodejs';
 
@@ -63,8 +63,10 @@ function getPushBody(type) {
 }
 
 export async function POST(request) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
+  const { user, companyId } = context;
 
   const formData = await request.formData();
   const file = formData.get('file');
@@ -92,8 +94,8 @@ export async function POST(request) {
       WHERE id = ${user.id}
     `;
     const [message] = await sql`
-      INSERT INTO chat_messages (user_id, text, media_url, media_type, media_mime, media_size, media_name)
-      VALUES (${user.id}, ${text}, ${mediaUrl}, ${requestedType}, ${contentType}, ${file.size}, ${file.name || null})
+      INSERT INTO chat_messages (user_id, company_id, text, media_url, media_type, media_mime, media_size, media_name)
+      VALUES (${user.id}, ${companyId}, ${text}, ${mediaUrl}, ${requestedType}, ${contentType}, ${file.size}, ${file.name || null})
       RETURNING id, text, media_url, media_type, media_mime, media_size, media_name, created_at
     `;
 
@@ -103,6 +105,7 @@ export async function POST(request) {
         body: getPushBody(requestedType),
         url: '/admin/dashboard',
         excludeUserId: user.id,
+        companyId,
         tag: `svoydom-crm-chat-media-${message.id}`,
         type: 'chat_media',
       });

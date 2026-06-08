@@ -1015,6 +1015,15 @@ function NavIcon({ name, className = 'h-5 w-5 shrink-0' }) {
           <path d="M8 13h8M8 17h5" />
         </svg>
       );
+    case 'company':
+      return (
+        <svg viewBox="0 0 24 24" {...props}>
+          <path d="M3 21h18" />
+          <path d="M5 21V7l7-4 7 4v14" />
+          <path d="M9 21v-6h6v6" />
+          <path d="M9 9h.01M12 9h.01M15 9h.01M9 12h.01M12 12h.01M15 12h.01" />
+        </svg>
+      );
     case 'chat':
       return (
         <svg viewBox="0 0 24 24" {...props}>
@@ -1854,6 +1863,11 @@ export default function DashboardClient({ user }) {
   }, [isOwnerUser]);
 
   const selectTab = (key) => {
+    if (key === 'company') {
+      setDrawerOpen(false);
+      router.push('/admin/company');
+      return;
+    }
     setActiveTab(key);
     setDrawerOpen(false);
     if (key === 'chat') setChatUnread(0);
@@ -2322,6 +2336,7 @@ export default function DashboardClient({ user }) {
     ] : []),
     ...(canManageTeamAccess ? [
       { key: 'employees', label: 'Сотрудники', icon: 'employees' },
+      { key: 'company', label: 'Компания', icon: 'company' },
     ] : []),
     ...(isOwnerUser ? [
       { key: 'logs', label: 'Логи', icon: 'logs' },

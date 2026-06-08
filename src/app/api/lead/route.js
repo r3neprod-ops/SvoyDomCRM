@@ -2,6 +2,7 @@ import { revalidateTag } from 'next/cache';
 import { addLead } from '@/lib/admin/store';
 import { sendPushToAll } from '@/lib/admin/push';
 import { pushDebugLog, getSql } from '@/lib/admin/db';
+import { findCompanyByLeadKey } from '@/lib/admin/company';
 
 const DEDUPE_WINDOW_MS = 30 * 1000;
 const recentLeadStore = new Map();
@@ -328,6 +329,34 @@ function _dblog(stage, data, leadId = null) {
   return s`INSERT INTO settings (key, value) VALUES (${key}, ${val}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
 }
 
+async function resolveLeadCompany(request, payload) {
+  const url = new URL(request.url);
+  const key =
+    request.headers.get('x-crm-company-key') ||
+    url.searchParams.get('company_key') ||
+    url.searchParams.get('company') ||
+    payload.company_key ||
+    payload.companyKey ||
+    payload.crm_company_key ||
+    '';
+
+  if (key) {
+    const company = await findCompanyByLeadKey(key);
+    if (!company) return { ok: false, status: 403, code: 'INVALID_COMPANY_KEY' };
+    return { ok: true, company };
+  }
+
+  const sql = getSql();
+  const [fallback] = await sql`
+    SELECT id, name, public_id, lead_token
+    FROM companies
+    WHERE public_id = 'main'
+    ORDER BY id ASC
+    LIMIT 1
+  `;
+  return { ok: true, company: fallback || null };
+}
+
 export async function POST(request) {
   // === BARE INSERT — FIRST LINE, NO TRY/CATCH — throws if getSql() or DB fails ===
   await _dblog('lead:handler_entered', { url: request.url, method: request.method });
@@ -358,6 +387,17 @@ export async function POST(request) {
       _dblog('lead:returning', { status: 200, reason: 'honeypot' }).catch(() => {});
       return jsonWithCors(request, { ok: true });
     }
+
+    const companyResult = await resolveLeadCompany(request, payload);
+    if (!companyResult.ok) {
+      _dblog('lead:returning', { status: companyResult.status, reason: 'company_key' }).catch(() => {});
+      return jsonWithCors(
+        request,
+        { ok: false, code: companyResult.code, message: 'Ключ компании не найден или больше не действителен.' },
+        { status: companyResult.status }
+      );
+    }
+    const companyId = companyResult.company?.id || null;
 
     console.log('[Lead] Step: validation');
     const phoneValidation = validatePhone(payload.phone);
@@ -393,7 +433,7 @@ export async function POST(request) {
     console.log('[Lead] Step: db');
     let leadId = null;
     try {
-      const lead = await addLead(safePayload);
+      const lead = await addLead(safePayload, { companyId });
       leadId = lead.id;
       revalidateTag('leads');
       await _dblog('lead:after_addlead', null, leadId);
@@ -405,6 +445,7 @@ export async function POST(request) {
           title: 'Новый лид!',
           body: pushBody,
           url: '/admin/dashboard',
+          companyId,
           tag: `svoydom-crm-lead-${leadId}`,
           type: 'lead',
         });

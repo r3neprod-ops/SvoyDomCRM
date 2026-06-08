@@ -1,5 +1,5 @@
-import { getAuthUser } from '@/lib/admin/auth';
 import { getSql, ensureSchema } from '@/lib/admin/db';
+import { getCurrentUserContext, onboardingResponse } from '@/lib/admin/company';
 
 function detectPlatform(userAgent = '') {
   const ua = userAgent.toLowerCase();
@@ -19,8 +19,10 @@ function isValidSubscription(subscription) {
 }
 
 export async function POST(request) {
-  const user = await getAuthUser();
-  if (!user) return Response.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return Response.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
+  const { user, companyId } = context;
 
   let subscription;
   try {
@@ -39,11 +41,12 @@ export async function POST(request) {
   const platform = detectPlatform(userAgent);
 
   const [row] = await sql`
-    INSERT INTO push_subscriptions (endpoint, subscription, user_id, user_agent, platform, updated_at)
-    VALUES (${subscription.endpoint}, ${sql.json(subscription)}, ${user.id}, ${userAgent}, ${platform}, NOW())
+    INSERT INTO push_subscriptions (endpoint, subscription, user_id, company_id, user_agent, platform, updated_at)
+    VALUES (${subscription.endpoint}, ${sql.json(subscription)}, ${user.id}, ${companyId}, ${userAgent}, ${platform}, NOW())
     ON CONFLICT (endpoint) DO UPDATE SET
       subscription = EXCLUDED.subscription,
       user_id = EXCLUDED.user_id,
+      company_id = EXCLUDED.company_id,
       user_agent = EXCLUDED.user_agent,
       platform = EXCLUDED.platform,
       updated_at = NOW(),
@@ -57,8 +60,10 @@ export async function POST(request) {
 }
 
 export async function DELETE(request) {
-  const user = await getAuthUser();
-  if (!user) return Response.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return Response.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
+  const { user, companyId } = context;
 
   let endpoint;
   try {
@@ -71,9 +76,9 @@ export async function DELETE(request) {
   const sql = getSql();
 
   if (endpoint) {
-    await sql`DELETE FROM push_subscriptions WHERE endpoint = ${endpoint} AND user_id = ${user.id}`;
+    await sql`DELETE FROM push_subscriptions WHERE endpoint = ${endpoint} AND user_id = ${user.id} AND company_id = ${companyId}`;
   } else {
-    await sql`DELETE FROM push_subscriptions WHERE user_id = ${user.id}`;
+    await sql`DELETE FROM push_subscriptions WHERE user_id = ${user.id} AND company_id = ${companyId}`;
   }
 
   return Response.json({ ok: true });

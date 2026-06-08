@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
-import { getAuthUser } from '@/lib/admin/auth';
 import { getSql, ensureSchema } from '@/lib/admin/db';
 import { addLeadEvent } from '@/lib/admin/leadEvents';
 import { sendPushToAll } from '@/lib/admin/push';
 import { canViewAllLeads } from '@/lib/admin/roles';
 import { logActivity } from '@/lib/admin/activityLog';
+import { getCurrentUserContext, onboardingResponse } from '@/lib/admin/company';
 
 export async function GET(request, { params }) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
+  const { user, companyId } = context;
 
   const leadId = Number(params.id);
   if (!leadId) return NextResponse.json({ ok: false }, { status: 400 });
@@ -17,7 +19,7 @@ export async function GET(request, { params }) {
   const sql = getSql();
 
   if (!canViewAllLeads(user)) {
-    const [lead] = await sql`SELECT assigned_to FROM leads WHERE id = ${leadId}`;
+    const [lead] = await sql`SELECT assigned_to FROM leads WHERE id = ${leadId} AND company_id = ${companyId}`;
     if (!lead || lead.assigned_to !== user.id) {
       return NextResponse.json({ ok: false }, { status: 403 });
     }
@@ -28,6 +30,7 @@ export async function GET(request, { params }) {
     FROM comments c
     LEFT JOIN users u ON u.id = c.user_id
     WHERE c.lead_id = ${leadId}
+      AND c.company_id = ${companyId}
     ORDER BY c.created_at ASC
   `;
   const events = await sql`
@@ -35,14 +38,17 @@ export async function GET(request, { params }) {
     FROM lead_events le
     LEFT JOIN users u ON u.id = le.user_id
     WHERE le.lead_id = ${leadId}
+      AND le.company_id = ${companyId}
     ORDER BY le.created_at ASC
   `;
   return NextResponse.json({ ok: true, comments, events });
 }
 
 export async function POST(request, { params }) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
+  const { user, companyId } = context;
 
   const leadId = Number(params.id);
   if (!leadId) return NextResponse.json({ ok: false }, { status: 400 });
@@ -54,20 +60,21 @@ export async function POST(request, { params }) {
   await ensureSchema();
   const sql = getSql();
 
-  const [lead] = await sql`SELECT assigned_to FROM leads WHERE id = ${leadId}`;
+  const [lead] = await sql`SELECT assigned_to FROM leads WHERE id = ${leadId} AND company_id = ${companyId}`;
   if (!lead) return NextResponse.json({ ok: false, message: 'Лид не найден' }, { status: 404 });
   if (!canViewAllLeads(user) && lead.assigned_to !== user.id) {
     return NextResponse.json({ ok: false }, { status: 403 });
   }
 
   const [comment] = await sql`
-    INSERT INTO comments (lead_id, user_id, text)
-    VALUES (${leadId}, ${user.id}, ${text})
+    INSERT INTO comments (lead_id, user_id, company_id, text)
+    VALUES (${leadId}, ${user.id}, ${companyId}, ${text})
     RETURNING id, text, created_at
   `;
   const [event] = await addLeadEvent(sql, {
     leadId,
     userId: user.id,
+    companyId,
     type: 'comment_added',
     message: 'Добавлен комментарий',
   });
@@ -76,6 +83,7 @@ export async function POST(request, { params }) {
     action: 'lead_comment_added',
     entityType: 'lead',
     entityId: leadId,
+    companyId,
     message: `${user.name || user.username} добавил комментарий к лиду #${leadId}`,
     meta: { text: text.slice(0, 240) },
   });
@@ -85,6 +93,7 @@ export async function POST(request, { params }) {
       title: `Комментарий к лиду #${leadId}`,
       body: `${user.name || 'CRM'}: ${text.length > 120 ? `${text.slice(0, 117)}...` : text}`,
       url: '/admin/dashboard',
+      companyId,
       excludeUserId: user.id,
       tag: `svoydom-crm-lead-comment-${leadId}-${Date.now()}`,
       type: 'lead_comment',

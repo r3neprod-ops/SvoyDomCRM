@@ -12,7 +12,7 @@ function buildMessage(answers) {
   return parts.join(', ');
 }
 
-export async function addLead(payload) {
+export async function addLead(payload, { companyId = null } = {}) {
   await ensureSchema();
   const sql = getSql();
   const answers = payload?.answers && typeof payload.answers === 'object' ? payload.answers : {};
@@ -22,8 +22,8 @@ export async function addLead(payload) {
 
   const row = await sql.begin(async (tx) => {
     const [inserted] = await tx`
-      INSERT INTO leads (name, phone, message, status, assigned_to)
-      VALUES (${name}, ${phone}, ${message}, 'new', NULL)
+      INSERT INTO leads (name, phone, message, status, assigned_to, company_id)
+      VALUES (${name}, ${phone}, ${message}, 'new', NULL, ${companyId})
       RETURNING id
     `;
 
@@ -36,6 +36,7 @@ export async function addLead(payload) {
 
     await addLeadEvent(tx, {
       leadId: lead.id,
+      companyId,
       type: 'created',
       message: 'Лид создан',
       meta: { source: payload?.pageUrl || null },
@@ -50,13 +51,14 @@ export async function addLead(payload) {
   return row;
 }
 
-export async function getLeads() {
+export async function getLeads(companyId = null) {
   await ensureSchema();
   const sql = getSql();
   return sql`
     SELECT l.*, u.name AS assigned_to_name
     FROM leads l
     LEFT JOIN users u ON l.assigned_to = u.id
+    WHERE (${companyId}::int IS NULL OR l.company_id = ${companyId})
     ORDER BY l.created_at DESC
   `;
 }

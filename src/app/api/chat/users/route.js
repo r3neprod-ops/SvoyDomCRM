@@ -1,20 +1,24 @@
 import { NextResponse } from 'next/server';
-import { getAuthUser } from '@/lib/admin/auth';
 import { ensureSchema, getSql } from '@/lib/admin/db';
 import { roleLabel } from '@/lib/admin/roles';
+import { getCurrentUserContext, onboardingResponse } from '@/lib/admin/company';
 
 export async function GET() {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
 
   await ensureSchema();
   const sql = getSql();
   const users = await sql`
-    SELECT id, username, role, name, avatar_url, status_text
-    FROM users
-    WHERE COALESCE(is_active, true) = true
+    SELECT u.id, u.username, cm.role, u.name, u.avatar_url, u.status_text
+    FROM company_members cm
+    JOIN users u ON u.id = cm.user_id
+    WHERE cm.company_id = ${context.companyId}
+      AND cm.status = 'active'
+      AND COALESCE(u.is_active, true) = true
     ORDER BY
-      CASE role
+      CASE cm.role
         WHEN 'owner' THEN 0
         WHEN 'admin' THEN 1
         WHEN 'manager' THEN 2

@@ -1,5 +1,6 @@
 import postgres from 'postgres';
 import bcrypt from 'bcryptjs';
+import { randomUUID } from 'crypto';
 
 let sql;
 let initialized = false;
@@ -180,6 +181,47 @@ async function ensureSchemaInner() {
   `;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS companies (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      public_id TEXT UNIQUE NOT NULL,
+      lead_token TEXT UNIQUE NOT NULL,
+      description TEXT,
+      website_url TEXT,
+      owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS company_members (
+      company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      role TEXT NOT NULL DEFAULT 'agent',
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY(company_id, user_id)
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS company_members_user_id_idx ON company_members (user_id, status)`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS company_join_requests (
+      id SERIAL PRIMARY KEY,
+      company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      status TEXT NOT NULL DEFAULT 'pending',
+      message TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(company_id, user_id)
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS company_join_requests_company_idx ON company_join_requests (company_id, status, created_at DESC)`;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS leads (
       id SERIAL PRIMARY KEY,
       name TEXT,
@@ -243,6 +285,8 @@ async function ensureSchemaInner() {
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_storage_key TEXT`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_completed BOOLEAN DEFAULT false`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS active_company_id INTEGER`;
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_idx ON users (lower(email)) WHERE email IS NOT NULL AND email <> ''`;
   await sql`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`;
   await sql`
@@ -258,7 +302,15 @@ async function ensureSchemaInner() {
   await sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS callback_note TEXT`;
   await sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_call_result TEXT`;
   await sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_call_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE`;
   await sql`CREATE INDEX IF NOT EXISTS leads_callback_at_idx ON leads (callback_at) WHERE callback_at IS NOT NULL`;
+  await sql`CREATE INDEX IF NOT EXISTS leads_company_created_idx ON leads (company_id, created_at DESC)`;
+  await sql`ALTER TABLE comments ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE`;
+  await sql`CREATE INDEX IF NOT EXISTS comments_company_lead_idx ON comments (company_id, lead_id, created_at DESC)`;
+  await sql`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE`;
+  await sql`CREATE INDEX IF NOT EXISTS chat_messages_company_created_idx ON chat_messages (company_id, created_at DESC)`;
+  await sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL`;
+  await sql`CREATE INDEX IF NOT EXISTS push_subscriptions_company_idx ON push_subscriptions (company_id)`;
   await sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`;
   await sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS user_agent TEXT`;
   await sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS platform TEXT`;
@@ -310,6 +362,8 @@ async function ensureSchemaInner() {
   `;
   await sql`CREATE INDEX IF NOT EXISTS activity_logs_created_at_idx ON activity_logs (created_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS activity_logs_user_id_idx ON activity_logs (user_id, created_at DESC)`;
+  await sql`ALTER TABLE activity_logs ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL`;
+  await sql`CREATE INDEX IF NOT EXISTS activity_logs_company_created_idx ON activity_logs (company_id, created_at DESC)`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS chat_reads (
@@ -337,6 +391,10 @@ async function ensureSchemaInner() {
       CHECK(user1_id < user2_id)
     )
   `;
+  await sql`ALTER TABLE direct_chats ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE`;
+  await sql`CREATE INDEX IF NOT EXISTS direct_chats_company_idx ON direct_chats (company_id)`;
+  await sql`ALTER TABLE direct_chats DROP CONSTRAINT IF EXISTS direct_chats_user1_id_user2_id_key`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS direct_chats_company_pair_idx ON direct_chats (company_id, user1_id, user2_id)`;
   await sql`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS direct_chat_id INTEGER REFERENCES direct_chats(id) ON DELETE CASCADE`;
   await sql`CREATE INDEX IF NOT EXISTS chat_messages_direct_chat_id_idx ON chat_messages (direct_chat_id)`;
   await sql`
@@ -359,6 +417,8 @@ async function ensureSchemaInner() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;
+  await sql`ALTER TABLE chat_rooms ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE`;
+  await sql`CREATE INDEX IF NOT EXISTS chat_rooms_company_idx ON chat_rooms (company_id)`;
   await sql`
     CREATE TABLE IF NOT EXISTS chat_room_members (
       room_id INTEGER REFERENCES chat_rooms(id) ON DELETE CASCADE,
@@ -409,6 +469,8 @@ async function ensureSchemaInner() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;
+  await sql`ALTER TABLE lead_events ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE`;
+  await sql`CREATE INDEX IF NOT EXISTS lead_events_company_idx ON lead_events (company_id, created_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS lead_events_lead_id_created_at_idx ON lead_events (lead_id, created_at DESC)`;
 
   await sql`
@@ -469,6 +531,56 @@ async function ensureSchemaInner() {
       ON CONFLICT (username) DO NOTHING
     `;
     console.log('[db] Admin user created with default password admin123');
+  }
+
+  const [tenantMigration] = await sql`SELECT value FROM settings WHERE key = 'tenant_bootstrap_v1' LIMIT 1`;
+  if (!tenantMigration) {
+    const [owner] = await sql`
+      SELECT id FROM users
+      WHERE role = 'owner'
+      ORDER BY CASE WHEN username = 'admin' THEN 0 ELSE 1 END, id
+      LIMIT 1
+    `;
+    const [company] = await sql`
+      INSERT INTO companies (name, public_id, lead_token, owner_id, description)
+      VALUES ('24CRM', 'main', ${`crm_${randomUUID().replace(/-/g, '')}`}, ${owner?.id || null}, 'Основная компания')
+      ON CONFLICT (public_id) DO UPDATE SET name = EXCLUDED.name
+      RETURNING id
+    `;
+
+    await sql`
+      INSERT INTO company_members (company_id, user_id, role, status)
+      SELECT ${company.id}, id, role, 'active'
+      FROM users
+      ON CONFLICT (company_id, user_id) DO NOTHING
+    `;
+    await sql`UPDATE users SET active_company_id = ${company.id}, profile_completed = true WHERE active_company_id IS NULL`;
+    await sql`UPDATE leads SET company_id = ${company.id} WHERE company_id IS NULL`;
+    await sql`
+      UPDATE comments c
+      SET company_id = COALESCE(l.company_id, ${company.id})
+      FROM leads l
+      WHERE c.lead_id = l.id AND c.company_id IS NULL
+    `;
+    await sql`UPDATE comments SET company_id = ${company.id} WHERE company_id IS NULL`;
+    await sql`UPDATE chat_messages SET company_id = ${company.id} WHERE company_id IS NULL`;
+    await sql`UPDATE direct_chats SET company_id = ${company.id} WHERE company_id IS NULL`;
+    await sql`UPDATE chat_rooms SET company_id = ${company.id} WHERE company_id IS NULL`;
+    await sql`
+      UPDATE lead_events le
+      SET company_id = COALESCE(l.company_id, ${company.id})
+      FROM leads l
+      WHERE le.lead_id = l.id AND le.company_id IS NULL
+    `;
+    await sql`UPDATE lead_events SET company_id = ${company.id} WHERE company_id IS NULL`;
+    await sql`UPDATE activity_logs SET company_id = ${company.id} WHERE company_id IS NULL`;
+    await sql`UPDATE push_subscriptions SET company_id = ${company.id} WHERE company_id IS NULL`;
+    await sql`
+      INSERT INTO settings (key, value)
+      VALUES ('tenant_bootstrap_v1', ${new Date().toISOString()})
+      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+    `;
+    console.log(`[db] Tenant bootstrap complete for company #${company.id}`);
   }
 
   initialized = true;

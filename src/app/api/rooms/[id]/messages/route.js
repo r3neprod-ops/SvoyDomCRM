@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server';
-import { getAuthUser } from '@/lib/admin/auth';
 import { ensureSchema, getSql } from '@/lib/admin/db';
 import { sendPushToUsers } from '@/lib/admin/push';
+import { getCurrentUserContext, onboardingResponse } from '@/lib/admin/company';
 
-async function checkAccess(sql, userId, roomId) {
+async function checkAccess(sql, userId, roomId, companyId) {
   const [row] = await sql`
-    SELECT role FROM chat_room_members WHERE room_id = ${roomId} AND user_id = ${userId}
+    SELECT crm.role
+    FROM chat_room_members crm
+    JOIN chat_rooms cr ON cr.id = crm.room_id
+    WHERE crm.room_id = ${roomId}
+      AND crm.user_id = ${userId}
+      AND cr.company_id = ${companyId}
   `;
   return !!row;
 }
@@ -28,8 +33,10 @@ async function buildReactionsMap(sql, msgIds, userId) {
 }
 
 export async function GET(request, { params }) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
+  const { user, companyId } = context;
 
   const roomId = Number(params.id);
   if (!roomId) return NextResponse.json({ ok: false }, { status: 400 });
@@ -37,7 +44,7 @@ export async function GET(request, { params }) {
   await ensureSchema();
   const sql = getSql();
 
-  if (!await checkAccess(sql, user.id, roomId)) {
+  if (!await checkAccess(sql, user.id, roomId, companyId)) {
     return NextResponse.json({ ok: false }, { status: 403 });
   }
 
@@ -54,6 +61,7 @@ export async function GET(request, { params }) {
       FROM chat_messages cm
       LEFT JOIN users u ON u.id = cm.user_id
       WHERE cm.room_id = ${roomId}
+        AND cm.company_id = ${companyId}
       ORDER BY cm.created_at DESC
       LIMIT ${limit}
     ) latest
@@ -69,6 +77,7 @@ export async function GET(request, { params }) {
   const [{ unread_count: unreadCount = 0 } = {}] = await sql`
     SELECT COUNT(*)::int AS unread_count FROM chat_messages
     WHERE room_id = ${roomId}
+      AND company_id = ${companyId}
       AND user_id <> ${user.id} AND id > ${lastReadMessageId}
   `;
 
@@ -100,8 +109,10 @@ export async function GET(request, { params }) {
 }
 
 export async function POST(request, { params }) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
+  const { user, companyId } = context;
 
   const roomId = Number(params.id);
   if (!roomId) return NextResponse.json({ ok: false }, { status: 400 });
@@ -109,7 +120,7 @@ export async function POST(request, { params }) {
   await ensureSchema();
   const sql = getSql();
 
-  if (!await checkAccess(sql, user.id, roomId)) {
+  if (!await checkAccess(sql, user.id, roomId, companyId)) {
     return NextResponse.json({ ok: false }, { status: 403 });
   }
 
@@ -125,19 +136,21 @@ export async function POST(request, { params }) {
     const [ref] = await sql`
       SELECT cm.text, u.name AS author_name FROM chat_messages cm
       LEFT JOIN users u ON u.id = cm.user_id
-      WHERE cm.id = ${replyToId} AND cm.room_id = ${roomId}
+      WHERE cm.id = ${replyToId}
+        AND cm.company_id = ${companyId}
+        AND cm.room_id = ${roomId}
     `;
     if (ref) { replyToText = ref.text; replyToAuthor = ref.author_name; }
   }
 
   const [message] = await sql`
-    INSERT INTO chat_messages (user_id, room_id, text, media_type, reply_to_id, reply_to_text, reply_to_author)
-    VALUES (${user.id}, ${roomId}, ${text}, 'text', ${replyToId}, ${replyToText}, ${replyToAuthor})
+    INSERT INTO chat_messages (user_id, company_id, room_id, text, media_type, reply_to_id, reply_to_text, reply_to_author)
+    VALUES (${user.id}, ${companyId}, ${roomId}, ${text}, 'text', ${replyToId}, ${replyToText}, ${replyToAuthor})
     RETURNING id, text, media_url, media_type, media_mime, media_size, media_name,
               reply_to_id, reply_to_text, reply_to_author, created_at
   `;
 
-  const [room] = await sql`SELECT name FROM chat_rooms WHERE id = ${roomId}`;
+  const [room] = await sql`SELECT name FROM chat_rooms WHERE id = ${roomId} AND company_id = ${companyId}`;
   const members = await sql`
     SELECT user_id FROM chat_room_members WHERE room_id = ${roomId} AND user_id <> ${user.id}
   `;
@@ -149,6 +162,7 @@ export async function POST(request, { params }) {
         title: `${room?.name || 'Канал'}: ${user.name}`,
         body: text.length > 120 ? `${text.slice(0, 117)}...` : text,
         url: '/admin/dashboard',
+        companyId,
         tag: `svoydom-crm-room-${message.id}`,
         type: 'room_chat',
       });

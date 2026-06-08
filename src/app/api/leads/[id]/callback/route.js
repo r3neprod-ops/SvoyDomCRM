@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
-import { getAuthUser } from '@/lib/admin/auth';
 import { ensureSchema, getSql } from '@/lib/admin/db';
 import { addLeadEvent } from '@/lib/admin/leadEvents';
 import { logActivity } from '@/lib/admin/activityLog';
 import { canManageLeads } from '@/lib/admin/roles';
 import { sendPushToUser } from '@/lib/admin/push';
+import { getCurrentUserContext, onboardingResponse } from '@/lib/admin/company';
 
 const CALL_RESULT_LABELS = {
   no_answer: 'Не дозвонился',
@@ -27,8 +27,10 @@ function formatLeadTitle(lead) {
 }
 
 export async function POST(request, { params }) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
+  const { user, companyId } = context;
 
   const id = Number(params.id);
   if (!id) return NextResponse.json({ ok: false }, { status: 400 });
@@ -47,6 +49,7 @@ export async function POST(request, { params }) {
     FROM leads l
     LEFT JOIN users u ON u.id = l.assigned_to
     WHERE l.id = ${id}
+      AND l.company_id = ${companyId}
   `;
   if (!lead) return NextResponse.json({ ok: false, message: 'Лид не найден' }, { status: 404 });
 
@@ -73,12 +76,14 @@ export async function POST(request, { params }) {
       last_call_result = ${result},
       last_call_at = NOW()
     WHERE id = ${id}
+      AND company_id = ${companyId}
     RETURNING id, callback_at, callback_note, last_call_result, last_call_at
   `;
 
   const event = await addLeadEvent(sql, {
     leadId: id,
     userId: user.id,
+    companyId,
     type: result === 'no_answer' ? 'call_no_answer' : 'callback_scheduled',
     message,
     meta: {
@@ -96,6 +101,7 @@ export async function POST(request, { params }) {
     action: result === 'no_answer' ? 'lead_call_no_answer' : 'lead_callback_scheduled',
     entityType: 'lead',
     entityId: id,
+    companyId,
     message: `${user.name || user.username}: ${message}`,
     meta: {
       result,
@@ -113,6 +119,7 @@ export async function POST(request, { params }) {
         title: `Перезвон по лиду: ${formatLeadTitle(lead)}`,
         body: message,
         url: '/admin/dashboard',
+        companyId,
         tag: `svoydom-crm-callback-${id}-${Date.now()}`,
         type: 'lead_callback',
       });

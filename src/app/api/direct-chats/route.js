@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getAuthUser } from '@/lib/admin/auth';
 import { ensureSchema, getSql } from '@/lib/admin/db';
+import { getCurrentUserContext, onboardingResponse } from '@/lib/admin/company';
 
 export async function GET() {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
+  const { user, companyId } = context;
 
   await ensureSchema();
   const sql = getSql();
@@ -42,7 +44,8 @@ export async function GET() {
       ) AS last_message_at
     FROM direct_chats dc
     JOIN users u ON u.id = CASE WHEN dc.user1_id = ${user.id} THEN dc.user2_id ELSE dc.user1_id END
-    WHERE dc.user1_id = ${user.id} OR dc.user2_id = ${user.id}
+    WHERE dc.company_id = ${companyId}
+      AND (dc.user1_id = ${user.id} OR dc.user2_id = ${user.id})
     ORDER BY last_message_at DESC NULLS LAST
   `;
 
@@ -50,8 +53,10 @@ export async function GET() {
 }
 
 export async function POST(request) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
+  const { user, companyId } = context;
 
   const body = await request.json().catch(() => ({}));
   const otherId = Number(body.other_user_id);
@@ -62,16 +67,25 @@ export async function POST(request) {
   await ensureSchema();
   const sql = getSql();
 
-  const [other] = await sql`SELECT id FROM users WHERE id = ${otherId} LIMIT 1`;
+  const [other] = await sql`
+    SELECT u.id
+    FROM company_members cm
+    JOIN users u ON u.id = cm.user_id
+    WHERE cm.company_id = ${companyId}
+      AND cm.user_id = ${otherId}
+      AND cm.status = 'active'
+      AND COALESCE(u.is_active, true) = true
+    LIMIT 1
+  `;
   if (!other) return NextResponse.json({ ok: false, message: 'Пользователь не найден' }, { status: 404 });
 
   const u1 = Math.min(user.id, otherId);
   const u2 = Math.max(user.id, otherId);
 
   const [chat] = await sql`
-    INSERT INTO direct_chats (user1_id, user2_id)
-    VALUES (${u1}, ${u2})
-    ON CONFLICT (user1_id, user2_id) DO UPDATE SET created_at = direct_chats.created_at
+    INSERT INTO direct_chats (company_id, user1_id, user2_id)
+    VALUES (${companyId}, ${u1}, ${u2})
+    ON CONFLICT (company_id, user1_id, user2_id) DO UPDATE SET created_at = direct_chats.created_at
     RETURNING id, user1_id, user2_id, created_at
   `;
 

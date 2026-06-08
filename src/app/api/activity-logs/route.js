@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
-import { getAuthUser } from '@/lib/admin/auth';
 import { ensureSchema, getSql } from '@/lib/admin/db';
 import { isOwner } from '@/lib/admin/roles';
+import { getCurrentUserContext, onboardingResponse } from '@/lib/admin/company';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
+  const { user, companyId } = context;
   if (!isOwner(user)) return NextResponse.json({ ok: false }, { status: 403 });
 
   await ensureSchema();
@@ -29,6 +31,7 @@ export async function GET(request) {
       u.role AS user_role
     FROM activity_logs al
     LEFT JOIN users u ON u.id = al.user_id
+    WHERE al.company_id = ${companyId}
     ORDER BY al.created_at DESC
     LIMIT ${limit}
   `;

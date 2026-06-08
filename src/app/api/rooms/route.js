@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getAuthUser } from '@/lib/admin/auth';
 import { ensureSchema, getSql } from '@/lib/admin/db';
+import { getCurrentUserContext, onboardingResponse } from '@/lib/admin/company';
 
 export async function GET() {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
+  const { user, companyId } = context;
 
   await ensureSchema();
   const sql = getSql();
@@ -32,6 +34,7 @@ export async function GET() {
       ) AS last_message_at
     FROM chat_rooms cr
     JOIN chat_room_members crm ON crm.room_id = cr.id AND crm.user_id = ${user.id}
+    WHERE cr.company_id = ${companyId}
     ORDER BY last_message_at DESC NULLS LAST, cr.created_at DESC
   `;
 
@@ -39,8 +42,10 @@ export async function GET() {
 }
 
 export async function POST(request) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
+  const { user, companyId } = context;
 
   const body = await request.json().catch(() => ({}));
   const name = body.name?.trim();
@@ -56,8 +61,8 @@ export async function POST(request) {
   const sql = getSql();
 
   const [room] = await sql`
-    INSERT INTO chat_rooms (name, created_by)
-    VALUES (${name}, ${user.id})
+    INSERT INTO chat_rooms (name, company_id, created_by)
+    VALUES (${name}, ${companyId}, ${user.id})
     RETURNING id, name, created_by, created_at
   `;
 
@@ -68,7 +73,15 @@ export async function POST(request) {
   `;
 
   if (memberIds.length > 0) {
-    const validUsers = await sql`SELECT id FROM users WHERE id = ANY(${memberIds}) AND is_active = true`;
+    const validUsers = await sql`
+      SELECT u.id
+      FROM company_members cm
+      JOIN users u ON u.id = cm.user_id
+      WHERE cm.company_id = ${companyId}
+        AND cm.user_id = ANY(${memberIds})
+        AND cm.status = 'active'
+        AND COALESCE(u.is_active, true) = true
+    `;
     for (const u of validUsers) {
       await sql`
         INSERT INTO chat_room_members (room_id, user_id, role)

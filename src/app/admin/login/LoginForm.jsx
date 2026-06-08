@@ -48,7 +48,7 @@ export default function LoginForm() {
       });
       const data = await res.json();
       if (data.ok) {
-        router.push('/admin/dashboard');
+        router.push(data.redirectTo || '/admin/dashboard');
       } else {
         setError(data.message || 'Ошибка входа');
       }

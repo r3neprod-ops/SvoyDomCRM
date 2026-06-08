@@ -1,17 +1,19 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { getAuthUser } from '@/lib/admin/auth';
 import { getSql, ensureSchema } from '@/lib/admin/db';
 import { canManageTeam, normalizeRole } from '@/lib/admin/roles';
 import { logActivity } from '@/lib/admin/activityLog';
+import { getCurrentUserContext, normalizeUsername, onboardingResponse } from '@/lib/admin/company';
 
 export async function POST(request) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
+  const { user, companyId } = context;
   if (!canManageTeam(user)) return NextResponse.json({ ok: false }, { status: 403 });
 
   const body = await request.json();
-  const username = body.username?.trim();
+  const username = normalizeUsername(body.username);
   const name = body.name?.trim();
   const role = normalizeRole(body.role, 'agent');
   const { password } = body;
@@ -32,17 +34,27 @@ export async function POST(request) {
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const [created] = await sql`
-    INSERT INTO users (username, password_hash, role, name)
-    VALUES (${username}, ${passwordHash}, ${role}, ${name})
-    RETURNING id, username, name, role, is_active
-  `;
+  const [created] = await sql.begin(async (tx) => {
+    const [newUser] = await tx`
+      INSERT INTO users (username, password_hash, role, name, profile_completed, active_company_id)
+      VALUES (${username}, ${passwordHash}, ${role}, ${name}, true, ${companyId})
+      RETURNING id, username, name, role, is_active
+    `;
+    await tx`
+      INSERT INTO company_members (company_id, user_id, role, status)
+      VALUES (${companyId}, ${newUser.id}, ${role}, 'active')
+      ON CONFLICT (company_id, user_id)
+      DO UPDATE SET role = EXCLUDED.role, status = 'active', updated_at = NOW()
+    `;
+    return [newUser];
+  });
 
   await logActivity({
     userId: user.id,
     action: 'user_created',
     entityType: 'user',
     entityId: created.id,
+    companyId,
     message: `${user.name || user.username} добавил пользователя ${created.name}`,
     meta: { username: created.username, role: created.role },
   });

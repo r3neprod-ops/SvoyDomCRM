@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getAuthUser, signToken } from '@/lib/admin/auth';
+import { getAuthUser } from '@/lib/admin/auth';
 import { ensureSchema, getSql } from '@/lib/admin/db';
 import { uploadChatMedia } from '@/lib/admin/s3';
+import { setAuthCookie } from '@/lib/admin/company';
 
 export const runtime = 'nodejs';
 
@@ -124,24 +125,18 @@ export async function PATCH(request) {
   const [profile] = avatarUrl
     ? await sql`
         UPDATE users
-        SET name = ${name}, username = ${username}, phone = ${phone}, status_text = ${statusText}, avatar_url = ${avatarUrl}, avatar_storage_key = ${avatarStorageKey}
+        SET name = ${name}, username = ${username}, phone = ${phone}, status_text = ${statusText}, avatar_url = ${avatarUrl}, avatar_storage_key = ${avatarStorageKey}, profile_completed = true
         WHERE id = ${user.id}
         RETURNING id, username, role, name, phone, status_text, avatar_url
       `
     : await sql`
         UPDATE users
-        SET name = ${name}, username = ${username}, phone = ${phone}, status_text = ${statusText}
+        SET name = ${name}, username = ${username}, phone = ${phone}, status_text = ${statusText}, profile_completed = true
         WHERE id = ${user.id}
         RETURNING id, username, role, name, phone, status_text, avatar_url
       `;
 
   const response = NextResponse.json({ ok: true, profile: normalizeProfile(profile) });
-  const token = await signToken({ id: profile.id, role: profile.role, name: profile.name, username: profile.username });
-  response.cookies.set('auth_token', token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 7 * 24 * 60 * 60,
-  });
+  await setAuthCookie(response, profile.id);
   return response;
 }

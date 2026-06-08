@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
-import { getAuthUser } from '@/lib/admin/auth';
 import { ensureSchema, getSql } from '@/lib/admin/db';
 import { createChatStream } from '@/lib/admin/chatStream';
+import { getCurrentUserContext, onboardingResponse } from '@/lib/admin/company';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET(request) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const context = await getCurrentUserContext({ requireCompany: true });
+  if (!context.user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (context.needsOnboarding) return onboardingResponse();
 
   await ensureSchema();
   const sql = getSql();
@@ -21,7 +22,9 @@ export async function GET(request) {
       const [{ max_id: maxId = 0 } = {}] = await sql`
         SELECT COALESCE(MAX(id), 0)::int AS max_id
         FROM chat_messages
-        WHERE direct_chat_id IS NULL AND room_id IS NULL
+        WHERE company_id = ${context.companyId}
+          AND direct_chat_id IS NULL
+          AND room_id IS NULL
       `;
       return maxId;
     },

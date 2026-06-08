@@ -237,8 +237,8 @@ export async function findOrCreateOAuthUser(sql, provider, profile) {
     const username = await uniqueUsername(sql, normalizedEmail || `${provider}_${profile.provider_account_id}`);
     const passwordHash = await bcrypt.hash(randomUUID(), 10);
     [user] = await sql`
-      INSERT INTO users (username, password_hash, role, name, email, avatar_url)
-      VALUES (${username}, ${passwordHash}, 'agent', ${profile.name}, ${normalizedEmail || null}, ${profile.avatar_url || null})
+      INSERT INTO users (username, password_hash, role, name, email, avatar_url, profile_completed)
+      VALUES (${username}, ${passwordHash}, 'agent', ${profile.name}, ${normalizedEmail || null}, ${profile.avatar_url || null}, false)
       RETURNING id, username, role, name
     `;
   }
@@ -262,7 +262,29 @@ export async function findOrCreateOAuthUser(sql, provider, profile) {
 }
 
 export async function buildOAuthSessionResponse(user, provider, redirectTo = '/admin/dashboard') {
-  const token = await signToken({ id: user.id, role: user.role, name: user.name, username: user.username });
+  const { getSql } = await import('./db');
+  const sql = getSql();
+  const [sessionUser] = await sql`
+    SELECT u.id, u.username, u.name, COALESCE(u.profile_completed, false) AS profile_completed,
+           u.active_company_id, COALESCE(cm.role, u.role) AS role
+    FROM users u
+    LEFT JOIN company_members cm
+      ON cm.user_id = u.id
+     AND cm.company_id = u.active_company_id
+     AND cm.status = 'active'
+    WHERE u.id = ${user.id}
+    LIMIT 1
+  `;
+  const finalUser = sessionUser || user;
+  const needsOnboarding = !finalUser.profile_completed || !finalUser.active_company_id;
+  const token = await signToken({
+    id: finalUser.id,
+    role: finalUser.role,
+    name: finalUser.name,
+    username: finalUser.username,
+    profile_completed: Boolean(finalUser.profile_completed),
+    active_company_id: finalUser.active_company_id || null,
+  });
   await logActivity({
     userId: user.id,
     action: 'user_login',
@@ -271,5 +293,5 @@ export async function buildOAuthSessionResponse(user, provider, redirectTo = '/a
     message: `${user.name || user.username} вошел в CRM через ${OAUTH_PROVIDERS[provider]?.label || provider}`,
     meta: { method: provider },
   });
-  return { token, redirectTo };
+  return { token, redirectTo: needsOnboarding ? '/admin/onboarding' : redirectTo };
 }
