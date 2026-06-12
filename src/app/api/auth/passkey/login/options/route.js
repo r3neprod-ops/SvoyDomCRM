@@ -8,8 +8,8 @@ export async function POST(request) {
   try {
     await ensureSchema();
     const sql = getSql();
-    const [row] = await sql`SELECT COUNT(*)::int AS count FROM webauthn_credentials`;
-    if (!row?.count) {
+    const [row] = await sql`SELECT COUNT(*) AS count FROM webauthn_credentials`;
+    if (!Number(row?.count || 0)) {
       return NextResponse.json({ ok: false, message: 'Быстрый вход еще не включен ни для одного аккаунта' }, { status: 404 });
     }
 
