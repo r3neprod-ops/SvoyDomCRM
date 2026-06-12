@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser';
 
 function EyeIcon({ open }) {
   if (open) {
@@ -27,28 +28,103 @@ function ShieldIcon() {
   );
 }
 
+function PhoneIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106a1.125 1.125 0 0 0-1.173.417l-.97 1.293a1.125 1.125 0 0 1-1.21.38 12.035 12.035 0 0 1-7.143-7.143 1.125 1.125 0 0 1 .38-1.21l1.293-.97c.36-.27.527-.726.417-1.173L6.963 3.102A1.125 1.125 0 0 0 5.872 2.25H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" />
+    </svg>
+  );
+}
+
+function PasskeyIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 20.25a7.5 7.5 0 0 1 15 0M16.5 14.25l1.5 1.5 3-3" />
+    </svg>
+  );
+}
+
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [username, setUsername] = useState('');
+  const [mode, setMode] = useState('phone');
+  const [phone, setPhone] = useState('');
+  const [smsCode, setSmsCode] = useState('');
+  const [smsSent, setSmsSent] = useState(false);
+  const [smsPhoneLabel, setSmsPhoneLabel] = useState('');
+  const [emailLogin, setEmailLogin] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const inputClassName =
+    'crm-focus-ring w-full rounded-crmXl border border-crm-border bg-crm-surface/60 px-4 text-base text-crm-text placeholder:text-crm-muted outline-none transition-colors duration-200 focus:border-crm-accent/50 h-[48px]';
+  const secondaryButtonClass =
+    'crm-focus-ring flex min-h-11 w-full items-center justify-center gap-2 rounded-crmXl border border-crm-border bg-crm-surface/45 px-3 text-sm font-semibold text-crm-text transition hover:border-crm-accent/35 hover:bg-crm-accent/10 hover:text-crm-accent disabled:cursor-not-allowed disabled:opacity-60';
+
+  const oauthError = searchParams.get('oauth_error');
+  const oauthErrorText = oauthError
+    ? oauthError.includes('not_configured')
+      ? 'Провайдер входа еще не настроен на сервере. Нужно добавить client_id и client_secret.'
+      : 'Не удалось войти через внешний аккаунт. Проверьте настройки приложения и callback URL.'
+    : '';
+  const oauthProviders = [
+    { id: 'yandex', label: 'Яндекс', mark: 'Я' },
+    { id: 'mailru', label: 'Mail.ru', mark: '@' },
+    { id: 'vk', label: 'VK', mark: 'VK' },
+  ];
+
+  const finishLogin = (data) => {
+    router.push(data.redirectTo || '/admin/dashboard');
+  };
+
+  const handlePhoneSubmit = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const url = smsSent ? '/api/auth/sms/verify' : '/api/auth/sms/start';
+      const payload = smsSent ? { phone, code: smsCode } : { phone };
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!data.ok) {
+        setError(data.message || 'Не удалось выполнить вход по телефону');
+        return;
+      }
+      if (smsSent) {
+        finishLogin(data);
+        return;
+      }
+      setSmsSent(true);
+      setSmsPhoneLabel(data.phone || phone);
+      setSmsCode('');
+    } catch {
+      setError('Ошибка сервера');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordSubmit = async (event) => {
+    event.preventDefault();
     setLoading(true);
     setError('');
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username: emailLogin, password }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (data.ok) {
-        router.push(data.redirectTo || '/admin/dashboard');
+        finishLogin(data);
       } else {
         setError(data.message || 'Ошибка входа');
       }
@@ -59,140 +135,221 @@ export default function LoginForm() {
     }
   };
 
-  const inputClassName =
-    'crm-focus-ring w-full rounded-crmXl border border-crm-border bg-crm-surface/60 px-4 text-base text-crm-text placeholder:text-crm-muted outline-none transition-colors duration-200 focus:border-crm-accent/50 h-[48px]';
-  const oauthError = searchParams.get('oauth_error');
-  const oauthErrorText = oauthError
-    ? oauthError.includes('not_configured')
-      ? 'Провайдер входа еще не настроен на сервере. Нужно добавить client_id и client_secret.'
-      : 'Не удалось войти через внешний аккаунт. Попробуйте еще раз или войдите по логину.'
-    : '';
-  const oauthProviders = [
-    { id: 'google', label: 'Google', mark: 'G' },
-    { id: 'yandex', label: 'Яндекс', mark: 'Я' },
-    { id: 'vk', label: 'VK', mark: 'VK' },
-    { id: 'mailru', label: 'Mail.ru', mark: '@' },
-  ];
+  const handlePasskeyLogin = async () => {
+    setError('');
+    if (!browserSupportsWebAuthn()) {
+      setError('Этот браузер не поддерживает быстрый вход.');
+      return;
+    }
+    setPasskeyLoading(true);
+    try {
+      const optionsRes = await fetch('/api/auth/passkey/login/options', { method: 'POST' });
+      const optionsData = await optionsRes.json().catch(() => ({}));
+      if (!optionsData.ok) {
+        setError(optionsData.message || 'Быстрый вход еще не включен.');
+        return;
+      }
+
+      const response = await startAuthentication({ optionsJSON: optionsData.options });
+      const verifyRes = await fetch('/api/auth/passkey/login/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response }),
+      });
+      const verifyData = await verifyRes.json().catch(() => ({}));
+      if (!verifyData.ok) {
+        setError(verifyData.message || 'Не удалось войти быстрым способом.');
+        return;
+      }
+      finishLogin(verifyData);
+    } catch (err) {
+      if (err?.name !== 'NotAllowedError') {
+        setError('Не удалось выполнить быстрый вход.');
+      }
+    } finally {
+      setPasskeyLoading(false);
+    }
+  };
+
+  const switchMode = (nextMode) => {
+    setMode(nextMode);
+    setError('');
+  };
 
   return (
     <main className="crm-app-bg crm-mobile-safe-bottom relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
-      <div className="relative z-10 w-full max-w-[420px] min-w-0">
-        {/* Brand mark */}
+      <div className="relative z-10 w-full max-w-[430px] min-w-0">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-crmXl border border-crm-border bg-crm-surface/50 shadow-crmGlow backdrop-blur-sm">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden="true">
               <path
-                d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5Z"
+                d="M4 12.2 12 5l8 7.2V20a1 1 0 0 1-1 1h-4.7v-5.8H9.7V21H5a1 1 0 0 1-1-1v-7.8Z"
                 stroke="url(#loginLogoGradient)"
                 strokeWidth="1.5"
                 strokeLinejoin="round"
               />
+              <path d="M8.4 11.7h7.2M8.4 14.5h4.2" stroke="var(--crm-accent)" strokeWidth="1.5" strokeLinecap="round" />
               <defs>
-                <linearGradient id="loginLogoGradient" x1="3" y1="4" x2="21" y2="21" gradientUnits="userSpaceOnUse">
+                <linearGradient id="loginLogoGradient" x1="4" y1="5" x2="20" y2="21" gradientUnits="userSpaceOnUse">
                   <stop stopColor="var(--crm-accent)" />
                   <stop offset="1" stopColor="var(--crm-accent-strong)" />
                 </linearGradient>
               </defs>
             </svg>
           </div>
-          <p className="text-sm font-medium tracking-wide text-crm-muted">СвойДом CRM</p>
+          <p className="text-sm font-medium tracking-wide text-crm-muted">CRM24</p>
         </div>
 
-        {/* Login card */}
         <div className="crm-glass rounded-crm2xl border border-crm-border p-6 shadow-crmCard sm:p-8">
-          <div className="mb-8">
+          <div className="mb-7">
             <h1 className="text-[1.625rem] font-semibold leading-tight tracking-tight text-crm-text sm:text-[1.75rem]">
-              Добро пожаловать
-              <span className="block crm-gradient-text">в СвойДом CRM</span>
+              Войти в CRM
+              <span className="block crm-gradient-text">без лишних шагов</span>
             </h1>
             <p className="mt-3 text-sm leading-relaxed text-crm-muted">
-              Единое пространство для управления лидами, сотрудниками и коммуникацией
+              Телефон, email-пароль или аккаунт сервиса. Быстрый вход можно включить после первого входа.
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label htmlFor="username" className="mb-2 block text-sm font-medium text-crm-text">
-                Логин или @никнейм
-              </label>
-              <input
-                id="username"
-                type="text"
-                name="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className={inputClassName}
-                placeholder="admin или @nickname"
-                required
-                autoComplete="username"
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="mb-2 block text-sm font-medium text-crm-text">
-                Пароль
-              </label>
-              <div className="relative">
+          {mode === 'phone' ? (
+            <form onSubmit={handlePhoneSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="phone" className="mb-2 flex items-center gap-2 text-sm font-medium text-crm-text">
+                  <PhoneIcon />
+                  Телефон
+                </label>
                 <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={`${inputClassName} pr-12`}
-                  placeholder="Введите пароль"
+                  id="phone"
+                  type="tel"
+                  inputMode="tel"
+                  name="phone"
+                  value={phone}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    setSmsSent(false);
+                    setSmsCode('');
+                  }}
+                  className={inputClassName}
+                  placeholder="+7 999 000-00-00"
                   required
-                  autoComplete="current-password"
+                  autoComplete="tel"
                   disabled={loading}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="crm-focus-ring absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-crmLg text-crm-muted transition-colors hover:text-crm-text"
-                  aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
-                  tabIndex={-1}
-                >
-                  <EyeIcon open={showPassword} />
-                </button>
               </div>
-            </div>
 
-            {error && (
-              <div
-                role="alert"
-                className="rounded-crmXl border border-crm-danger/30 bg-crm-danger/10 px-4 py-3 text-sm text-crm-danger"
-              >
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="crm-focus-ring flex min-h-[48px] w-full items-center justify-center rounded-crmXl bg-gradient-to-r from-crm-accent to-[var(--crm-accent-strong)] px-4 text-base font-semibold text-white shadow-crmGlow transition-all duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <svg className="h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Вход...
-                </span>
-              ) : (
-                'Войти'
+              {smsSent && (
+                <div>
+                  <label htmlFor="sms-code" className="mb-2 block text-sm font-medium text-crm-text">
+                    Код из SMS
+                  </label>
+                  <input
+                    id="sms-code"
+                    type="text"
+                    inputMode="numeric"
+                    name="sms-code"
+                    value={smsCode}
+                    onChange={(e) => setSmsCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className={inputClassName}
+                    placeholder="000000"
+                    required
+                    autoComplete="one-time-code"
+                    disabled={loading}
+                  />
+                  <p className="mt-2 text-xs text-crm-muted">Код отправлен на {smsPhoneLabel || phone}</p>
+                </div>
               )}
-            </button>
-          </form>
+
+              {error && <div role="alert" className="rounded-crmXl border border-crm-danger/30 bg-crm-danger/10 px-4 py-3 text-sm text-crm-danger">{error}</div>}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="crm-focus-ring flex min-h-[48px] w-full items-center justify-center rounded-crmXl bg-gradient-to-r from-crm-accent to-[var(--crm-accent-strong)] px-4 text-base font-semibold text-white shadow-crmGlow transition-all duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? 'Подождите...' : smsSent ? 'Войти по коду' : 'Получить код'}
+              </button>
+
+              <button type="button" onClick={() => switchMode('email')} className={secondaryButtonClass}>
+                Войти по email и паролю
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="email-login" className="mb-2 block text-sm font-medium text-crm-text">
+                  Email или @никнейм
+                </label>
+                <input
+                  id="email-login"
+                  type="text"
+                  name="email-login"
+                  value={emailLogin}
+                  onChange={(e) => setEmailLogin(e.target.value)}
+                  className={inputClassName}
+                  placeholder="mail@example.com или @nickname"
+                  required
+                  autoComplete="username"
+                  disabled={loading}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="mb-2 block text-sm font-medium text-crm-text">
+                  Пароль
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={`${inputClassName} pr-12`}
+                    placeholder="Введите пароль"
+                    required
+                    autoComplete="current-password"
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="crm-focus-ring absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-crmLg text-crm-muted transition-colors hover:text-crm-text"
+                    aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                    tabIndex={-1}
+                  >
+                    <EyeIcon open={showPassword} />
+                  </button>
+                </div>
+              </div>
+
+              {error && <div role="alert" className="rounded-crmXl border border-crm-danger/30 bg-crm-danger/10 px-4 py-3 text-sm text-crm-danger">{error}</div>}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="crm-focus-ring flex min-h-[48px] w-full items-center justify-center rounded-crmXl bg-gradient-to-r from-crm-accent to-[var(--crm-accent-strong)] px-4 text-base font-semibold text-white shadow-crmGlow transition-all duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? 'Вход...' : 'Войти'}
+              </button>
+
+              <button type="button" onClick={() => switchMode('phone')} className={secondaryButtonClass}>
+                Войти по телефону
+              </button>
+            </form>
+          )}
+
+          <button type="button" onClick={handlePasskeyLogin} disabled={passkeyLoading} className={`${secondaryButtonClass} mt-3`}>
+            <PasskeyIcon />
+            {passkeyLoading ? 'Проверяем устройство...' : 'Войти быстрым способом'}
+          </button>
 
           <div className="my-6 flex items-center gap-3">
             <div className="h-px flex-1 bg-crm-border" />
-            <span className="text-xs uppercase tracking-wide text-crm-muted">или</span>
+            <span className="text-xs uppercase tracking-wide text-crm-muted">или через сервис</span>
             <div className="h-px flex-1 bg-crm-border" />
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-3">
             {oauthProviders.map((provider) => (
               <a
                 key={provider.id}
@@ -216,7 +373,7 @@ export default function LoginForm() {
           <div className="mt-6 flex items-start gap-2.5 rounded-crmXl border border-crm-border/60 bg-crm-surface/40 px-4 py-3">
             <ShieldIcon />
             <p className="text-xs leading-relaxed text-crm-muted">
-              Ваши данные защищены. Безопасный вход по современным стандартам.
+              Данные защищены. Быстрый вход включается только после входа в аккаунт.
             </p>
           </div>
         </div>

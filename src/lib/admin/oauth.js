@@ -4,14 +4,6 @@ import { signToken } from './auth';
 import { logActivity } from './activityLog';
 
 export const OAUTH_PROVIDERS = {
-  google: {
-    label: 'Google',
-    authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
-    tokenUrl: 'https://oauth2.googleapis.com/token',
-    scope: 'openid email profile',
-    clientIdEnv: 'GOOGLE_CLIENT_ID',
-    clientSecretEnv: 'GOOGLE_CLIENT_SECRET',
-  },
   yandex: {
     label: 'Яндекс',
     authUrl: 'https://oauth.yandex.ru/authorize',

@@ -284,10 +284,12 @@ async function ensureSchemaInner() {
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_storage_key TEXT`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_e164 TEXT`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_completed BOOLEAN DEFAULT false`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS active_company_id INTEGER`;
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_idx ON users (lower(email)) WHERE email IS NOT NULL AND email <> ''`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS users_phone_e164_idx ON users (phone_e164) WHERE phone_e164 IS NOT NULL AND phone_e164 <> ''`;
   await sql`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`;
   await sql`
     ALTER TABLE users
@@ -347,6 +349,45 @@ async function ensureSchemaInner() {
     )
   `;
   await sql`CREATE INDEX IF NOT EXISTS user_auth_accounts_user_id_idx ON user_auth_accounts (user_id)`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS auth_sms_codes (
+      id SERIAL PRIMARY KEY,
+      phone_e164 TEXT NOT NULL,
+      code_hash TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      expires_at TIMESTAMPTZ NOT NULL,
+      consumed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS auth_sms_codes_phone_idx ON auth_sms_codes (phone_e164, created_at DESC)`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS webauthn_credentials (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      credential_id TEXT UNIQUE NOT NULL,
+      public_key TEXT NOT NULL,
+      counter BIGINT NOT NULL DEFAULT 0,
+      transports TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS webauthn_credentials_user_idx ON webauthn_credentials (user_id)`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS webauthn_challenges (
+      id SERIAL PRIMARY KEY,
+      challenge TEXT NOT NULL,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS webauthn_challenges_lookup_idx ON webauthn_challenges (challenge, type, expires_at)`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS activity_logs (

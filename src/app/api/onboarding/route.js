@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUserContext, normalizeUsername, setAuthCookie, USERNAME_PATTERN } from '@/lib/admin/company';
 import { ensureSchema, getSql } from '@/lib/admin/db';
+import { normalizePhoneE164 } from '@/lib/admin/phoneAuth';
 
 function cleanText(value, limit = 120) {
   return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, limit);
@@ -50,6 +51,11 @@ export async function PATCH(request) {
 
   await ensureSchema();
   const sql = getSql();
+  const phoneE164 = phone ? normalizePhoneE164(phone) : '';
+  if (phone && !phoneE164) {
+    return NextResponse.json({ ok: false, message: 'Укажите корректный номер телефона' }, { status: 400 });
+  }
+
   const [existing] = await sql`
     SELECT id
     FROM users
@@ -61,11 +67,25 @@ export async function PATCH(request) {
     return NextResponse.json({ ok: false, message: 'Этот никнейм уже занят' }, { status: 409 });
   }
 
+  if (phoneE164) {
+    const [existingPhone] = await sql`
+      SELECT id
+      FROM users
+      WHERE phone_e164 = ${phoneE164}
+        AND id <> ${context.user.id}
+      LIMIT 1
+    `;
+    if (existingPhone) {
+      return NextResponse.json({ ok: false, message: 'Этот телефон уже привязан к другому аккаунту' }, { status: 409 });
+    }
+  }
+
   const [profile] = await sql`
     UPDATE users
     SET name = ${name},
         username = ${username},
         phone = ${phone},
+        phone_e164 = ${phoneE164 || null},
         status_text = ${statusText},
         profile_completed = true
     WHERE id = ${context.user.id}

@@ -3,6 +3,7 @@ import { getAuthUser } from '@/lib/admin/auth';
 import { ensureSchema, getSql } from '@/lib/admin/db';
 import { uploadChatMedia } from '@/lib/admin/s3';
 import { setAuthCookie } from '@/lib/admin/company';
+import { normalizePhoneE164 } from '@/lib/admin/phoneAuth';
 
 export const runtime = 'nodejs';
 
@@ -15,6 +16,7 @@ function normalizeProfile(row) {
     username: row.username,
     role: row.role,
     name: row.name,
+    email: row.email || '',
     phone: row.phone || '',
     status_text: row.status_text || '',
     avatar_url: row.avatar_url || '',
@@ -40,7 +42,7 @@ function getExtension(file) {
 
 async function getProfile(sql, userId) {
   const [profile] = await sql`
-    SELECT id, username, role, name, phone, status_text, avatar_url
+    SELECT id, username, role, name, email, phone, status_text, avatar_url
     FROM users
     WHERE id = ${userId}
   `;
@@ -68,6 +70,7 @@ export async function PATCH(request) {
   const contentType = request.headers.get('content-type') || '';
 
   let phone = '';
+  let email = '';
   let statusText = '';
   let name = '';
   let username = '';
@@ -78,6 +81,7 @@ export async function PATCH(request) {
     const formData = await request.formData();
     name = validateText(formData.get('name'), 80);
     username = normalizeUsername(formData.get('username'));
+    email = validateText(formData.get('email'), 120).toLowerCase();
     phone = validateText(formData.get('phone'), 40);
     statusText = validateText(formData.get('status_text'), 160);
     const avatar = formData.get('avatar');
@@ -99,6 +103,7 @@ export async function PATCH(request) {
     const body = await request.json().catch(() => ({}));
     name = validateText(body.name, 80);
     username = normalizeUsername(body.username);
+    email = validateText(body.email, 120).toLowerCase();
     phone = validateText(body.phone, 40);
     statusText = validateText(body.status_text, 160);
   }
@@ -113,6 +118,14 @@ export async function PATCH(request) {
     );
   }
 
+  const phoneE164 = phone ? normalizePhoneE164(phone) : '';
+  if (phone && !phoneE164) {
+    return NextResponse.json({ ok: false, message: 'Укажите корректный номер телефона' }, { status: 400 });
+  }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return NextResponse.json({ ok: false, message: 'Укажите корректный email' }, { status: 400 });
+  }
+
   const [existing] = await sql`
     SELECT id
     FROM users
@@ -122,18 +135,43 @@ export async function PATCH(request) {
     return NextResponse.json({ ok: false, message: 'Никнейм уже занят' }, { status: 409 });
   }
 
+  if (phoneE164) {
+    const [existingPhone] = await sql`
+      SELECT id
+      FROM users
+      WHERE phone_e164 = ${phoneE164}
+        AND id <> ${user.id}
+      LIMIT 1
+    `;
+    if (existingPhone) {
+      return NextResponse.json({ ok: false, message: 'Этот телефон уже привязан к другому аккаунту' }, { status: 409 });
+    }
+  }
+  if (email) {
+    const [existingEmail] = await sql`
+      SELECT id
+      FROM users
+      WHERE lower(email) = ${email}
+        AND id <> ${user.id}
+      LIMIT 1
+    `;
+    if (existingEmail) {
+      return NextResponse.json({ ok: false, message: 'Этот email уже привязан к другому аккаунту' }, { status: 409 });
+    }
+  }
+
   const [profile] = avatarUrl
     ? await sql`
         UPDATE users
-        SET name = ${name}, username = ${username}, phone = ${phone}, status_text = ${statusText}, avatar_url = ${avatarUrl}, avatar_storage_key = ${avatarStorageKey}, profile_completed = true
+        SET name = ${name}, username = ${username}, email = ${email || null}, phone = ${phone}, phone_e164 = ${phoneE164 || null}, status_text = ${statusText}, avatar_url = ${avatarUrl}, avatar_storage_key = ${avatarStorageKey}, profile_completed = true
         WHERE id = ${user.id}
-        RETURNING id, username, role, name, phone, status_text, avatar_url
+        RETURNING id, username, role, name, email, phone, status_text, avatar_url
       `
     : await sql`
         UPDATE users
-        SET name = ${name}, username = ${username}, phone = ${phone}, status_text = ${statusText}, profile_completed = true
+        SET name = ${name}, username = ${username}, email = ${email || null}, phone = ${phone}, phone_e164 = ${phoneE164 || null}, status_text = ${statusText}, profile_completed = true
         WHERE id = ${user.id}
-        RETURNING id, username, role, name, phone, status_text, avatar_url
+        RETURNING id, username, role, name, email, phone, status_text, avatar_url
       `;
 
   const response = NextResponse.json({ ok: true, profile: normalizeProfile(profile) });

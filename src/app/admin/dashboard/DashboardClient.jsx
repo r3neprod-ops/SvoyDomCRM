@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { browserSupportsWebAuthn, startRegistration } from '@simplewebauthn/browser';
 import TeamChatPanel from './TeamChatPanel';
 import { ConfirmDialog, ToastStack } from './Feedback';
 import LeadContactActions from './LeadContactActions';
@@ -1094,10 +1095,11 @@ export default function DashboardClient({ user }) {
   const [newRoomName,    setNewRoomName]    = useState('');
   const [newRoomMembers, setNewRoomMembers] = useState([]);
   const [creatingRoom,   setCreatingRoom]   = useState(false);
-  const [profile, setProfile] = useState({ ...user, phone: '', status_text: '', avatar_url: '' });
+  const [profile, setProfile] = useState({ ...user, email: '', phone: '', status_text: '', avatar_url: '' });
   const [profileForm, setProfileForm] = useState({
     name: user.name || '',
     username: user.username || '',
+    email: user.email || '',
     phone: '',
     status_text: '',
     avatar: null,
@@ -1114,6 +1116,8 @@ export default function DashboardClient({ user }) {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passkeySaving, setPasskeySaving] = useState(false);
+  const [passkeyMessage, setPasskeyMessage] = useState('');
 
   // Comments modal
   const [commentModal, setCommentModal] = useState(null); // { leadId, leadName }
@@ -1292,6 +1296,7 @@ export default function DashboardClient({ user }) {
           setProfileForm({
             name: data.profile.name || '',
             username: data.profile.username || '',
+            email: data.profile.email || '',
             phone: data.profile.phone || '',
             status_text: data.profile.status_text || '',
             avatar: null,
@@ -1883,6 +1888,7 @@ export default function DashboardClient({ user }) {
       const formData = new FormData();
       formData.append('name', profileForm.name);
       formData.append('username', profileForm.username);
+      formData.append('email', profileForm.email);
       formData.append('phone', profileForm.phone);
       formData.append('status_text', profileForm.status_text);
       if (profileForm.avatar) formData.append('avatar', profileForm.avatar);
@@ -1945,6 +1951,53 @@ export default function DashboardClient({ user }) {
       setCredError('Ошибка сохранения');
     } finally {
       setCredSaving(false);
+    }
+  };
+
+  const setupPasskey = async () => {
+    setPasskeyMessage('');
+    if (!browserSupportsWebAuthn()) {
+      const message = 'Этот браузер не поддерживает быстрый вход.';
+      setPasskeyMessage(message);
+      showToast(message, 'error');
+      return;
+    }
+
+    setPasskeySaving(true);
+    try {
+      const optionsRes = await fetch('/api/auth/passkey/register/options', { method: 'POST' });
+      const optionsData = await optionsRes.json().catch(() => ({}));
+      if (!optionsData.ok) {
+        const message = optionsData.message || 'Не удалось подготовить быстрый вход';
+        setPasskeyMessage(message);
+        showToast(message, 'error');
+        return;
+      }
+
+      const response = await startRegistration({ optionsJSON: optionsData.options });
+      const verifyRes = await fetch('/api/auth/passkey/register/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response }),
+      });
+      const verifyData = await verifyRes.json().catch(() => ({}));
+      if (!verifyData.ok) {
+        const message = verifyData.message || 'Не удалось сохранить быстрый вход';
+        setPasskeyMessage(message);
+        showToast(message, 'error');
+        return;
+      }
+
+      setPasskeyMessage('Быстрый вход включен на этом устройстве.');
+      showToast('Быстрый вход включен', 'success');
+    } catch (err) {
+      if (err?.name !== 'NotAllowedError') {
+        const message = 'Не удалось включить быстрый вход';
+        setPasskeyMessage(message);
+        showToast(message, 'error');
+      }
+    } finally {
+      setPasskeySaving(false);
     }
   };
 
@@ -3136,6 +3189,17 @@ export default function DashboardClient({ user }) {
                       />
                     </div>
                     <div className="sm:col-span-2">
+                      <label className={profileLabelClass()}>Email для входа</label>
+                      <input
+                        type="email"
+                        value={profileForm.email}
+                        onChange={(e) => setProfileForm((prev) => ({ ...prev, email: e.target.value }))}
+                        placeholder="mail@example.com"
+                        autoComplete="email"
+                        className={profileInputClass()}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
                       <label className={profileLabelClass()}>Аватар</label>
                       <input
                         type="file"
@@ -3266,6 +3330,25 @@ export default function DashboardClient({ user }) {
                   <button type="submit" disabled={credSaving} className={profileButtonClass('primary')}>
                     {credSaving ? 'Сохранение...' : 'Обновить данные'}
                   </button>
+                  <div className="rounded-crmXl border border-crm-border bg-crm-surface/35 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-semibold text-crm-text">Быстрый вход на этом устройстве</h4>
+                        <p className="mt-1 text-xs leading-relaxed text-crm-muted">
+                          После настройки можно входить по Face ID, Touch ID, отпечатку или PIN без пароля.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={setupPasskey}
+                        disabled={passkeySaving}
+                        className="crm-focus-ring inline-flex min-h-10 shrink-0 items-center justify-center rounded-crmLg border border-crm-accent/35 bg-crm-accent/10 px-4 text-sm font-semibold text-crm-accent transition hover:bg-crm-accent/18 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {passkeySaving ? 'Настройка...' : 'Включить'}
+                      </button>
+                    </div>
+                    {passkeyMessage && <p className={`mt-3 ${profileAlertClass(passkeyMessage.includes('включен') ? 'success' : 'error')}`}>{passkeyMessage}</p>}
+                  </div>
                 </form>
               </section>
 
