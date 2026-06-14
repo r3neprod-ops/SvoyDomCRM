@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const DISMISS_KEY = 'svoydom-crm-install-dismissed-at';
+const DISMISS_KEY = 'crm24-install-dismissed-at';
 const DISMISS_TTL = 7 * 24 * 60 * 60 * 1000;
 
 function isStandaloneMode() {

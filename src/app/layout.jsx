@@ -7,13 +7,13 @@ import { ThemeProvider } from './ThemeProvider';
 const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('crm-theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();`;
 
 export const metadata = {
-  title: 'СвойДом CRM',
-  description: 'Панель управления лидами СвойДом',
-  applicationName: 'СвойДом CRM',
+  title: 'CRM24',
+  description: 'CRM для лидов, команды, чатов и компаний',
+  applicationName: 'CRM24',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    title: 'СвойДом CRM',
+    title: 'CRM24',
     statusBarStyle: 'default',
   },
   icons: {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'svoydom-crm-static-v7';
+const CACHE_NAME = 'crm24-static-v8';
 const PRECACHE_URLS = ['/manifest.json', '/admin-manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
@@ -66,7 +66,7 @@ async function clearBadge() {
 
 self.addEventListener('push', (event) => {
   const data = readPushPayload(event);
-  const title = data.title || 'СвойДом CRM';
+  const title = data.title || 'CRM24';
   const targetUrl = data.url || '/admin/dashboard';
   const badgeCount = Number(data.badgeCount || 1);
   const actions = self.Notification?.maxActions > 0

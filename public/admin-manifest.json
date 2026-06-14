@@ -1,8 +1,8 @@
 {
-  "name": "СвойДом CRM",
-  "short_name": "СвойДом CRM",
-  "description": "Панель управления лидами СвойДом",
-  "id": "/admin/login",
+  "name": "CRM24",
+  "short_name": "CRM24",
+  "description": "CRM для лидов, команды, чатов и компаний",
+  "id": "/",
   "start_url": "/admin/login",
   "scope": "/",
   "display": "standalone",
