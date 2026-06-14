@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CRM24</string>
+    <string name="title_activity_main">CRM24</string>
+    <string name="package_name">ru.crm24.app</string>
+    <string name="custom_url_scheme">ru.crm24.app</string>
+</resources>

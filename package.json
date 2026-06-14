@@ -7,10 +7,22 @@
     "build": "next build",
     "start": "next start",
     "vapid": "web-push generate-vapid-keys",
-    "lint": "next lint"
+    "lint": "next lint",
+    "mobile:sync": "cap sync android",
+    "mobile:open:android": "cap open android",
+    "mobile:build:android:debug": "powershell -ExecutionPolicy Bypass -File scripts/build-android.ps1 -BuildType Debug",
+    "mobile:build:android:release": "powershell -ExecutionPolicy Bypass -File scripts/build-android.ps1 -BuildType Release",
+    "mobile:build:android:aab": "powershell -ExecutionPolicy Bypass -File scripts/build-android.ps1 -BuildType Release -Artifact Bundle"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1048.0",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/browser": "^8.0.3",
+    "@capacitor/core": "^8.4.0",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/keyboard": "^8.0.3",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2",
     "@simplewebauthn/browser": "^13.3.0",
     "@simplewebauthn/server": "^13.3.1",
     "bcryptjs": "^3.0.3",
@@ -30,6 +42,8 @@
     "not op_mini all"
   ],
   "devDependencies": {
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/cli": "^8.4.0",
     "autoprefixer": "10.4.20",
     "critters": "^0.0.23",
     "eslint": "8.57.1",

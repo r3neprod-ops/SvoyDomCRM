@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 
 export default function ServiceWorkerRegistration() {
   useEffect(() => {
+    if (window.Capacitor?.isNativePlatform?.()) return;
     if (!('serviceWorker' in navigator)) return;
 
     const { hostname, protocol } = window.location;

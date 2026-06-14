@@ -61,9 +61,9 @@ export default function LoginForm() {
   const [passkeyLoading, setPasskeyLoading] = useState(false);
 
   const inputClassName =
-    'crm-focus-ring w-full rounded-crmXl border border-crm-border bg-crm-surface/60 px-4 text-base text-crm-text placeholder:text-crm-muted outline-none transition-colors duration-200 focus:border-crm-accent/50 h-[48px]';
-  const secondaryButtonClass =
-    'crm-focus-ring flex min-h-11 w-full items-center justify-center gap-2 rounded-crmXl border border-crm-border bg-crm-surface/45 px-3 text-sm font-semibold text-crm-text transition hover:border-crm-accent/35 hover:bg-crm-accent/10 hover:text-crm-accent disabled:cursor-not-allowed disabled:opacity-60';
+    'crm-focus-ring w-full rounded-crmXl border border-crm-border bg-crm-surface/60 px-4 text-base text-crm-text placeholder:text-crm-muted outline-none transition-colors duration-200 focus:border-crm-accent/50 h-[46px] sm:h-[48px]';
+  const quickButtonClass =
+    'crm-focus-ring flex min-h-10 w-full items-center justify-center gap-2 rounded-crmXl border border-crm-border bg-crm-surface/45 px-2 text-xs font-semibold text-crm-text transition hover:border-crm-accent/35 hover:bg-crm-accent/10 hover:text-crm-accent disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-11 sm:px-3 sm:text-sm';
 
   const oauthError = searchParams.get('oauth_error');
   const oauthErrorText = oauthError
@@ -177,9 +177,9 @@ export default function LoginForm() {
   };
 
   return (
-    <main className="crm-app-bg crm-mobile-safe-bottom relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+    <main className="crm-app-bg crm-login-screen crm-mobile-safe-bottom relative flex min-h-[100svh] items-center justify-center overflow-x-hidden px-3 py-4 sm:px-4 sm:py-10">
       <div className="relative z-10 w-full max-w-[430px] min-w-0">
-        <div className="mb-8 text-center">
+        <div className="crm-login-brand mb-5 text-center sm:mb-8">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-crmXl border border-crm-border bg-crm-surface/50 shadow-crmGlow backdrop-blur-sm">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden="true">
               <path
@@ -200,19 +200,19 @@ export default function LoginForm() {
           <p className="text-sm font-medium tracking-wide text-crm-muted">CRM24</p>
         </div>
 
-        <div className="crm-glass rounded-crm2xl border border-crm-border p-6 shadow-crmCard sm:p-8">
-          <div className="mb-7">
-            <h1 className="text-[1.625rem] font-semibold leading-tight tracking-tight text-crm-text sm:text-[1.75rem]">
+        <div className="crm-glass crm-login-card rounded-crm2xl border border-crm-border p-5 shadow-crmCard sm:p-8">
+          <div className="mb-5 sm:mb-7">
+            <h1 className="crm-login-title text-[1.5rem] font-semibold leading-tight tracking-tight text-crm-text sm:text-[1.75rem]">
               Войти в CRM
               <span className="block crm-gradient-text">без лишних шагов</span>
             </h1>
-            <p className="mt-3 text-sm leading-relaxed text-crm-muted">
+            <p className="crm-login-copy mt-2 text-sm leading-relaxed text-crm-muted sm:mt-3">
               Телефон, email-пароль или аккаунт сервиса. Быстрый вход можно включить после первого входа.
             </p>
           </div>
 
           {mode === 'phone' ? (
-            <form onSubmit={handlePhoneSubmit} className="space-y-4">
+            <form onSubmit={handlePhoneSubmit} className="space-y-3 sm:space-y-4">
               <div>
                 <label htmlFor="phone" className="mb-2 flex items-center gap-2 text-sm font-medium text-crm-text">
                   <PhoneIcon />
@@ -264,17 +264,23 @@ export default function LoginForm() {
               <button
                 type="submit"
                 disabled={loading}
-                className="crm-focus-ring flex min-h-[48px] w-full items-center justify-center rounded-crmXl bg-gradient-to-r from-crm-accent to-[var(--crm-accent-strong)] px-4 text-base font-semibold text-white shadow-crmGlow transition-all duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                className="crm-focus-ring flex min-h-[46px] w-full items-center justify-center rounded-crmXl bg-gradient-to-r from-crm-accent to-[var(--crm-accent-strong)] px-4 text-sm font-semibold text-white shadow-crmGlow transition-all duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[48px] sm:text-base"
               >
                 {loading ? 'Подождите...' : smsSent ? 'Войти по коду' : 'Получить код'}
               </button>
 
-              <button type="button" onClick={() => switchMode('email')} className={secondaryButtonClass}>
-                Войти по email и паролю
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => switchMode('email')} className={quickButtonClass}>
+                  Email
+                </button>
+                <button type="button" onClick={handlePasskeyLogin} disabled={passkeyLoading} className={quickButtonClass}>
+                  <PasskeyIcon />
+                  <span>{passkeyLoading ? 'Проверка...' : 'Биометрия'}</span>
+                </button>
+              </div>
             </form>
           ) : (
-            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            <form onSubmit={handlePasswordSubmit} className="space-y-3 sm:space-y-4">
               <div>
                 <label htmlFor="email-login" className="mb-2 block text-sm font-medium text-crm-text">
                   Email или @никнейм
@@ -327,39 +333,42 @@ export default function LoginForm() {
               <button
                 type="submit"
                 disabled={loading}
-                className="crm-focus-ring flex min-h-[48px] w-full items-center justify-center rounded-crmXl bg-gradient-to-r from-crm-accent to-[var(--crm-accent-strong)] px-4 text-base font-semibold text-white shadow-crmGlow transition-all duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                className="crm-focus-ring flex min-h-[46px] w-full items-center justify-center rounded-crmXl bg-gradient-to-r from-crm-accent to-[var(--crm-accent-strong)] px-4 text-sm font-semibold text-white shadow-crmGlow transition-all duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[48px] sm:text-base"
               >
                 {loading ? 'Вход...' : 'Войти'}
               </button>
 
-              <button type="button" onClick={() => switchMode('phone')} className={secondaryButtonClass}>
-                Войти по телефону
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => switchMode('phone')} className={quickButtonClass}>
+                  Телефон
+                </button>
+                <button type="button" onClick={handlePasskeyLogin} disabled={passkeyLoading} className={quickButtonClass}>
+                  <PasskeyIcon />
+                  <span>{passkeyLoading ? 'Проверка...' : 'Биометрия'}</span>
+                </button>
+              </div>
             </form>
           )}
 
-          <button type="button" onClick={handlePasskeyLogin} disabled={passkeyLoading} className={`${secondaryButtonClass} mt-3`}>
-            <PasskeyIcon />
-            {passkeyLoading ? 'Проверяем устройство...' : 'Войти быстрым способом'}
-          </button>
-
-          <div className="my-6 flex items-center gap-3">
+          <div className="crm-login-divider my-4 flex items-center gap-3 sm:my-6">
             <div className="h-px flex-1 bg-crm-border" />
-            <span className="text-xs uppercase tracking-wide text-crm-muted">или через сервис</span>
+            <span className="text-[11px] uppercase tracking-wide text-crm-muted sm:text-xs">или через сервис</span>
             <div className="h-px flex-1 bg-crm-border" />
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-2">
             {oauthProviders.map((provider) => (
               <a
                 key={provider.id}
                 href={`/api/auth/oauth/${provider.id}`}
-                className="crm-focus-ring flex min-h-11 items-center justify-center gap-2 rounded-crmXl border border-crm-border bg-crm-surface/45 px-3 text-sm font-semibold text-crm-text transition hover:border-crm-accent/35 hover:bg-crm-accent/10 hover:text-crm-accent"
+                className="crm-focus-ring flex min-h-12 items-center justify-center gap-2 rounded-crmXl border border-crm-border bg-crm-surface/45 px-2 text-sm font-semibold text-crm-text transition hover:border-crm-accent/35 hover:bg-crm-accent/10 hover:text-crm-accent"
+                aria-label={`Войти через ${provider.label}`}
+                title={`Войти через ${provider.label}`}
               >
-                <span className="flex h-6 min-w-6 items-center justify-center rounded-full border border-crm-border bg-crm-surface/70 text-[11px]">
+                <span className="flex h-8 min-w-8 items-center justify-center rounded-full border border-crm-border bg-crm-surface/70 text-[12px] font-black">
                   {provider.mark}
                 </span>
-                {provider.label}
+                <span className="hidden sm:inline">{provider.label}</span>
               </a>
             ))}
           </div>
@@ -370,7 +379,7 @@ export default function LoginForm() {
             </div>
           )}
 
-          <div className="mt-6 flex items-start gap-2.5 rounded-crmXl border border-crm-border/60 bg-crm-surface/40 px-4 py-3">
+          <div className="crm-login-safe-note mt-5 flex items-start gap-2.5 rounded-crmXl border border-crm-border/60 bg-crm-surface/40 px-4 py-3 sm:mt-6">
             <ShieldIcon />
             <p className="text-xs leading-relaxed text-crm-muted">
               Данные защищены. Быстрый вход включается только после входа в аккаунт.

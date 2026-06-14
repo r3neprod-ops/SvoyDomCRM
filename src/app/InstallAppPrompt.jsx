@@ -10,6 +10,11 @@ function isStandaloneMode() {
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 }
 
+function isNativeApp() {
+  if (typeof window === 'undefined') return false;
+  return Boolean(window.Capacitor?.isNativePlatform?.());
+}
+
 function isMobileDevice() {
   if (typeof window === 'undefined') return false;
   return window.matchMedia('(max-width: 820px)').matches || /Android|iPhone|iPad|iPod/i.test(window.navigator.userAgent);
@@ -39,6 +44,7 @@ export default function InstallAppPrompt() {
   const [mode, setMode] = useState('hidden');
 
   useEffect(() => {
+    if (isNativeApp()) return;
     if (!isMobileDevice() || isStandaloneMode() || shouldStayDismissed()) return;
 
     const nextMode = getInstallMode();
