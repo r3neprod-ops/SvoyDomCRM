@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser';
 
 function EyeIcon({ open }) {
   if (open) {
@@ -36,15 +35,6 @@ function PhoneIcon() {
   );
 }
 
-function PasskeyIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 20.25a7.5 7.5 0 0 1 15 0M16.5 14.25l1.5 1.5 3-3" />
-    </svg>
-  );
-}
-
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -58,7 +48,6 @@ export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [passkeyLoading, setPasskeyLoading] = useState(false);
 
   const inputClassName =
     'crm-focus-ring w-full rounded-crmXl border border-crm-border bg-crm-surface/60 px-4 text-base text-crm-text placeholder:text-crm-muted outline-none transition-colors duration-200 focus:border-crm-accent/50 h-[46px] sm:h-[48px]';
@@ -132,42 +121,6 @@ export default function LoginForm() {
       setError('Ошибка сервера');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handlePasskeyLogin = async () => {
-    setError('');
-    if (!browserSupportsWebAuthn()) {
-      setError('Этот браузер не поддерживает быстрый вход.');
-      return;
-    }
-    setPasskeyLoading(true);
-    try {
-      const optionsRes = await fetch('/api/auth/passkey/login/options', { method: 'POST' });
-      const optionsData = await optionsRes.json().catch(() => ({}));
-      if (!optionsData.ok) {
-        setError(optionsData.message || 'Быстрый вход еще не включен.');
-        return;
-      }
-
-      const response = await startAuthentication({ optionsJSON: optionsData.options });
-      const verifyRes = await fetch('/api/auth/passkey/login/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ response }),
-      });
-      const verifyData = await verifyRes.json().catch(() => ({}));
-      if (!verifyData.ok) {
-        setError(verifyData.message || 'Не удалось войти быстрым способом.');
-        return;
-      }
-      finishLogin(verifyData);
-    } catch (err) {
-      if (err?.name !== 'NotAllowedError') {
-        setError('Не удалось выполнить быстрый вход.');
-      }
-    } finally {
-      setPasskeyLoading(false);
     }
   };
 
@@ -269,13 +222,9 @@ export default function LoginForm() {
                 {loading ? 'Подождите...' : smsSent ? 'Войти по коду' : 'Получить код'}
               </button>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div>
                 <button type="button" onClick={() => switchMode('email')} className={quickButtonClass}>
                   Email
-                </button>
-                <button type="button" onClick={handlePasskeyLogin} disabled={passkeyLoading} className={quickButtonClass}>
-                  <PasskeyIcon />
-                  <span>{passkeyLoading ? 'Проверка...' : 'Биометрия'}</span>
                 </button>
               </div>
             </form>
@@ -338,13 +287,9 @@ export default function LoginForm() {
                 {loading ? 'Вход...' : 'Войти'}
               </button>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div>
                 <button type="button" onClick={() => switchMode('phone')} className={quickButtonClass}>
                   Телефон
-                </button>
-                <button type="button" onClick={handlePasskeyLogin} disabled={passkeyLoading} className={quickButtonClass}>
-                  <PasskeyIcon />
-                  <span>{passkeyLoading ? 'Проверка...' : 'Биометрия'}</span>
                 </button>
               </div>
             </form>
