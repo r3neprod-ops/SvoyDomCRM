@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 
 const DISMISS_KEY = 'crm24-install-dismissed-at';
 const DISMISS_TTL = 7 * 24 * 60 * 60 * 1000;
+const INSTALL_PROMPT_ENABLED = process.env.NEXT_PUBLIC_ENABLE_PWA_PROMPT === '1';
 
 function isStandaloneMode() {
   if (typeof window === 'undefined') return false;
@@ -44,6 +45,7 @@ export default function InstallAppPrompt() {
   const [mode, setMode] = useState('hidden');
 
   useEffect(() => {
+    if (!INSTALL_PROMPT_ENABLED) return;
     if (isNativeApp()) return;
     if (!isMobileDevice() || isStandaloneMode() || shouldStayDismissed()) return;
 
@@ -87,7 +89,7 @@ export default function InstallAppPrompt() {
     setVisible(false);
   };
 
-  if (!visible || mode === 'hidden') return null;
+  if (!INSTALL_PROMPT_ENABLED || !visible || mode === 'hidden') return null;
 
   const title = mode === 'ios' ? 'Добавить CRM на экран Домой' : 'Установить CRM на телефон';
   const description =

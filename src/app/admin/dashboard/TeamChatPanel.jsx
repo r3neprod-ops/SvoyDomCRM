@@ -69,13 +69,13 @@ function sameGroup(msgs, i) {
   const p = msgs[i - 1], c = msgs[i];
   return p.user_id === c.user_id && new Date(c.created_at) - new Date(p.created_at) < 5 * 60_000;
 }
-const PALETTE = ['#E91E63','#9C27B0','#673AB7','#3F51B5','#2196F3','#00BCD4','#009688','#4CAF50','#FF9800','#FF5722'];
+const PALETTE = ['#05B9C9','#1B90E8','#2FDDCA','#0FAE7D','#F5B43C','#EF4F75','#14B8A6','#38BDF8','#22C55E','#F97316'];
 const nameCol = (uid) => PALETTE[(uid ?? 0) % PALETTE.length];
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '😡', '🔥', '👏'];
 
 /* ─── Visual class helpers (presentation only) ─────────────────────────────── */
 const cx = (...parts) => parts.filter(Boolean).join(' ');
-const btnGlass = 'flex shrink-0 items-center justify-center rounded-crmXl border border-crm-border bg-[var(--crm-surface-strong)] text-crm-muted transition hover:border-crm-accent/25 hover:bg-[var(--crm-accent-soft)] hover:text-crm-accent crm-focus-ring';
+const btnGlass = 'flex shrink-0 items-center justify-center rounded-[1.25rem] border border-crm-border bg-white/70 text-crm-muted shadow-sm transition hover:border-crm-accent/25 hover:bg-white/90 hover:text-crm-accent crm-focus-ring';
 const btnPrimaryRound = (size = 'h-11 w-11') => cx(
   'flex items-center justify-center rounded-full bg-gradient-to-br from-crm-accent to-[var(--crm-accent-strong)] text-white shadow-crmGlow transition hover:opacity-90 disabled:opacity-40 crm-focus-ring',
   size,
@@ -928,7 +928,7 @@ export default function TeamChatPanel({
 
   /* ── Render ──────────────────────────────────────────────────────────────── */
   return (
-    <section className="crm-app-bg fixed top-0 left-0 right-0 z-30 flex h-dvh min-w-0 flex-col overflow-hidden md:left-72">
+    <section className="crm-app-bg fixed top-0 left-0 right-0 z-30 flex h-dvh min-w-0 flex-col overflow-hidden md:left-80">
 
       {/* Header */}
       <div className="crm-glass flex shrink-0 items-center gap-2 border-b border-crm-border px-3 py-3 shadow-crmCard">
@@ -1038,7 +1038,7 @@ export default function TeamChatPanel({
         </div>
 
         {/* Input area */}
-        <div className="crm-glass crm-mobile-safe-bottom relative z-10 shrink-0 border-t border-crm-border px-3 py-3">
+        <div className="crm-glass relative z-10 shrink-0 border-t border-crm-border px-3 pb-[calc(5.35rem+max(env(safe-area-inset-bottom,0px),0px))] pt-3 md:pb-3">
           {error && <p className="mb-2 rounded-crmXl border border-crm-danger/30 bg-crm-danger/10 px-3 py-2 text-sm text-crm-danger">{error}</p>}
 
           {replyTo && !isRec && (

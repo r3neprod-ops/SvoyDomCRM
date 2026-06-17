@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 const inputClass =
-  'crm-focus-ring h-12 w-full rounded-crmXl border border-crm-border bg-crm-surface/70 px-4 text-sm text-crm-text placeholder:text-crm-muted outline-none transition focus:border-crm-accent/50';
+  'crm-focus-ring crm-input-surface h-12 w-full rounded-[1.35rem] px-4 text-sm text-crm-text placeholder:text-crm-muted outline-none transition focus:border-crm-accent/50';
 const textareaClass =
-  'crm-focus-ring min-h-24 w-full rounded-crmXl border border-crm-border bg-crm-surface/70 px-4 py-3 text-sm text-crm-text placeholder:text-crm-muted outline-none transition focus:border-crm-accent/50';
+  'crm-focus-ring crm-input-surface min-h-24 w-full rounded-[1.35rem] px-4 py-3 text-sm text-crm-text placeholder:text-crm-muted outline-none transition focus:border-crm-accent/50';
 
 async function readJson(res) {
   const text = await res.text();
@@ -33,6 +33,12 @@ export default function CompanyClient() {
 
   const [form, setForm] = useState({ name: '', public_id: '', website_url: '', description: '' });
   const endpoint = useMemo(() => 'https://24crmka.ru/api/lead', []);
+  const quickStats = useMemo(() => ([
+    { label: 'Сотрудники', value: members.length, hint: 'в команде' },
+    { label: 'Заявки', value: requests.length, hint: 'на вступление' },
+    { label: 'Сайт', value: company?.website_url ? 'OK' : '-', hint: company?.website_url || 'не указан' },
+    { label: 'ID', value: company?.public_id || '-', hint: 'для поиска компании' },
+  ]), [company?.public_id, company?.website_url, members.length, requests.length]);
 
   const loadCompany = async () => {
     setLoading(true);
@@ -164,18 +170,30 @@ export default function CompanyClient() {
   return (
     <main className="crm-app-bg min-h-screen px-4 py-6 text-crm-text sm:px-6 lg:px-8">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
-        <header className="crm-glass rounded-crm2xl border border-crm-border p-5 shadow-crmCard">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <header className="crm-premium-panel overflow-hidden rounded-[2rem] border border-crm-border p-5 shadow-crmCard sm:p-6">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-crm-accent">Компания</p>
-              <h1 className="mt-2 text-2xl font-semibold text-crm-text sm:text-3xl">{company?.name || 'Настройки компании'}</h1>
-              <p className="mt-2 text-sm text-crm-muted">Профиль компании, участники, заявки и ключ приема лидов.</p>
+              <h1 className="mt-2 text-3xl font-semibold leading-tight tracking-tight crm-gradient-text sm:text-4xl">{company?.name || 'Настройки компании'}</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-crm-muted">Профиль компании, участники, заявки и безопасный ключ приема лидов в одном месте.</p>
             </div>
-            <button onClick={() => router.push('/admin/dashboard')} className="crm-focus-ring h-11 rounded-crmXl border border-crm-border px-4 text-sm font-semibold text-crm-text transition hover:border-crm-accent/40 hover:text-crm-accent">
+            <button onClick={() => router.push('/admin/dashboard')} className="crm-focus-ring inline-flex h-12 items-center justify-center rounded-[1.35rem] bg-gradient-to-r from-crm-accent via-[var(--crm-accent-soft)] to-[var(--crm-accent-strong)] px-5 text-sm font-semibold text-white shadow-crmGlow transition hover:brightness-105">
               В CRM
             </button>
           </div>
         </header>
+
+        {!loading && company && (
+          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {quickStats.map((stat) => (
+              <div key={stat.label} className="crm-card crm-soft-rise rounded-[1.6rem] p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-crm-muted">{stat.label}</p>
+                <p className="mt-2 truncate text-2xl font-semibold tabular-nums text-crm-text">{stat.value}</p>
+                <p className="mt-1 truncate text-xs text-crm-muted">{stat.hint}</p>
+              </div>
+            ))}
+          </section>
+        )}
 
         {loading && <div className="crm-glass rounded-crm2xl border border-crm-border p-5 text-sm text-crm-muted">Загружаю...</div>}
         {error && <div className="rounded-crmXl border border-crm-danger/30 bg-crm-danger/10 px-4 py-3 text-sm text-crm-danger">{error}</div>}
@@ -184,7 +202,7 @@ export default function CompanyClient() {
         {!loading && company && (
           <section className="grid gap-5 lg:grid-cols-[1fr_0.9fr]">
             <div className="space-y-5">
-              <section className="crm-glass rounded-crm2xl border border-crm-border p-5 shadow-crmCard">
+              <section className="crm-premium-panel rounded-[1.75rem] border border-crm-border p-5 shadow-crmCard">
                 <h2 className="text-lg font-semibold text-crm-text">Редактирование</h2>
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                   <label className="block sm:col-span-2">
@@ -216,7 +234,7 @@ export default function CompanyClient() {
                 )}
               </section>
 
-              <section className="crm-glass rounded-crm2xl border border-crm-border p-5 shadow-crmCard">
+              <section className="crm-premium-panel rounded-[1.75rem] border border-crm-border p-5 shadow-crmCard">
                 <h2 className="text-lg font-semibold text-crm-text">Участники</h2>
                 {canManage && (
                   <form onSubmit={sendInvite} className="mt-4 flex flex-col gap-2 rounded-crmXl border border-crm-border bg-crm-surface/45 p-3 sm:flex-row">
@@ -246,7 +264,7 @@ export default function CompanyClient() {
             </div>
 
             <div className="space-y-5">
-              <section className="crm-glass rounded-crm2xl border border-crm-border p-5 shadow-crmCard">
+              <section className="crm-premium-panel rounded-[1.75rem] border border-crm-border p-5 shadow-crmCard">
                 <h2 className="text-lg font-semibold text-crm-text">Подключение сайта</h2>
                 <p className="mt-2 text-sm text-crm-muted">Этот ключ добавляется в форму на сайте. Это не доступ к базе, а безопасный вход для новых лидов.</p>
                 <div className="mt-4 space-y-3 rounded-crmXl border border-crm-border bg-crm-surface/50 p-4">
@@ -265,7 +283,7 @@ export default function CompanyClient() {
               </section>
 
               {canManage && (
-                <section className="crm-glass rounded-crm2xl border border-crm-border p-5 shadow-crmCard">
+                <section className="crm-premium-panel rounded-[1.75rem] border border-crm-border p-5 shadow-crmCard">
                   <h2 className="text-lg font-semibold text-crm-text">Заявки на вступление</h2>
                   <div className="mt-4 grid gap-3">
                     {requests.length === 0 && <p className="text-sm text-crm-muted">Новых заявок нет.</p>}

@@ -23,7 +23,7 @@ const STATUS_COLORS = {
   new: 'border border-crm-accent/35 bg-crm-accent/12 text-crm-accent',
   in_progress: 'border border-crm-info/35 bg-crm-info/12 text-crm-info',
   meeting: 'border border-crm-warning/35 bg-crm-warning/12 text-crm-warning',
-  documents: 'border border-violet-400/35 bg-violet-400/12 text-violet-500 dark:text-violet-200',
+  documents: 'border border-sky-400/35 bg-sky-400/12 text-sky-600',
   deal: 'border border-emerald-500/35 bg-emerald-400/12 text-emerald-600 dark:text-emerald-200',
   closed_won: 'border border-crm-success/35 bg-crm-success/12 text-crm-success',
   closed_lost: 'border border-crm-danger/40 bg-crm-danger/12 text-crm-danger',
@@ -48,7 +48,7 @@ function leadStatCardClass(accent) {
   if (accent === 'new') return `${base} border-crm-accent/25`;
   if (accent === 'in_progress') return `${base} border-crm-info/25`;
   if (accent === 'meeting') return `${base} border-crm-warning/25`;
-  if (accent === 'documents') return `${base} border-violet-300/25`;
+  if (accent === 'documents') return `${base} border-sky-300/25`;
   if (accent === 'deal') return `${base} border-emerald-300/25`;
   if (accent === 'closed_won' || accent === 'closed') return `${base} border-crm-success/25`;
   if (accent === 'closed_lost') return `${base} border-crm-danger/25`;
@@ -59,7 +59,7 @@ function leadStatValueClass(accent) {
   if (accent === 'new') return 'text-crm-accent';
   if (accent === 'in_progress') return 'text-crm-info';
   if (accent === 'meeting') return 'text-crm-warning';
-  if (accent === 'documents') return 'text-violet-500 dark:text-violet-200';
+  if (accent === 'documents') return 'text-sky-600';
   if (accent === 'deal') return 'text-emerald-600 dark:text-emerald-200';
   if (accent === 'closed_won' || accent === 'closed') return 'text-crm-success';
   if (accent === 'closed_lost') return 'text-crm-danger';
@@ -71,7 +71,7 @@ const REPORT_STATUS_COLORS = {
   new: '#2dd4bf',
   in_progress: '#60a5fa',
   meeting: '#f5c451',
-  documents: '#c4b5fd',
+  documents: '#38bdf8',
   deal: '#34d399',
   closed_won: '#86efac',
   closed_lost: '#fb7185',
@@ -250,55 +250,79 @@ function LeadTrendChart({ report, trendDays, onTrendDaysChange }) {
 }
 
 function EmployeeReportChart({ report }) {
-  const max = Math.max(1, ...report.employeeRows.map((item) => item.total));
+  const maxActive = Math.max(1, ...report.employeeRows.map((item) => item.active));
+  const maxTotal = Math.max(1, ...report.employeeRows.map((item) => item.total));
+  const activeTotal = report.employeeRows.reduce((sum, item) => sum + item.active, 0);
+  const wonTotal = report.employeeRows.reduce((sum, item) => sum + (item.stageCounts.closed_won || 0) + (item.stageCounts.closed || 0), 0);
+  const lostTotal = report.employeeRows.reduce((sum, item) => sum + (item.stageCounts.closed_lost || 0), 0);
 
   return (
-    <div className="crm-premium-panel rounded-crmXl p-5">
-      <div className="flex items-start justify-between gap-3">
+    <div className="crm-premium-panel rounded-[1.75rem] p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-base font-semibold text-crm-text">Нагрузка по сотрудникам</h3>
-          <p className="mt-1 text-sm text-crm-muted">Кому назначены лиды и где есть перегруз</p>
+          <p className="mt-1 text-sm text-crm-muted">Компактно для команды 20-30 человек: активные лиды, результат и нагрузка.</p>
         </div>
-        <span className="rounded-full border border-crm-border bg-crm-surface/55 px-2.5 py-1 text-xs text-crm-muted">
-          {report.assigned} назначено
-        </span>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-[1rem] border border-crm-border bg-white/48 px-3 py-2">
+            <p className="text-[10px] uppercase tracking-wide text-crm-muted">Активно</p>
+            <p className="mt-0.5 text-lg font-semibold tabular-nums text-crm-info">{activeTotal}</p>
+          </div>
+          <div className="rounded-[1rem] border border-crm-success/25 bg-crm-success/10 px-3 py-2">
+            <p className="text-[10px] uppercase tracking-wide text-crm-muted">Сделки</p>
+            <p className="mt-0.5 text-lg font-semibold tabular-nums text-crm-success">{wonTotal}</p>
+          </div>
+          <div className="rounded-[1rem] border border-crm-danger/25 bg-crm-danger/10 px-3 py-2">
+            <p className="text-[10px] uppercase tracking-wide text-crm-muted">Отказы</p>
+            <p className="mt-0.5 text-lg font-semibold tabular-nums text-crm-danger">{lostTotal}</p>
+          </div>
+        </div>
       </div>
 
-      <div className="mt-5 space-y-3">
+      <div className="mt-5 overflow-hidden rounded-[1.45rem] border border-crm-border bg-white/42">
         {report.employeeRows.length === 0 ? (
-          <p className="rounded-crmLg border border-dashed border-crm-border px-4 py-8 text-center text-sm text-crm-muted">
+          <p className="crm-empty-state m-3 rounded-[1.25rem] px-4 py-8 text-center text-sm text-crm-muted">
             Сотрудники пока не добавлены
           </p>
         ) : (
           report.employeeRows.map((employee) => (
-            <div key={employee.id} className="rounded-crmLg border border-crm-border bg-crm-surface/35 p-3">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <span className="truncate text-sm font-medium text-crm-text">{employee.name}</span>
-                <span className="shrink-0 text-xs tabular-nums text-crm-muted">
-                  взял {employee.total} · активно {employee.active}
-                </span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-crm-border/45">
-                <div
-                  className="h-full rounded-full bg-[linear-gradient(90deg,var(--crm-accent),var(--crm-warning))] transition-all duration-500 ease-out"
-                  style={{ width: `${Math.max(4, percent(employee.total, max))}%` }}
-                />
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-1.5 text-[11px] sm:grid-cols-3">
+            <details key={employee.id} className="group border-b border-crm-border/70 last:border-b-0">
+              <summary className="crm-focus-ring grid cursor-pointer grid-cols-[auto,1fr] gap-3 px-3 py-3 transition hover:bg-white/35 sm:grid-cols-[auto,1fr,auto] sm:items-center sm:px-4">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-crm-accent via-[var(--crm-accent-soft)] to-[var(--crm-accent-strong)] text-sm font-bold text-white shadow-crmGlow">
+                  {(employee.name || '?').slice(0, 1).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm font-semibold text-crm-text">{employee.name}</p>
+                    <span className="rounded-full border border-crm-border bg-white/55 px-2 py-0.5 text-[10px] font-semibold text-crm-muted">
+                      нагрузка {percent(employee.active, maxActive)}%
+                    </span>
+                  </div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-crm-border/45">
+                    <div
+                      className="h-full rounded-full bg-[linear-gradient(90deg,var(--crm-accent),var(--crm-info))] transition-all duration-500 ease-out"
+                      style={{ width: `${Math.min(100, Math.max(6, employee.active ? percent(employee.active, maxActive) : percent(employee.total, maxTotal)))}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="col-span-2 grid grid-cols-4 gap-1.5 text-center sm:col-span-1 sm:min-w-[18rem]">
+                  <span className="rounded-[0.9rem] bg-white/50 px-2 py-1.5 text-[11px] text-crm-muted">взял <b className="block text-sm text-crm-text">{employee.total}</b></span>
+                  <span className="rounded-[0.9rem] bg-crm-info/10 px-2 py-1.5 text-[11px] text-crm-muted">активно <b className="block text-sm text-crm-info">{employee.active}</b></span>
+                  <span className="rounded-[0.9rem] bg-crm-success/10 px-2 py-1.5 text-[11px] text-crm-muted">сделки <b className="block text-sm text-crm-success">{(employee.stageCounts.closed_won || 0) + (employee.stageCounts.closed || 0)}</b></span>
+                  <span className="rounded-[0.9rem] bg-crm-danger/10 px-2 py-1.5 text-[11px] text-crm-muted">отказы <b className="block text-sm text-crm-danger">{employee.stageCounts.closed_lost || 0}</b></span>
+                </div>
+              </summary>
+              <div className="grid gap-2 px-3 pb-3 pt-0 text-[11px] sm:grid-cols-4 sm:px-4">
                 {PIPELINE_STATUSES.slice(1).map((status) => (
-                  <div key={status} className="rounded-md border border-crm-border/70 bg-crm-surface/45 px-2 py-1.5">
-                    <p className="truncate text-crm-muted">{STATUS_LABELS[status]}</p>
-                    <p className={`mt-0.5 font-semibold tabular-nums ${leadStatValueClass(status)}`}>
-                      {employee.stageCounts[status] || 0}
-                    </p>
+                  <div key={status} className="rounded-[1rem] border border-crm-border/70 bg-white/48 px-3 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate text-crm-muted">{STATUS_LABELS[status]}</p>
+                      <p className={`font-semibold tabular-nums ${leadStatValueClass(status)}`}>{employee.stageCounts[status] || 0}</p>
+                    </div>
                   </div>
                 ))}
-                <div className="rounded-md border border-crm-danger/30 bg-crm-danger/10 px-2 py-1.5">
-                  <p className="truncate text-crm-muted">Отказ</p>
-                  <p className="mt-0.5 font-semibold tabular-nums text-crm-danger">{employee.stageCounts.closed_lost || 0}</p>
-                </div>
               </div>
-            </div>
+            </details>
           ))
         )}
       </div>
@@ -518,7 +542,7 @@ function EmployeesEmptyState() {
 }
 
 function employeeInputClass() {
-  return 'crm-focus-ring w-full min-h-11 rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2.5 text-sm text-crm-text placeholder:text-crm-muted';
+  return 'crm-focus-ring crm-input-surface w-full min-h-11 rounded-crmLg px-3 py-2.5 text-sm';
 }
 
 function employeeActionButtonClass(variant) {
@@ -552,11 +576,11 @@ function employeeStatusBadgeClass(isActive) {
 }
 
 function profileInputClass() {
-  return 'crm-focus-ring w-full min-h-11 rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2.5 text-sm text-crm-text placeholder:text-crm-muted';
+  return 'crm-focus-ring crm-input-surface w-full min-h-11 rounded-crmLg px-3 py-2.5 text-sm';
 }
 
 function profileTextareaClass() {
-  return 'crm-focus-ring w-full min-h-[5.5rem] resize-none rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2.5 text-sm text-crm-text placeholder:text-crm-muted';
+  return 'crm-focus-ring crm-input-surface w-full min-h-[5.5rem] resize-none rounded-crmLg px-3 py-2.5 text-sm';
 }
 
 function profileLabelClass() {
@@ -568,7 +592,7 @@ function profileHintClass() {
 }
 
 function settingsCardClass() {
-  return 'crm-glass overflow-hidden rounded-crmXl border border-crm-border shadow-crmCard';
+  return 'crm-premium-panel overflow-hidden rounded-crmXl border border-crm-border shadow-crmCard';
 }
 
 function settingsCardHeaderClass() {
@@ -583,10 +607,10 @@ function profileButtonClass(variant = 'primary') {
   const base =
     'crm-focus-ring inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-crmLg px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto';
   if (variant === 'primary') {
-    return `${base} border border-crm-accent/40 bg-crm-accent/15 text-crm-accent shadow-crmGlow hover:bg-crm-accent/22`;
+    return `${base} border border-crm-accent/40 bg-gradient-to-r from-crm-accent to-[var(--crm-accent-strong)] text-white shadow-crmGlow hover:brightness-110`;
   }
   if (variant === 'secondary') {
-    return `${base} border border-crm-border bg-crm-surface/40 text-crm-text hover:border-crm-accent/30 hover:bg-crm-accent/8`;
+    return `${base} border border-crm-border bg-crm-surface/60 text-crm-text hover:border-crm-accent/30 hover:bg-crm-accent/8`;
   }
   if (variant === 'danger') {
     return `${base} border border-crm-danger/35 bg-crm-danger/10 text-crm-danger hover:bg-crm-danger/15`;
@@ -974,7 +998,7 @@ function AvatarCircle({ profile, size = 'md' }) {
     return <img src={profile.avatar_url} alt="" className={`${classes} rounded-full object-cover`} />;
   }
   return (
-    <div className={`${classes} flex items-center justify-center rounded-full bg-slate-900 font-semibold text-white`}>
+    <div className={`${classes} flex items-center justify-center rounded-full bg-gradient-to-br from-crm-accent via-[var(--crm-accent-soft)] to-[var(--crm-accent-strong)] font-semibold text-white shadow-crmGlow`}>
       {getInitials(profile?.name)}
     </div>
   );
@@ -1055,7 +1079,7 @@ function shellChatSubItemClass(isActive) {
     : 'border border-transparent bg-crm-surface/20 text-crm-muted hover:border-crm-accent/20 hover:bg-crm-accent/8 hover:text-crm-text';
 }
 
-export default function DashboardClient({ user }) {
+export default function DashboardClient({ user, initialTab }) {
   const router = useRouter();
   const isLeadManager = canManageLeads(user);
   const canManageTeamAccess = canManageTeam(user);
@@ -1063,8 +1087,18 @@ export default function DashboardClient({ user }) {
   const isOwnerUser = isOwner(user);
   const isAdmin = isLeadManager;
   const { theme, toggle: toggleTheme } = useTheme();
+  const defaultTab = canViewReportsAccess ? 'reports' : 'chat';
+  const initialActiveTab = (() => {
+    if (initialTab === 'profile') return 'profile';
+    if (initialTab === 'chat') return 'chat';
+    if (initialTab === 'leads' && isLeadManager) return 'leads';
+    if (initialTab === 'reports' && canViewReportsAccess) return 'reports';
+    if (initialTab === 'employees' && canManageTeamAccess) return 'employees';
+    if (initialTab === 'logs' && isOwnerUser) return 'logs';
+    return defaultTab;
+  })();
 
-  const [activeTab, setActiveTab] = useState(canViewReportsAccess ? 'reports' : 'chat');
+  const [activeTab, setActiveTab] = useState(initialActiveTab);
   const [leads, setLeads] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [filter, setFilter] = useState('');
@@ -2423,6 +2457,11 @@ export default function DashboardClient({ user }) {
     : 'border-crm-border bg-crm-surface/60 text-crm-muted hover:border-crm-accent/25 hover:bg-crm-surfaceStrong hover:text-crm-text';
 
   const notificationBlocked = ['denied', 'unsupported', 'unsupported_ios', 'ios_install_required', 'not_configured'].includes(notifStatus);
+  const mobilePrimaryKeys = ['reports', 'leads', 'chat', 'profile'];
+  const mobilePrimaryItems = mobilePrimaryKeys
+    .map((key) => navItems.find((item) => item.key === key))
+    .filter(Boolean)
+    .slice(0, 4);
 
   const renderNavigation = () => (
     <div className="flex h-full min-h-0 flex-col">
@@ -2564,18 +2603,54 @@ export default function DashboardClient({ user }) {
     </div>
   );
 
+  const renderMobileBottomNav = () => (
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(env(safe-area-inset-bottom,0px),0.75rem)] md:hidden">
+      <nav className="crm-bottom-nav pointer-events-auto p-1" style={{ gridTemplateColumns: `repeat(${mobilePrimaryItems.length + 1}, minmax(0, 1fr))` }}>
+        {mobilePrimaryItems.map((item) => {
+          const active = activeTab === item.key;
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => selectTab(item.key)}
+              className={`crm-focus-ring crm-bottom-nav-item relative flex flex-col items-center justify-center gap-1 text-[10px] font-semibold ${active ? 'crm-bottom-nav-item-active' : ''}`}
+            >
+              <NavIcon name={item.icon} className="h-5 w-5 shrink-0" />
+              <span className="max-w-full truncate px-1">{item.label}</span>
+              {item.badge > 0 && (
+                <span className="absolute right-2 top-1.5 rounded-full bg-crm-danger px-1.5 py-0.5 text-[9px] font-bold text-white">
+                  {item.badge > 99 ? '99+' : item.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          className="crm-focus-ring crm-bottom-nav-item flex flex-col items-center justify-center gap-1 text-[10px] font-semibold"
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M5 12h14M5 6h14M5 18h14" />
+          </svg>
+          <span>Ещё</span>
+        </button>
+      </nav>
+    </div>
+  );
+
   return (
     <main
-      className={`crm-app-bg crm-mobile-safe-bottom min-w-0 text-crm-text ${
+      className={`crm-app-bg crm-mobile-safe-bottom min-w-0 text-crm-text md:pb-0 ${
         activeTab === 'chat'
           ? 'overflow-hidden'
-          : 'min-h-dvh touch-pan-y'
+          : 'crm-has-bottom-nav min-h-dvh touch-pan-y'
       }`}
     >
       <ToastStack toasts={toasts} onClose={closeToast} />
       <ConfirmDialog state={confirmState} onCancel={cancelConfirm} onConfirm={acceptConfirm} />
 
-      <aside className="crm-glass fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-crm-border shadow-crmCard md:block">
+      <aside className="crm-glass fixed inset-y-4 left-4 z-30 hidden w-72 overflow-hidden rounded-[2rem] border border-crm-border shadow-crmCard md:block">
         {renderNavigation()}
       </aside>
 
@@ -2602,11 +2677,13 @@ export default function DashboardClient({ user }) {
         </div>
       )}
 
+      {!drawerOpen && renderMobileBottomNav()}
+
       <section
         className={
           activeTab === 'chat'
             ? 'min-w-0'
-            : 'min-h-dvh min-w-0 px-4 py-4 md:ml-72 md:px-8 md:py-5'
+            : 'min-h-dvh min-w-0 px-4 py-4 md:ml-80 md:px-8 md:py-5'
         }
       >
         <div className={activeTab === 'chat' ? 'w-full min-w-0' : 'w-full min-w-0 space-y-6'}>
@@ -2764,7 +2841,7 @@ export default function DashboardClient({ user }) {
                 <LeadsEmptyState>{searchEmptyText}</LeadsEmptyState>
               ) : (
                 filteredVisibleLeads.map((lead) => (
-                  <article key={lead.id} className="crm-premium-panel crm-soft-rise flex min-w-0 max-w-full flex-col overflow-hidden rounded-crmXl border border-crm-border p-4 shadow-crmCard">
+                  <article key={lead.id} className="crm-premium-panel crm-soft-rise flex min-w-0 max-w-full flex-col overflow-hidden rounded-[1.75rem] border border-crm-border p-4 shadow-crmCard">
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-lg font-semibold text-crm-text">{lead.name || '—'}</p>
@@ -2783,6 +2860,17 @@ export default function DashboardClient({ user }) {
                         {lead.callback_note && <p className="mt-1 text-crm-muted">{lead.callback_note}</p>}
                       </div>
                     )}
+                    <div className="mb-3 rounded-[1.25rem] border border-dashed border-crm-accent/35 bg-white/42 px-3 py-2.5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-crm-accent">Подходящие планировки</p>
+                          <p className="mt-1 text-xs leading-relaxed text-crm-muted">
+                            Добавьте ЖК и планировки, чтобы подбирать варианты клиентам.
+                          </p>
+                        </div>
+                        <span className="shrink-0 rounded-full border border-crm-border bg-white/60 px-2 py-1 text-[10px] font-semibold text-crm-muted">скоро</span>
+                      </div>
+                    </div>
                     <div className="mb-3 grid min-w-0 max-w-full grid-cols-1 gap-2 overflow-hidden text-xs sm:grid-cols-2">
                       <div className="min-w-0 max-w-full overflow-hidden rounded-crmLg border border-crm-border bg-crm-surface/35 px-3 py-2">
                         <p className="uppercase tracking-wide text-crm-muted">Ответственный</p>
@@ -3165,7 +3253,7 @@ export default function DashboardClient({ user }) {
                     </div>
                     <div>
                       <label className={profileLabelClass()}>Никнейм</label>
-                      <div className="crm-focus-ring flex min-h-11 overflow-hidden rounded-crmLg border border-crm-border bg-crm-surface/50 focus-within:ring-2">
+                      <div className="crm-focus-ring crm-input-surface flex min-h-11 overflow-hidden rounded-crmLg focus-within:border-crm-accent/50">
                         <span className="flex items-center border-r border-crm-border px-3 text-sm text-crm-muted">@</span>
                         <input
                           type="text"
@@ -3251,7 +3339,7 @@ export default function DashboardClient({ user }) {
                   <div className="grid gap-4">
                     <div>
                       <label className={profileLabelClass()}>Новый логин (необязательно)</label>
-                      <div className="crm-focus-ring flex min-h-11 overflow-hidden rounded-crmLg border border-crm-border bg-crm-surface/50 focus-within:ring-2">
+                      <div className="crm-focus-ring crm-input-surface flex min-h-11 overflow-hidden rounded-crmLg focus-within:border-crm-accent/50">
                         <span className="flex items-center border-r border-crm-border px-3 text-sm text-crm-muted">@</span>
                         <input
                           type="text"
@@ -3330,7 +3418,7 @@ export default function DashboardClient({ user }) {
                   <button type="submit" disabled={credSaving} className={profileButtonClass('primary')}>
                     {credSaving ? 'Сохранение...' : 'Обновить данные'}
                   </button>
-                  <div className="rounded-crmXl border border-crm-border bg-crm-surface/35 p-4">
+                  <div className="rounded-crmXl border border-crm-border bg-crm-surface-soft/70 p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="min-w-0">
                         <h4 className="text-sm font-semibold text-crm-text">Быстрый вход на этом устройстве</h4>
@@ -3406,7 +3494,7 @@ export default function DashboardClient({ user }) {
                     {pushDiagnosticsLoading ? 'Проверка...' : 'Диагностика push'}
                   </button>
                   {pushDiagnostics && (
-                    <div className="crm-scrollbar max-h-80 overflow-y-auto rounded-crmLg border border-crm-border bg-crm-bg/80 px-4 py-3 font-mono text-xs leading-relaxed text-crm-muted shadow-inner">
+                    <div className="crm-scrollbar max-h-80 overflow-y-auto rounded-crmLg border border-crm-border bg-crm-surface-soft/75 px-4 py-3 font-mono text-xs leading-relaxed text-crm-muted shadow-inner">
                       {pushDiagnostics.error ? (
                         <p className="text-crm-danger">{pushDiagnostics.error}</p>
                       ) : (

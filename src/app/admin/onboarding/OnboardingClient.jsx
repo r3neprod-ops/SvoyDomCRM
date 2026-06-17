@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 const inputClass =
-  'crm-focus-ring h-12 w-full rounded-crmXl border border-crm-border bg-crm-surface/70 px-4 text-sm text-crm-text placeholder:text-crm-muted outline-none transition focus:border-crm-accent/50';
+  'crm-focus-ring crm-input-surface h-12 w-full rounded-crmXl px-4 text-sm outline-none transition focus:border-crm-accent/50';
 const textareaClass =
-  'crm-focus-ring min-h-24 w-full rounded-crmXl border border-crm-border bg-crm-surface/70 px-4 py-3 text-sm text-crm-text placeholder:text-crm-muted outline-none transition focus:border-crm-accent/50';
+  'crm-focus-ring crm-input-surface min-h-24 w-full rounded-crmXl px-4 py-3 text-sm outline-none transition focus:border-crm-accent/50';
 
 function cleanUsername(value) {
   return String(value || '').replace(/^@+/, '').toLowerCase();
@@ -22,9 +22,10 @@ async function readJson(res) {
   }
 }
 
-export default function OnboardingClient({ initialUser }) {
+export default function OnboardingClient({ initialUser, initialIntent = 'choice' }) {
   const router = useRouter();
   const [user, setUser] = useState(initialUser);
+  const [intent, setIntent] = useState(['employee', 'owner', 'choice'].includes(initialIntent) ? initialIntent : 'choice');
   const [profile, setProfile] = useState({
     name: initialUser?.name || '',
     username: initialUser?.username || '',
@@ -74,6 +75,17 @@ export default function OnboardingClient({ initialUser }) {
 
   useEffect(() => {
     fetchCompanies('');
+  }, []);
+
+  useEffect(() => {
+    try {
+      const savedIntent = window.localStorage.getItem('crm24_auth_intent');
+      if (savedIntent === 'employee' || savedIntent === 'owner' || savedIntent === 'choice') {
+        setIntent(savedIntent);
+      }
+    } catch {
+      // The query param already carries the intent when storage is unavailable.
+    }
   }, []);
 
   const saveProfile = async (event) => {
@@ -161,7 +173,11 @@ export default function OnboardingClient({ initialUser }) {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-crm-accent">CRM24</p>
               <h1 className="mt-2 text-2xl font-semibold tracking-tight text-crm-text sm:text-3xl">Настройка аккаунта</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-crm-muted">
-                Сначала закрепляем ваш никнейм, потом выбираем компанию: создать новую или запросить доступ в уже существующую.
+                Сначала закрепляем ваш никнейм, потом {intent === 'employee'
+                  ? 'ищем вашу компанию или принимаем приглашение.'
+                  : intent === 'owner'
+                    ? 'создаём компанию и запускаем рабочее пространство.'
+                    : 'выбираем: создать компанию или присоединиться к существующей.'}
               </p>
             </div>
             <div className="rounded-crmXl border border-crm-border bg-crm-surface/70 px-4 py-3 text-sm">
@@ -190,7 +206,7 @@ export default function OnboardingClient({ initialUser }) {
               </label>
               <label className="block">
                 <span className="mb-2 block text-sm font-medium text-crm-text">Никнейм</span>
-                <div className="flex items-center rounded-crmXl border border-crm-border bg-crm-surface/70 focus-within:border-crm-accent/50">
+                <div className="crm-input-surface flex items-center rounded-crmXl focus-within:border-crm-accent/50">
                   <span className="pl-4 text-crm-muted">@</span>
                   <input
                     className="h-12 min-w-0 flex-1 bg-transparent px-2 text-sm text-crm-text outline-none placeholder:text-crm-muted"
@@ -231,8 +247,8 @@ export default function OnboardingClient({ initialUser }) {
             </button>
           </form>
 
-          <div className={`space-y-5 ${!profileSaved ? 'pointer-events-none opacity-45' : ''}`}>
-            <form onSubmit={createCompany} className="crm-glass rounded-crm2xl border border-crm-border p-5 shadow-crmCard">
+          <div className={`flex flex-col gap-5 ${!profileSaved ? 'pointer-events-none opacity-45' : ''}`}>
+            <form onSubmit={createCompany} className={`crm-glass rounded-crm2xl border border-crm-border p-5 shadow-crmCard ${intent === 'owner' ? 'order-1' : 'order-2'}`}>
               <div className="mb-5">
                 <h2 className="text-lg font-semibold text-crm-text">Создать компанию</h2>
                 <p className="mt-1 text-sm text-crm-muted">У компании будет свой раздел данных и отдельный ключ для приема лидов с сайта.</p>
@@ -260,7 +276,7 @@ export default function OnboardingClient({ initialUser }) {
               </button>
             </form>
 
-            <section className="crm-glass rounded-crm2xl border border-crm-border p-5 shadow-crmCard">
+            <section className={`crm-glass rounded-crm2xl border border-crm-border p-5 shadow-crmCard ${intent === 'employee' ? 'order-1' : 'order-2'}`}>
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-crm-text">Найти компанию</h2>
