@@ -1103,7 +1103,8 @@ body {
   }
 
   .crm-mobile-login {
-    min-height: 100svh;
+    height: 100svh;
+    min-height: 0;
     background:
       radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.32), transparent 18rem),
       linear-gradient(180deg, rgba(57, 220, 228, 0.52), rgba(18, 182, 200, 0.36) 42%, rgba(7, 130, 161, 0.32));
@@ -1216,6 +1217,258 @@ body {
 
   .crm-mobile-choice-card .crm-auth-inline-body {
     max-height: min(50svh, 34rem);
+  }
+
+  .crm-mobile-split-login {
+    display: flex;
+    height: 100svh;
+    min-height: 0;
+    align-items: stretch;
+    overflow: hidden;
+    padding-top: max(env(safe-area-inset-top, 0px), 0.85rem);
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.85rem);
+  }
+
+  .crm-mobile-split-stage {
+    position: relative;
+    display: grid;
+    width: 100%;
+    height: calc(100svh - max(env(safe-area-inset-top, 0px), 0.85rem) - max(env(safe-area-inset-bottom, 0px), 0.85rem) - 2rem);
+    min-height: 0;
+    max-height: calc(100svh - max(env(safe-area-inset-top, 0px), 0.85rem) - max(env(safe-area-inset-bottom, 0px), 0.85rem) - 2rem);
+    grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 0.7rem;
+    transition: grid-template-rows 680ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .crm-mobile-split-login[data-active='employee'] .crm-mobile-split-stage {
+    grid-template-rows: minmax(0, 1fr) 0 minmax(4.9rem, 5.4rem);
+  }
+
+  .crm-mobile-split-login[data-active='owner'] .crm-mobile-split-stage {
+    grid-template-rows: minmax(4.9rem, 5.4rem) 0 minmax(0, 1fr);
+  }
+
+  .crm-mobile-split-brand {
+    position: absolute;
+    z-index: 8;
+    left: 50%;
+    top: 50%;
+    width: min(21rem, calc(100vw - 3rem));
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    transition:
+      opacity 420ms ease,
+      transform 680ms cubic-bezier(0.16, 1, 0.3, 1),
+      filter 420ms ease;
+  }
+
+  .crm-mobile-split-brand h1 {
+    margin-top: 0.9rem;
+    color: rgba(18, 50, 58, 0.91);
+    font-size: clamp(1.9rem, 8.5vw, 3.1rem);
+    font-weight: 780;
+    letter-spacing: -0.045em;
+    line-height: 0.96;
+    text-wrap: balance;
+  }
+
+  .crm-mobile-split-brand p {
+    margin-top: 0.65rem;
+    color: rgba(18, 50, 58, 0.62);
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+
+  .crm-mobile-split-login[data-active='employee'] .crm-mobile-split-brand,
+  .crm-mobile-split-login[data-active='owner'] .crm-mobile-split-brand {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translate(-50%, -58%) scale(0.94);
+  }
+
+  .crm-mobile-split-axis {
+    position: relative;
+    z-index: 9;
+    display: flex;
+    min-height: 3.9rem;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    transition:
+      min-height 680ms cubic-bezier(0.16, 1, 0.3, 1),
+      opacity 340ms ease,
+      transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .crm-mobile-split-axis .crm-mobile-login-pill {
+    pointer-events: auto;
+  }
+
+  .crm-mobile-split-login[data-active='employee'] .crm-mobile-split-axis,
+  .crm-mobile-split-login[data-active='owner'] .crm-mobile-split-axis {
+    min-height: 0;
+    opacity: 0;
+    transform: scale(0.9);
+    pointer-events: none;
+  }
+
+  .crm-mobile-split-login .crm-mobile-choice-card {
+    min-height: 0;
+    height: 100%;
+    transform-origin: center;
+    transition:
+      transform 520ms cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 320ms ease,
+      border-color 320ms ease,
+      border-radius 520ms cubic-bezier(0.16, 1, 0.3, 1),
+      padding 520ms cubic-bezier(0.16, 1, 0.3, 1),
+      opacity 320ms ease;
+  }
+
+  .crm-mobile-split-login .crm-mobile-choice-card.is-auth-open {
+    overflow: hidden;
+    padding: 0.95rem;
+    border-radius: 1.65rem;
+  }
+
+  .crm-mobile-split-login .crm-mobile-choice-card.is-auth-open > span {
+    gap: 0.5rem;
+  }
+
+  .crm-mobile-split-login .crm-mobile-choice-card.is-auth-open > span > span:first-child {
+    align-items: center;
+  }
+
+  .crm-mobile-split-login .crm-mobile-choice-card.is-auth-open > span > span:first-child > span:first-child {
+    height: 3.05rem;
+    width: 3.05rem;
+    border-radius: 1.05rem;
+  }
+
+  .crm-mobile-split-login .crm-mobile-choice-card.is-auth-open .crm-generated-art--mobile {
+    top: 0.2rem;
+    right: -1.85rem;
+    width: 5.4rem;
+    height: 4.45rem;
+    opacity: 0.24;
+    transform: scale(0.92);
+  }
+
+  .crm-mobile-split-login .crm-mobile-choice-card.is-auth-open > span > span:nth-child(3),
+  .crm-mobile-split-login .crm-mobile-choice-card.is-auth-open .crm-mobile-choice-hint {
+    display: none !important;
+  }
+
+  .crm-mobile-split-login .crm-mobile-choice-card.is-auth-open .crm-mobile-choice-card__cta,
+  .crm-mobile-split-login .crm-mobile-choice-card.is-auth-open .crm-mobile-choice-hint {
+    display: none !important;
+  }
+
+  .crm-mobile-split-login[data-active='employee'] .crm-mobile-choice-card--owner:not(.is-auth-open),
+  .crm-mobile-split-login[data-active='owner'] .crm-mobile-choice-card--employee:not(.is-auth-open) {
+    cursor: pointer;
+    border-radius: 1.35rem;
+    padding: 0.72rem 0.9rem;
+    opacity: 0.94;
+  }
+
+  .crm-mobile-split-login[data-active='employee'] .crm-mobile-choice-card--owner:not(.is-auth-open) > span,
+  .crm-mobile-split-login[data-active='owner'] .crm-mobile-choice-card--employee:not(.is-auth-open) > span {
+    gap: 0.25rem;
+  }
+
+  .crm-mobile-split-login[data-active='employee'] .crm-mobile-choice-card--owner:not(.is-auth-open) .crm-mobile-choice-hint,
+  .crm-mobile-split-login[data-active='employee'] .crm-mobile-choice-card--owner:not(.is-auth-open) .crm-mobile-choice-card__cta,
+  .crm-mobile-split-login[data-active='employee'] .crm-mobile-choice-card--owner:not(.is-auth-open) span:nth-child(3),
+  .crm-mobile-split-login[data-active='owner'] .crm-mobile-choice-card--employee:not(.is-auth-open) .crm-mobile-choice-hint,
+  .crm-mobile-split-login[data-active='owner'] .crm-mobile-choice-card--employee:not(.is-auth-open) .crm-mobile-choice-card__cta,
+  .crm-mobile-split-login[data-active='owner'] .crm-mobile-choice-card--employee:not(.is-auth-open) span:nth-child(3) {
+    display: none !important;
+  }
+
+  .crm-mobile-split-login[data-active='employee'] .crm-mobile-choice-card--owner:not(.is-auth-open) span:nth-child(2),
+  .crm-mobile-split-login[data-active='owner'] .crm-mobile-choice-card--employee:not(.is-auth-open) span:nth-child(2) {
+    font-size: 1.05rem;
+    line-height: 1.05;
+  }
+
+  .crm-mobile-split-login[data-active='employee'] .crm-mobile-choice-card--owner:not(.is-auth-open) span:first-child,
+  .crm-mobile-split-login[data-active='owner'] .crm-mobile-choice-card--employee:not(.is-auth-open) span:first-child {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .crm-mobile-split-login[data-active='employee'] .crm-mobile-choice-card--owner:not(.is-auth-open) span:first-child > span:first-child,
+  .crm-mobile-split-login[data-active='owner'] .crm-mobile-choice-card--employee:not(.is-auth-open) span:first-child > span:first-child {
+    height: 2.65rem;
+    width: 2.65rem;
+    border-radius: 1rem;
+  }
+
+  .crm-mobile-split-login .crm-mobile-choice-card .crm-split-inline-auth.is-open {
+    max-height: calc(100% - 0.25rem);
+  }
+
+  .crm-mobile-split-login .crm-mobile-choice-card .crm-auth-inline-body {
+    max-height: min(36svh, 24rem);
+  }
+
+  .crm-lead-assignee-control,
+  .crm-lead-comment-tile,
+  .crm-comment-entry,
+  .crm-comment-input,
+  .crm-soft-select {
+    background:
+      radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.76), transparent 8rem),
+      linear-gradient(145deg, rgba(246, 255, 255, 0.82), rgba(204, 249, 252, 0.48));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  }
+
+  .crm-soft-select,
+  .crm-comment-input {
+    border: 1px solid rgba(var(--crm-accent-rgb), 0.22);
+    color: var(--crm-input-text);
+    caret-color: var(--crm-caret);
+  }
+
+  .crm-lead-comment-tile:hover {
+    border-color: rgba(var(--crm-accent-rgb), 0.34);
+    background:
+      radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.84), transparent 8rem),
+      linear-gradient(145deg, rgba(238, 255, 255, 0.9), rgba(185, 245, 250, 0.58));
+  }
+
+  .crm-comments-modal {
+    background:
+      radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.78), transparent 14rem),
+      linear-gradient(145deg, rgba(246, 255, 255, 0.9), rgba(213, 250, 252, 0.82));
+  }
+
+  .crm-comment-entry--event {
+    background:
+      radial-gradient(circle at 100% 0%, rgba(var(--crm-accent-rgb), 0.14), transparent 8rem),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.7), rgba(218, 250, 252, 0.45));
+  }
+
+  @media (max-width: 640px) {
+    .crm-comments-modal {
+      max-height: calc(100svh - max(env(safe-area-inset-top, 0px), 0.75rem) - max(env(safe-area-inset-bottom, 0px), 0.75rem)) !important;
+      border-radius: 1.65rem !important;
+    }
+
+    .crm-comments-modal .crm-scrollbar {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+
+    .crm-comment-input {
+      min-width: 0;
+      background:
+        radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.85), transparent 8rem),
+        linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(221, 251, 253, 0.72));
+    }
   }
 
   html.dark .crm-split-desktop {
@@ -1335,6 +1588,49 @@ body {
     background: rgba(1, 8, 15, 0.66);
   }
 
+  html.dark .crm-mobile-split-brand h1 {
+    color: rgba(238, 252, 255, 0.94);
+  }
+
+  html.dark .crm-mobile-split-brand p {
+    color: rgba(221, 250, 255, 0.66);
+  }
+
+  html.dark .crm-lead-assignee-control,
+  html.dark .crm-lead-comment-tile,
+  html.dark .crm-comment-entry,
+  html.dark .crm-comment-input,
+  html.dark .crm-soft-select {
+    background:
+      radial-gradient(circle at 12% 0%, rgba(76, 255, 221, 0.1), transparent 8rem),
+      linear-gradient(145deg, rgba(11, 50, 62, 0.86), rgba(4, 23, 35, 0.72));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  html.dark .crm-soft-select,
+  html.dark .crm-comment-input {
+    border-color: rgba(194, 255, 250, 0.18);
+  }
+
+  html.dark .crm-lead-comment-tile:hover {
+    border-color: rgba(35, 214, 230, 0.34);
+    background:
+      radial-gradient(circle at 12% 0%, rgba(76, 255, 221, 0.14), transparent 8rem),
+      linear-gradient(145deg, rgba(13, 62, 73, 0.9), rgba(5, 29, 43, 0.78));
+  }
+
+  html.dark .crm-comments-modal {
+    background:
+      radial-gradient(circle at 12% 0%, rgba(76, 255, 221, 0.12), transparent 14rem),
+      linear-gradient(145deg, rgba(10, 43, 55, 0.94), rgba(3, 18, 29, 0.9));
+  }
+
+  html.dark .crm-comment-entry--event {
+    background:
+      radial-gradient(circle at 100% 0%, rgba(35, 214, 230, 0.13), transparent 8rem),
+      linear-gradient(145deg, rgba(11, 48, 60, 0.82), rgba(4, 23, 35, 0.68));
+  }
+
   .crm-split-art--compact {
     position: relative;
     right: auto;
@@ -1397,6 +1693,11 @@ body {
     .crm-login-screen {
       align-items: flex-start;
       padding-top: max(env(safe-area-inset-top, 0px), 1rem);
+    }
+
+    .crm-login-screen.crm-mobile-safe-bottom {
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
     }
 
     .crm-login-card {
@@ -1496,6 +1797,37 @@ body {
 
     .crm-login-title {
       font-size: 1.28rem;
+    }
+  }
+
+  @media (max-width: 640px) and (max-height: 860px) {
+    .crm-mobile-split-login .crm-mobile-choice-card {
+      min-height: 0;
+      height: 100%;
+      padding: 0.9rem;
+    }
+
+    .crm-mobile-split-login .crm-mobile-choice-card.is-auth-open {
+      min-height: 0;
+    }
+
+    .crm-mobile-split-login .crm-mobile-split-stage {
+      gap: 0.55rem;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .crm-mobile-split-login {
+      padding-left: 0.7rem;
+      padding-right: 0.7rem;
+    }
+
+    .crm-mobile-split-brand h1 {
+      font-size: 1.72rem;
+    }
+
+    .crm-mobile-split-login .crm-mobile-choice-card.is-auth-open {
+      padding: 0.72rem;
     }
   }
 }

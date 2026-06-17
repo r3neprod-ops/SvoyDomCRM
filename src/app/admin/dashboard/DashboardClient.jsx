@@ -789,10 +789,6 @@ const CALLBACK_PRESETS = [
   { label: '4 часа', minutes: 240 },
   { label: 'Завтра', minutes: 1440 },
 ];
-const CALL_RESULT_LABELS = {
-  no_answer: 'Не дозвонился',
-  callback: 'Перезвонить',
-};
 const FILTER_OPTIONS = [
   { value: '', label: 'Все' },
   { value: 'new', label: 'Новые' },
@@ -1756,7 +1752,7 @@ export default function DashboardClient({ user, initialTab }) {
     }
   };
 
-  const openCallModal = (lead, result = 'callback') => {
+  const openCallModal = (lead) => {
     if (!lead.assigned_to) {
       showToast('Сначала назначьте ответственного сотрудника', 'error');
       return;
@@ -1766,8 +1762,8 @@ export default function DashboardClient({ user, initialTab }) {
       leadName: lead.name || `Лид #${lead.id}`,
       phone: lead.phone || '',
     });
-    setCallResult(result);
-    setCallMinutes(result === 'no_answer' ? 30 : 60);
+    setCallResult('callback');
+    setCallMinutes(60);
     setCallNote('');
   };
 
@@ -1809,7 +1805,7 @@ export default function DashboardClient({ user, initialTab }) {
             : lead
         )
       );
-      showToast(callResult === 'no_answer' ? 'Отмечено: не дозвонился' : 'Перезвон запланирован', 'success');
+      showToast('Перезвон запланирован', 'success');
       closeCallModal();
     } catch (err) {
       showToast(err?.message || 'Не удалось сохранить перезвон', 'error');
@@ -2872,15 +2868,28 @@ export default function DashboardClient({ user, initialTab }) {
                       </div>
                     </div>
                     <div className="mb-3 grid min-w-0 max-w-full grid-cols-1 gap-2 overflow-hidden text-xs sm:grid-cols-2">
-                      <div className="min-w-0 max-w-full overflow-hidden rounded-crmLg border border-crm-border bg-crm-surface/35 px-3 py-2">
+                      <div className="crm-lead-assignee-control min-w-0 max-w-full overflow-hidden rounded-crmLg border border-crm-border px-3 py-2">
                         <p className="uppercase tracking-wide text-crm-muted">Ответственный</p>
-                        <p className="mt-1 truncate font-medium text-crm-text">
-                          {lead.assigned_to_name || employees.find((emp) => emp.id === lead.assigned_to)?.name || 'Не назначен'}
-                        </p>
+                        {isAdmin ? (
+                          <select
+                            value={lead.assigned_to ?? ''}
+                            onChange={(e) => assignLead(lead.id, e.target.value || null)}
+                            className="crm-focus-ring crm-soft-select mt-2 w-full min-h-11 rounded-crmLg px-3 py-2 text-sm font-semibold text-crm-text"
+                          >
+                            <option value="">Не назначен</option>
+                            {employees.map((emp) => (
+                              <option key={emp.id} value={emp.id}>{emp.name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <p className="mt-1 truncate font-medium text-crm-text">
+                            {lead.assigned_to_name || employees.find((emp) => emp.id === lead.assigned_to)?.name || 'Не назначен'}
+                          </p>
+                        )}
                       </div>
                       <button
                         onClick={() => openComments(lead)}
-                        className="crm-focus-ring min-w-0 max-w-full overflow-hidden rounded-crmLg border border-crm-border bg-crm-surface/35 px-3 py-2 text-left transition hover:border-crm-accent/30 hover:bg-crm-accent/8"
+                        className="crm-focus-ring crm-lead-comment-tile min-w-0 max-w-full overflow-hidden rounded-crmLg border border-crm-border px-3 py-2 text-left transition"
                       >
                         <p className="uppercase tracking-wide text-crm-muted">Комментарии</p>
                         <p className="mt-1 truncate font-medium text-crm-text">
@@ -2888,22 +2897,10 @@ export default function DashboardClient({ user, initialTab }) {
                         </p>
                       </button>
                     </div>
-                    {isAdmin && (
-                      <select
-                        value={lead.assigned_to ?? ''}
-                        onChange={(e) => assignLead(lead.id, e.target.value || null)}
-                        className="crm-focus-ring mb-3 w-full min-h-11 rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2 text-sm text-crm-text"
-                      >
-                        <option value="">Не назначен</option>
-                        {employees.map((emp) => (
-                          <option key={emp.id} value={emp.id}>{emp.name}</option>
-                        ))}
-                      </select>
-                    )}
                     {showWorkColumns && !isAdmin && (
                       <button
                         onClick={() => openComments(lead)}
-                        className="crm-focus-ring mb-3 flex min-h-11 w-full flex-col justify-center rounded-crmLg border border-crm-border bg-crm-surface/40 px-3 py-2 text-left text-sm text-crm-text transition hover:border-crm-accent/30 hover:bg-crm-accent/8"
+                        className="crm-focus-ring crm-lead-comment-tile mb-3 flex min-h-11 w-full flex-col justify-center rounded-crmLg border border-crm-border px-3 py-2 text-left text-sm text-crm-text transition"
                       >
                         <span className="font-medium">Комментарии: {lead.comment_count || 0}</span>
                         {lead.last_comment_text && (
@@ -2928,20 +2925,12 @@ export default function DashboardClient({ user, initialTab }) {
                       ) : (
                         <>
                           {lead.assigned_to && !isFinalLeadStatus(lead.status) && (isAdmin || lead.assigned_to === user.id) && (
-                            <>
-                              <button
-                                onClick={() => openCallModal(lead, 'no_answer')}
-                                className={leadActionButtonClass('warning')}
-                              >
-                                Не дозвонился
-                              </button>
-                              <button
-                                onClick={() => openCallModal(lead, 'callback')}
-                                className={leadActionButtonClass('secondary')}
-                              >
-                                Перезвонить
-                              </button>
-                            </>
+                            <button
+                              onClick={() => openCallModal(lead)}
+                              className={leadActionButtonClass('secondary')}
+                            >
+                              Перезвонить
+                            </button>
                           )}
                           {getLeadPipelineActions(lead.status).map((action) => (
                             <button
@@ -3096,20 +3085,12 @@ export default function DashboardClient({ user, initialTab }) {
                               ) : (
                                 <>
                                   {lead.assigned_to && !isFinalLeadStatus(lead.status) && (isAdmin || lead.assigned_to === user.id) && (
-                                    <>
-                                      <button
-                                        onClick={() => openCallModal(lead, 'no_answer')}
-                                        className={leadActionButtonClass('warning', true)}
-                                      >
-                                        Не дозвонился
-                                      </button>
-                                      <button
-                                        onClick={() => openCallModal(lead, 'callback')}
-                                        className={leadActionButtonClass('secondary', true)}
-                                      >
-                                        Перезвонить
-                                      </button>
-                                    </>
+                                    <button
+                                      onClick={() => openCallModal(lead)}
+                                      className={leadActionButtonClass('secondary', true)}
+                                    >
+                                      Перезвонить
+                                    </button>
                                   )}
                                   {getLeadPipelineActions(lead.status).map((action) => (
                                     <button
@@ -4219,26 +4200,6 @@ export default function DashboardClient({ user, initialTab }) {
               </button>
             </div>
             <div className="space-y-4 px-5 py-5">
-              <div className="grid grid-cols-2 gap-2">
-                {Object.entries(CALL_RESULT_LABELS).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => {
-                      setCallResult(value);
-                      if (value === 'no_answer' && callMinutes > 120) setCallMinutes(30);
-                    }}
-                    className={`crm-focus-ring min-h-11 rounded-crmLg border px-3 py-2 text-sm font-medium transition ${
-                      callResult === value
-                        ? 'border-crm-accent/45 bg-crm-accent/15 text-crm-accent shadow-crmGlow'
-                        : 'border-crm-border bg-crm-surface/40 text-crm-muted hover:border-crm-accent/30 hover:bg-crm-accent/8 hover:text-crm-text'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
               <div>
                 <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-crm-muted">
                   Когда напомнить
@@ -4326,7 +4287,7 @@ export default function DashboardClient({ user, initialTab }) {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
           onClick={(e) => { if (e.target === e.currentTarget) closeComments(); }}
         >
-          <div className="crm-glass flex w-full max-w-lg flex-col rounded-crm2xl border border-crm-border shadow-crmCard" style={{ maxHeight: '80vh' }}>
+          <div className="crm-comments-modal crm-glass flex w-full max-w-lg flex-col rounded-crm2xl border border-crm-border shadow-crmCard" style={{ maxHeight: '80vh' }}>
             {/* Modal header */}
             <div className="flex items-center justify-between border-b border-crm-border px-5 py-4">
               <div>
@@ -4350,7 +4311,7 @@ export default function DashboardClient({ user, initialTab }) {
                 <p className="py-8 text-center text-sm text-crm-muted">Комментариев пока нет. Будьте первым!</p>
               ) : (
                 comments.map((c) => (
-                  <div key={c.id} className="rounded-crmLg border border-crm-border bg-crm-surface/50 px-4 py-3">
+                  <div key={c.id} className="crm-comment-entry rounded-crmLg border border-crm-border px-4 py-3">
                     <div className="mb-1 flex items-center justify-between gap-2">
                       <span className="text-xs font-semibold text-crm-text">{c.author_name || 'Неизвестно'}</span>
                       <span className="text-xs text-crm-muted">{formatDate(c.created_at)}</span>
@@ -4364,7 +4325,7 @@ export default function DashboardClient({ user, initialTab }) {
                   <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-crm-muted">История действий</h3>
                   <div className="space-y-2">
                     {leadEvents.map((event) => (
-                      <div key={event.id} className="rounded-crmLg border border-crm-border bg-crm-surface/40 px-3 py-2">
+                      <div key={event.id} className="crm-comment-entry crm-comment-entry--event rounded-crmLg border border-crm-border px-3 py-2">
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-xs font-semibold text-crm-text">{event.author_name || 'Система'}</span>
                           <span className="text-[11px] text-crm-muted">{formatDate(event.created_at)}</span>
@@ -4387,7 +4348,7 @@ export default function DashboardClient({ user, initialTab }) {
                   onChange={(e) => setCommentText(e.target.value)}
                   onKeyDown={handleCommentKey}
                   placeholder="Написать комментарий..."
-                  className="crm-focus-ring min-h-11 flex-1 rounded-crmLg border border-crm-border bg-crm-surface/50 px-3 py-2.5 text-sm text-crm-text placeholder:text-crm-muted"
+                  className="crm-focus-ring crm-comment-input min-h-11 flex-1 rounded-crmLg border border-crm-border px-3 py-2.5 text-sm text-crm-text placeholder:text-crm-muted"
                 />
                 <button
                   onClick={sendComment}
@@ -4397,7 +4358,7 @@ export default function DashboardClient({ user, initialTab }) {
                   Отправить
                 </button>
               </div>
-              <p className="mt-1.5 text-xs text-crm-muted">Enter — отправить · Shift+Enter — новая строка</p>
+              <p className="mt-1.5 hidden text-xs text-crm-muted sm:block">Enter — отправить · Shift+Enter — новая строка</p>
             </div>
           </div>
         </div>

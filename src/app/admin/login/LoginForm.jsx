@@ -179,6 +179,18 @@ function MobileScenarioCard({ item, pressedScenario, isInlineOpen, inlineAuth, o
     <section
       className={`crm-focus-ring crm-mobile-choice-card ${sideClass} ${pressedScenario === item.id ? 'is-pressed' : ''} ${isInlineOpen ? 'is-auth-open' : ''}`}
       aria-label={`${item.title}. ${item.text}`}
+      onClick={(event) => {
+        if (isInlineOpen) return;
+        if (event.target.closest('button, a, input, select, textarea, .crm-split-inline-auth')) return;
+        onOpen(item.id);
+      }}
+      onKeyDown={(event) => {
+        if (isInlineOpen) return;
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        onOpen(item.id);
+      }}
+      tabIndex={isInlineOpen ? undefined : 0}
     >
       <span className="flex flex-col gap-3">
         <span className="flex items-start justify-between gap-4">
@@ -293,18 +305,6 @@ export default function LoginForm() {
     const timer = window.setTimeout(() => setUsernameCheckState('ready'), 260);
     return () => window.clearTimeout(timer);
   }, [usernameValidation.status, registerForm.username]);
-
-  useEffect(() => {
-    if (!inlineScenario) return undefined;
-    if (!window.matchMedia('(max-width: 1023px)').matches) return undefined;
-
-    const timer = window.setTimeout(() => {
-      const inlineForm = document.querySelector(`.crm-mobile-choice-card--${inlineScenario} .crm-split-inline-auth`);
-      inlineForm?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 260);
-
-    return () => window.clearTimeout(timer);
-  }, [inlineScenario]);
 
   const rememberIntent = (intent) => {
     try {
@@ -754,36 +754,43 @@ export default function LoginForm() {
         </div>
       </section>
 
-      <section className="crm-mobile-login px-4 py-5 lg:hidden">
-        <header className="mx-auto flex max-w-[31rem] flex-col items-center text-center">
-          <BrandMark />
-          <h1 className="mt-6 text-[1.7rem] font-semibold leading-tight tracking-tight text-crm-text sm:text-4xl">
-            Вход в рабочее пространство
-          </h1>
-          <p className="mt-3 text-sm leading-relaxed text-crm-text/70">
-            Уже работаете в CRM? Войдите сразу. Если вы новый пользователь, выберите сценарий ниже.
-          </p>
-          <button
-            type="button"
-            onClick={openExistingLogin}
-            className="crm-focus-ring crm-mobile-login-pill mt-5"
-          >
-            <span>Уже есть аккаунт?</span>
-            <strong>Войти</strong>
-          </button>
-        </header>
+      <section
+        className="crm-mobile-login crm-mobile-split-login px-4 py-4 lg:hidden"
+        data-active={inlineScenario || 'none'}
+      >
+        <div className="crm-mobile-split-stage mx-auto max-w-[31rem]">
+          <div className="crm-mobile-split-brand">
+            <BrandMark compact />
+            <h1>Вход в рабочее пространство</h1>
+            <p>Выберите сценарий или войдите в существующий аккаунт.</p>
+          </div>
 
-        <div className="mx-auto mt-5 grid max-w-[31rem] gap-3">
-          {scenarios.map((item) => (
-            <MobileScenarioCard
-              key={item.id}
-              item={item}
-              pressedScenario={pressedScenario}
-              isInlineOpen={inlineScenario === item.id}
-              inlineAuth={inlineScenario === item.id ? renderInlineAuth(item) : null}
-              onOpen={openScenarioAuth}
-            />
-          ))}
+          <MobileScenarioCard
+            item={scenarios[0]}
+            pressedScenario={pressedScenario}
+            isInlineOpen={inlineScenario === scenarios[0].id}
+            inlineAuth={inlineScenario === scenarios[0].id ? renderInlineAuth(scenarios[0]) : null}
+            onOpen={openScenarioAuth}
+          />
+
+          <div className="crm-mobile-split-axis">
+            <button
+              type="button"
+              onClick={openExistingLogin}
+              className="crm-focus-ring crm-mobile-login-pill"
+            >
+              <span>Уже есть аккаунт?</span>
+              <strong>Войти</strong>
+            </button>
+          </div>
+
+          <MobileScenarioCard
+            item={scenarios[1]}
+            pressedScenario={pressedScenario}
+            isInlineOpen={inlineScenario === scenarios[1].id}
+            inlineAuth={inlineScenario === scenarios[1].id ? renderInlineAuth(scenarios[1]) : null}
+            onOpen={openScenarioAuth}
+          />
         </div>
       </section>
 
