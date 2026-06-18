@@ -342,7 +342,7 @@ export default function LoginForm() {
     window.setTimeout(() => {
       setInlineScenario(intent);
       setPressedScenario(null);
-    }, 90);
+    }, 280);
   };
 
   const openExistingLogin = () => {
@@ -625,7 +625,7 @@ export default function LoginForm() {
         <div className="h-px flex-1 bg-crm-border" />
       </div>
 
-      <div className="grid gap-2">
+      <div className={`grid gap-2 ${inline ? 'crm-oauth-row--icon-only' : ''}`}>
         {oauthProviders.map((provider) => (
           <a
             key={provider.id}
@@ -638,7 +638,7 @@ export default function LoginForm() {
             <span className="crm-oauth-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-crm-border text-crm-text">
               <OAuthIcon provider={provider.id} />
             </span>
-            <span>Войти через {provider.label}</span>
+            <span className="crm-oauth-label">Войти через {provider.label}</span>
           </a>
         ))}
       </div>
@@ -754,7 +754,7 @@ export default function LoginForm() {
       </section>
 
       <section
-        className="crm-mobile-login crm-mobile-split-login px-4 py-4 lg:hidden"
+        className={`crm-mobile-login crm-mobile-split-login px-4 py-4 lg:hidden ${pressedScenario ? 'is-splitting' : ''} ${inlineScenario ? 'is-inline-auth-open' : ''}`}
         data-active={inlineScenario || pressedScenario || 'none'}
       >
         <div className="crm-mobile-split-stage mx-auto max-w-[31rem]">
