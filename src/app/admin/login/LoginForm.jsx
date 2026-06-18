@@ -342,7 +342,7 @@ export default function LoginForm() {
     window.setTimeout(() => {
       setInlineScenario(intent);
       setPressedScenario(null);
-    }, 180);
+    }, 90);
   };
 
   const openExistingLogin = () => {
@@ -755,7 +755,7 @@ export default function LoginForm() {
 
       <section
         className="crm-mobile-login crm-mobile-split-login px-4 py-4 lg:hidden"
-        data-active={inlineScenario || 'none'}
+        data-active={inlineScenario || pressedScenario || 'none'}
       >
         <div className="crm-mobile-split-stage mx-auto max-w-[31rem]">
           <div className="crm-mobile-split-brand">

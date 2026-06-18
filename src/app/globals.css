@@ -1945,7 +1945,10 @@ body {
     grid-template-rows: minmax(0, 1fr) 0 minmax(0, 1fr);
     gap: 0 !important;
     overflow: hidden;
-    transition: grid-template-rows 720ms cubic-bezier(0.16, 1, 0.3, 1);
+    contain: layout paint;
+    transform: translateZ(0);
+    will-change: grid-template-rows;
+    transition: grid-template-rows 440ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .crm-mobile-split-login[data-active='employee'] .crm-mobile-split-stage {
@@ -1960,11 +1963,21 @@ body {
     top: max(env(safe-area-inset-top, 0px), 0.7rem);
     width: auto;
     transform: translateX(-50%);
+    will-change: opacity, transform;
+    transition:
+      opacity 180ms ease,
+      transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .crm-mobile-split-brand h1,
   .crm-mobile-split-brand p {
     display: none;
+  }
+
+  .crm-mobile-split-login[data-active='employee'] .crm-mobile-split-brand,
+  .crm-mobile-split-login[data-active='owner'] .crm-mobile-split-brand {
+    filter: none;
+    transform: translateX(-50%) translateY(-0.55rem) scale(0.98);
   }
 
   .crm-mobile-split-axis {
@@ -1974,6 +1987,10 @@ body {
     z-index: 18;
     min-height: 0;
     transform: translate(-50%, -50%);
+    will-change: opacity, transform;
+    transition:
+      opacity 180ms ease,
+      transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .crm-mobile-split-axis .crm-mobile-login-pill {
@@ -1997,11 +2014,12 @@ body {
     box-shadow: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+    transform: translateZ(0);
+    will-change: transform, opacity;
     transition:
-      transform 560ms cubic-bezier(0.16, 1, 0.3, 1),
-      filter 420ms ease,
-      padding 640ms cubic-bezier(0.16, 1, 0.3, 1),
-      opacity 320ms ease;
+      transform 360ms cubic-bezier(0.22, 1, 0.36, 1),
+      padding 440ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 180ms ease;
   }
 
   .crm-mobile-split-login .crm-mobile-choice-card--employee {
@@ -2037,9 +2055,10 @@ body {
 
   .crm-mobile-split-login .crm-mobile-choice-card > span {
     width: min(22rem, 100%);
+    will-change: transform, opacity;
     transition:
-      transform 680ms cubic-bezier(0.16, 1, 0.3, 1),
-      opacity 360ms ease;
+      transform 400ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 180ms ease;
   }
 
   .crm-mobile-split-login .crm-mobile-choice-card--employee > span {
@@ -2097,6 +2116,11 @@ body {
     min-height: 0;
     max-height: calc(100% - 4.7rem);
     border-radius: 1.45rem;
+    animation: crm-mobile-auth-panel-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    will-change: opacity, transform;
+    transition:
+      opacity 180ms ease,
+      transform 320ms cubic-bezier(0.22, 1, 0.36, 1) !important;
   }
 
   .crm-mobile-split-login .crm-mobile-choice-card .crm-split-inline-auth.is-open {
@@ -2113,7 +2137,7 @@ body {
     border-radius: 0;
     padding: 0.55rem 1rem;
     opacity: 0.98;
-    filter: saturate(0.98) brightness(0.98);
+    filter: none;
   }
 
   .crm-mobile-split-login[data-active='employee'] .crm-mobile-choice-card--owner:not(.is-auth-open) > span,
@@ -2186,6 +2210,18 @@ body {
     .crm-mobile-split-axis .crm-mobile-login-pill {
       min-height: 3rem;
       padding: 0 1rem;
+    }
+  }
+
+  @keyframes crm-mobile-auth-panel-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 0.55rem, 0) scale(0.985);
+    }
+
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
     }
   }
 }
