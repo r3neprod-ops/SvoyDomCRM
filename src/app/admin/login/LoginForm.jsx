@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 const AUTH_INTENT_KEY = 'crm24_auth_intent';
 const AUTH_INTENT_CHOICE = 'choice';
-const MOBILE_SPLIT_REVEAL_DELAY_MS = 640;
+const MOBILE_SPLIT_REVEAL_DELAY_MS = 1180;
 const USERNAME_PATTERN = /^[a-z0-9_]{3,32}$/;
 
 function normalizeLogin(value) {
@@ -650,12 +650,6 @@ export default function LoginForm() {
         </div>
       )}
 
-      {selectedScenario === 'employee' && (
-        <div className="crm-auth-note mt-4 rounded-[1.1rem] border border-crm-border px-4 py-3 text-sm leading-relaxed text-crm-muted">
-          После входа откроется настройка профиля и поиск компании. Если вас пригласили по никнейму, приглашение появится там.
-        </div>
-      )}
-
       <div className="crm-auth-note crm-login-safe-note mt-4 flex items-start gap-2.5 rounded-[1.1rem] border border-crm-border/60 px-4 py-3">
         <ShieldIcon />
         <p className="text-xs leading-relaxed text-crm-muted">
@@ -1040,12 +1034,6 @@ export default function LoginForm() {
               {oauthErrorText && (
                 <div className="mt-4 rounded-[1.1rem] border border-crm-warning/35 bg-crm-warning/10 px-4 py-3 text-sm leading-relaxed text-crm-warning">
                   {oauthErrorText}
-                </div>
-              )}
-
-              {selectedScenario === 'employee' && (
-                <div className="crm-auth-note mt-4 rounded-[1.1rem] border border-crm-border px-4 py-3 text-sm leading-relaxed text-crm-muted">
-                  После входа откроется настройка профиля и поиск компании. Если вас пригласили по никнейму, приглашение появится там.
                 </div>
               )}
 
