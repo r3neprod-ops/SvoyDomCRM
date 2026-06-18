@@ -1937,23 +1937,25 @@ body {
   }
 
   .crm-mobile-split-login .crm-mobile-split-stage {
+    position: relative;
+    display: block;
+    isolation: isolate;
     width: 100vw;
     max-width: none !important;
     height: 100svh;
     max-height: 100svh;
     margin: 0 !important;
-    grid-template-rows: minmax(0, 1fr) 0 minmax(0, 1fr);
     gap: 0 !important;
     overflow: hidden;
-    contain: layout paint;
+    contain: strict;
     transform: translateZ(0);
     will-change: auto;
     transition: none;
   }
 
   .crm-mobile-split-login.is-splitting .crm-mobile-split-stage {
-    will-change: grid-template-rows;
-    transition: grid-template-rows 1120ms cubic-bezier(0.16, 1, 0.28, 1);
+    will-change: auto;
+    transition: none;
   }
 
   .crm-mobile-split-login.is-inline-auth-open .crm-mobile-split-stage {
@@ -1962,11 +1964,11 @@ body {
   }
 
   .crm-mobile-split-login[data-active='employee'] .crm-mobile-split-stage {
-    grid-template-rows: minmax(0, 9fr) 0 minmax(4.65rem, 1fr);
+    transition: none;
   }
 
   .crm-mobile-split-login[data-active='owner'] .crm-mobile-split-stage {
-    grid-template-rows: minmax(4.65rem, 1fr) 0 minmax(0, 9fr);
+    transition: none;
   }
 
   .crm-mobile-split-brand {
@@ -2012,12 +2014,16 @@ body {
   .crm-mobile-split-login[data-active='employee'] .crm-mobile-split-axis,
   .crm-mobile-split-login[data-active='owner'] .crm-mobile-split-axis {
     opacity: 0;
+    pointer-events: none;
     transform: translate(-50%, -50%) scale(0.9);
   }
 
   .crm-mobile-split-login .crm-mobile-choice-card {
+    position: absolute;
+    left: 0;
+    right: 0;
     min-height: 0;
-    height: 100%;
+    height: 90svh;
     border: 0;
     border-radius: 0;
     padding: max(env(safe-area-inset-top, 0px), 2.6rem) 1.35rem max(env(safe-area-inset-bottom, 0px), 2.4rem);
@@ -2026,19 +2032,25 @@ body {
     -webkit-backdrop-filter: none;
     backface-visibility: hidden;
     contain: layout paint;
-    transform: translateZ(0);
-    will-change: transform, opacity;
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
     transition:
-      transform 680ms cubic-bezier(0.16, 1, 0.28, 1),
-      opacity 420ms ease;
+      transform 720ms cubic-bezier(0.19, 1, 0.22, 1),
+      opacity 220ms ease;
   }
 
   .crm-mobile-split-login .crm-mobile-choice-card--employee {
-    grid-row: 1;
+    top: 0;
+    justify-content: flex-end;
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 2.4rem);
+    transform: translate3d(0, -44.444%, 0);
   }
 
   .crm-mobile-split-login .crm-mobile-choice-card--owner {
-    grid-row: 3;
+    bottom: 0;
+    justify-content: flex-start;
+    padding-top: max(env(safe-area-inset-top, 0px), 2.6rem);
+    transform: translate3d(0, 44.444%, 0);
   }
 
   .crm-mobile-split-login .crm-mobile-choice-card::after {
@@ -2047,7 +2059,6 @@ body {
   }
 
   .crm-mobile-split-login .crm-mobile-choice-card--employee {
-    justify-content: center;
     border-bottom: 1px solid rgba(255, 255, 255, 0.72);
     background:
       radial-gradient(circle at 8% 78%, rgba(255, 255, 255, 0.34), transparent 14rem),
@@ -2056,7 +2067,6 @@ body {
   }
 
   .crm-mobile-split-login .crm-mobile-choice-card--owner {
-    justify-content: center;
     border-top: 1px solid rgba(255, 255, 255, 0.56);
     background:
       radial-gradient(circle at 88% 82%, rgba(255, 255, 255, 0.28), transparent 13rem),
@@ -2064,31 +2074,47 @@ body {
       linear-gradient(142deg, #31c8ef 0%, #148bdb 47%, #1762c7 100%);
   }
 
-  .crm-mobile-split-login .crm-mobile-choice-card > span {
+  .crm-mobile-split-login[data-active='employee'] .crm-mobile-choice-card--employee {
+    transform: translate3d(0, 0, 0);
+  }
+
+  .crm-mobile-split-login[data-active='employee'] .crm-mobile-choice-card--owner {
+    transform: translate3d(0, 88.888%, 0);
+  }
+
+  .crm-mobile-split-login[data-active='owner'] .crm-mobile-choice-card--employee {
+    transform: translate3d(0, -88.888%, 0);
+  }
+
+  .crm-mobile-split-login[data-active='owner'] .crm-mobile-choice-card--owner {
+    transform: translate3d(0, 0, 0);
+  }
+
+  .crm-mobile-split-login .crm-mobile-choice-card__content {
     width: min(22rem, 100%);
     will-change: transform, opacity;
     transition:
-      transform 960ms cubic-bezier(0.16, 1, 0.28, 1),
-      opacity 520ms ease;
+      transform 520ms cubic-bezier(0.19, 1, 0.22, 1),
+      opacity 240ms ease;
   }
 
-  .crm-mobile-split-login .crm-mobile-choice-card--employee > span {
+  .crm-mobile-split-login .crm-mobile-choice-card--employee .crm-mobile-choice-card__content {
     transform: translateY(-1.15rem);
   }
 
-  .crm-mobile-split-login .crm-mobile-choice-card--owner > span {
+  .crm-mobile-split-login .crm-mobile-choice-card--owner .crm-mobile-choice-card__content {
     align-self: flex-end;
     transform: translateY(1.15rem);
   }
 
-  .crm-mobile-split-login .crm-mobile-choice-card > span > span:nth-child(2) {
+  .crm-mobile-split-login .crm-mobile-choice-card__title {
     color: rgba(13, 48, 58, 0.94);
     font-size: clamp(2rem, 9vw, 3rem);
     font-weight: 790;
-    letter-spacing: -0.045em;
+    letter-spacing: 0;
   }
 
-  .crm-mobile-split-login .crm-mobile-choice-card > span > span:nth-child(3),
+  .crm-mobile-split-login .crm-mobile-choice-card__text,
   .crm-mobile-split-login .crm-mobile-choice-hint {
     max-width: 19rem;
     color: rgba(13, 48, 58, 0.72);
@@ -2099,11 +2125,11 @@ body {
   }
 
   .crm-mobile-split-login .crm-generated-art--mobile {
-    opacity: 0.42;
+    opacity: 0.34;
     filter: none;
     transition:
-      opacity 620ms ease,
-      transform 980ms cubic-bezier(0.16, 1, 0.28, 1);
+      opacity 240ms ease,
+      transform 520ms cubic-bezier(0.19, 1, 0.22, 1);
   }
 
   .crm-mobile-split-login .crm-mobile-choice-card.is-auth-open {
@@ -2114,13 +2140,13 @@ body {
     transform: none;
   }
 
-  .crm-mobile-split-login .crm-mobile-choice-card.is-auth-open > span {
+  .crm-mobile-split-login .crm-mobile-choice-card.is-auth-open .crm-mobile-choice-card__content {
     width: 100%;
     gap: 0.45rem;
     transform: none;
   }
 
-  .crm-mobile-split-login .crm-mobile-choice-card.is-auth-open > span > span:nth-child(2) {
+  .crm-mobile-split-login .crm-mobile-choice-card.is-auth-open .crm-mobile-choice-card__title {
     max-width: 14rem;
     font-size: clamp(1.45rem, 6.4vw, 2rem);
     line-height: 1;
@@ -2134,11 +2160,11 @@ body {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     transform-origin: center top;
-    animation: crm-mobile-auth-panel-in 980ms cubic-bezier(0.16, 1, 0.28, 1) both;
+    animation: crm-mobile-auth-panel-in 520ms cubic-bezier(0.19, 1, 0.22, 1) both;
     will-change: opacity, transform;
     transition:
-      opacity 620ms ease,
-      transform 980ms cubic-bezier(0.16, 1, 0.28, 1) !important;
+      opacity 260ms ease,
+      transform 520ms cubic-bezier(0.19, 1, 0.22, 1) !important;
   }
 
   .crm-mobile-split-login .crm-mobile-choice-card .crm-split-inline-auth.is-open {
@@ -2179,21 +2205,30 @@ body {
 
   .crm-mobile-split-login[data-active='employee'] .crm-mobile-choice-card--owner:not(.is-auth-open),
   .crm-mobile-split-login[data-active='owner'] .crm-mobile-choice-card--employee:not(.is-auth-open) {
-    justify-content: center;
     border-radius: 0;
     padding: 0.55rem 1rem;
     opacity: 0.98;
     filter: none;
   }
 
-  .crm-mobile-split-login[data-active='employee'] .crm-mobile-choice-card--owner:not(.is-auth-open) > span,
-  .crm-mobile-split-login[data-active='owner'] .crm-mobile-choice-card--employee:not(.is-auth-open) > span {
+  .crm-mobile-split-login[data-active='employee'] .crm-mobile-choice-card--owner:not(.is-auth-open) {
+    justify-content: flex-start;
+    padding-top: 0.7rem;
+  }
+
+  .crm-mobile-split-login[data-active='owner'] .crm-mobile-choice-card--employee:not(.is-auth-open) {
+    justify-content: flex-end;
+    padding-bottom: 0.7rem;
+  }
+
+  .crm-mobile-split-login[data-active='employee'] .crm-mobile-choice-card--owner:not(.is-auth-open) .crm-mobile-choice-card__content,
+  .crm-mobile-split-login[data-active='owner'] .crm-mobile-choice-card--employee:not(.is-auth-open) .crm-mobile-choice-card__content {
     width: auto;
     transform: none;
   }
 
-  .crm-mobile-split-login[data-active='employee'] .crm-mobile-choice-card--owner:not(.is-auth-open) span:nth-child(2),
-  .crm-mobile-split-login[data-active='owner'] .crm-mobile-choice-card--employee:not(.is-auth-open) span:nth-child(2) {
+  .crm-mobile-split-login[data-active='employee'] .crm-mobile-choice-card--owner:not(.is-auth-open) .crm-mobile-choice-card__title,
+  .crm-mobile-split-login[data-active='owner'] .crm-mobile-choice-card--employee:not(.is-auth-open) .crm-mobile-choice-card__title {
     color: rgba(13, 48, 58, 0.82);
     font-size: 1rem;
     letter-spacing: 0;
@@ -2228,17 +2263,17 @@ body {
       linear-gradient(142deg, #083e65 0%, #082a63 48%, #041226 100%);
   }
 
-  html.dark .crm-mobile-split-login .crm-mobile-choice-card > span > span:nth-child(2) {
+  html.dark .crm-mobile-split-login .crm-mobile-choice-card__title {
     color: rgba(239, 253, 255, 0.94);
   }
 
-  html.dark .crm-mobile-split-login .crm-mobile-choice-card > span > span:nth-child(3),
+  html.dark .crm-mobile-split-login .crm-mobile-choice-card__text,
   html.dark .crm-mobile-split-login .crm-mobile-choice-hint {
     color: rgba(219, 250, 255, 0.68);
   }
 
-  html.dark .crm-mobile-split-login[data-active='employee'] .crm-mobile-choice-card--owner:not(.is-auth-open) span:nth-child(2),
-  html.dark .crm-mobile-split-login[data-active='owner'] .crm-mobile-choice-card--employee:not(.is-auth-open) span:nth-child(2) {
+  html.dark .crm-mobile-split-login[data-active='employee'] .crm-mobile-choice-card--owner:not(.is-auth-open) .crm-mobile-choice-card__title,
+  html.dark .crm-mobile-split-login[data-active='owner'] .crm-mobile-choice-card--employee:not(.is-auth-open) .crm-mobile-choice-card__title {
     color: rgba(239, 253, 255, 0.82);
   }
 
@@ -2262,17 +2297,12 @@ body {
   @keyframes crm-mobile-auth-panel-in {
     0% {
       opacity: 0;
-      transform: translate3d(0, 1.7rem, 0) scale(0.91);
+      transform: translate3d(0, 0.85rem, 0) scale(0.975);
     }
 
-    58% {
-      opacity: 0.86;
-      transform: translate3d(0, 0.38rem, 0) scale(0.978);
-    }
-
-    82% {
-      opacity: 0.98;
-      transform: translate3d(0, 0.08rem, 0) scale(0.996);
+    62% {
+      opacity: 0.92;
+      transform: translate3d(0, 0.14rem, 0) scale(0.995);
     }
 
     100% {

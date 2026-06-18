@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 const AUTH_INTENT_KEY = 'crm24_auth_intent';
 const AUTH_INTENT_CHOICE = 'choice';
-const MOBILE_SPLIT_REVEAL_DELAY_MS = 1180;
+const MOBILE_SPLIT_REVEAL_DELAY_MS = 760;
 const USERNAME_PATTERN = /^[a-z0-9_]{3,32}$/;
 
 function normalizeLogin(value) {
@@ -196,15 +196,15 @@ function MobileScenarioCard({ item, pressedScenario, isInlineOpen, inlineAuth, o
       }}
       tabIndex={isInlineOpen ? undefined : 0}
     >
-      <span className="flex flex-col gap-3">
-        <span className="flex items-start justify-between gap-4">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.35rem] border border-white/68 bg-white/38 text-crm-accent shadow-crmGlow backdrop-blur-xl">
+      <span className="crm-mobile-choice-card__content flex flex-col gap-3">
+        <span className="crm-mobile-choice-card__head flex items-start justify-between gap-4">
+          <span className="crm-mobile-choice-card__icon flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.35rem] border border-white/68 bg-white/38 text-crm-accent shadow-crmGlow backdrop-blur-xl">
             <ScenarioGlyph type={item.id} />
           </span>
           <GeneratedArtwork type={item.id} compact />
         </span>
-        <span className="block text-[1.65rem] font-semibold leading-tight tracking-tight text-crm-text">{item.title}</span>
-        <span className="block text-sm leading-relaxed text-crm-muted">{item.text}</span>
+        <span className="crm-mobile-choice-card__title block text-[1.65rem] font-semibold leading-tight tracking-tight text-crm-text">{item.title}</span>
+        <span className="crm-mobile-choice-card__text block text-sm leading-relaxed text-crm-muted">{item.text}</span>
         <span className="crm-mobile-choice-hint block text-xs leading-relaxed text-crm-text/75">{item.hint}</span>
       </span>
       <button
