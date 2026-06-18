@@ -179,6 +179,9 @@ function MobileScenarioCard({ item, pressedScenario, isInlineOpen, inlineAuth, o
     <section
       className={`crm-focus-ring crm-mobile-choice-card ${sideClass} ${pressedScenario === item.id ? 'is-pressed' : ''} ${isInlineOpen ? 'is-auth-open' : ''}`}
       aria-label={`${item.title}. ${item.text}`}
+      aria-expanded={isInlineOpen}
+      aria-pressed={isInlineOpen}
+      role="button"
       onClick={(event) => {
         if (isInlineOpen) return;
         if (event.target.closest('button, a, input, select, textarea, .crm-split-inline-auth')) return;
@@ -436,11 +439,7 @@ export default function LoginForm() {
   };
 
   const tabClass = (tab) => (
-    `crm-focus-ring flex h-10 flex-1 items-center justify-center rounded-[1rem] text-sm font-semibold transition ${
-      authTab === tab
-        ? 'bg-white/78 text-crm-text shadow-crmSoft dark:bg-white/10'
-        : 'text-crm-muted hover:bg-white/42 hover:text-crm-text dark:hover:bg-white/7'
-    }`
+    `crm-focus-ring crm-auth-tab ${authTab === tab ? 'is-active' : ''}`
   );
 
   const renderAuthContent = ({ inline = false } = {}) => (
@@ -598,7 +597,7 @@ export default function LoginForm() {
               />
             </div>
           </div>
-          <label className="flex items-start gap-3 rounded-[1.1rem] border border-crm-border bg-crm-surface-soft/60 px-4 py-3 text-sm leading-relaxed text-crm-muted">
+          <label className="crm-auth-note flex items-start gap-3 rounded-[1.1rem] border border-crm-border px-4 py-3 text-sm leading-relaxed text-crm-muted">
             <input
               type="checkbox"
               checked={acceptPolicy}
@@ -632,11 +631,11 @@ export default function LoginForm() {
             key={provider.id}
             href={`/api/auth/oauth/${provider.id}`}
             onClick={() => rememberIntent(selectedScenario || AUTH_INTENT_CHOICE)}
-            className="crm-focus-ring flex min-h-12 items-center justify-start gap-3 rounded-[1.25rem] border border-crm-border bg-crm-surface-soft/70 px-4 text-sm font-semibold text-crm-text transition hover:border-crm-accent/35 hover:bg-crm-accent/10 hover:text-crm-accent"
+            className="crm-focus-ring crm-oauth-button flex min-h-12 items-center justify-start gap-3 rounded-[1.25rem] border border-crm-border px-4 text-sm font-semibold text-crm-text transition"
             aria-label={`Войти через ${provider.label}`}
             title={`Войти через ${provider.label}`}
           >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-crm-border bg-crm-surface/75 text-crm-text">
+            <span className="crm-oauth-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-crm-border text-crm-text">
               <OAuthIcon provider={provider.id} />
             </span>
             <span>Войти через {provider.label}</span>
@@ -651,12 +650,12 @@ export default function LoginForm() {
       )}
 
       {selectedScenario === 'employee' && (
-        <div className="mt-4 rounded-[1.1rem] border border-crm-border bg-crm-surface-soft/60 px-4 py-3 text-sm leading-relaxed text-crm-muted">
+        <div className="crm-auth-note mt-4 rounded-[1.1rem] border border-crm-border px-4 py-3 text-sm leading-relaxed text-crm-muted">
           После входа откроется настройка профиля и поиск компании. Если вас пригласили по никнейму, приглашение появится там.
         </div>
       )}
 
-      <div className="crm-login-safe-note mt-4 flex items-start gap-2.5 rounded-[1.1rem] border border-crm-border/60 bg-crm-surface-soft/60 px-4 py-3">
+      <div className="crm-auth-note crm-login-safe-note mt-4 flex items-start gap-2.5 rounded-[1.1rem] border border-crm-border/60 px-4 py-3">
         <ShieldIcon />
         <p className="text-xs leading-relaxed text-crm-muted">
           OAuth endpoints и callback URL не менялись. Пароли, токены и коды доступа не сохраняются во frontend.
@@ -680,7 +679,7 @@ export default function LoginForm() {
         <button
           type="button"
           onClick={closeInlineAuth}
-          className="crm-focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-[1rem] border border-crm-border bg-white/42 text-crm-muted transition hover:text-crm-text"
+          className="crm-focus-ring crm-auth-close flex h-10 w-10 shrink-0 items-center justify-center rounded-[1rem] border border-crm-border text-crm-muted transition hover:text-crm-text"
           aria-label="Закрыть форму"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="h-5 w-5" aria-hidden="true">
@@ -689,7 +688,7 @@ export default function LoginForm() {
         </button>
       </div>
 
-      <div className="mt-4 flex rounded-[1.2rem] border border-crm-border bg-crm-surface-soft/70 p-1">
+      <div className="crm-auth-tabs mt-4 flex rounded-[1.2rem] border border-crm-border p-1">
         <button type="button" onClick={() => { setAuthTab('login'); resetAuthMessages(); }} className={tabClass('login')}>
           Вход
         </button>
@@ -817,7 +816,7 @@ export default function LoginForm() {
                 <button
                   type="button"
                   onClick={closeAuth}
-                  className="crm-focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-[1rem] border border-crm-border bg-white/45 text-crm-muted transition hover:text-crm-text dark:bg-white/8"
+                  className="crm-focus-ring crm-auth-close flex h-11 w-11 shrink-0 items-center justify-center rounded-[1rem] border border-crm-border text-crm-muted transition hover:text-crm-text"
                   aria-label="Закрыть окно входа"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="h-5 w-5" aria-hidden="true">
@@ -826,7 +825,7 @@ export default function LoginForm() {
                 </button>
               </div>
               {scenario && (
-                <div className="mt-4 flex rounded-[1.2rem] border border-crm-border bg-crm-surface-soft/70 p-1">
+                <div className="crm-auth-tabs mt-4 flex rounded-[1.2rem] border border-crm-border p-1">
                   <button type="button" onClick={() => { setAuthTab('login'); resetAuthMessages(); }} className={tabClass('login')}>
                     Вход
                   </button>
@@ -991,7 +990,7 @@ export default function LoginForm() {
                       />
                     </div>
                   </div>
-                  <label className="flex items-start gap-3 rounded-[1.1rem] border border-crm-border bg-crm-surface-soft/60 px-4 py-3 text-sm leading-relaxed text-crm-muted">
+                  <label className="crm-auth-note flex items-start gap-3 rounded-[1.1rem] border border-crm-border px-4 py-3 text-sm leading-relaxed text-crm-muted">
                     <input
                       type="checkbox"
                       checked={acceptPolicy}
@@ -1025,11 +1024,11 @@ export default function LoginForm() {
                     key={provider.id}
                     href={`/api/auth/oauth/${provider.id}`}
                     onClick={() => rememberIntent(selectedScenario || AUTH_INTENT_CHOICE)}
-                    className="crm-focus-ring flex min-h-12 items-center justify-start gap-3 rounded-[1.25rem] border border-crm-border bg-crm-surface-soft/70 px-4 text-sm font-semibold text-crm-text transition hover:border-crm-accent/35 hover:bg-crm-accent/10 hover:text-crm-accent"
+                    className="crm-focus-ring crm-oauth-button flex min-h-12 items-center justify-start gap-3 rounded-[1.25rem] border border-crm-border px-4 text-sm font-semibold text-crm-text transition"
                     aria-label={`Войти через ${provider.label}`}
                     title={`Войти через ${provider.label}`}
                   >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-crm-border bg-crm-surface/75 text-crm-text">
+                    <span className="crm-oauth-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-crm-border text-crm-text">
                       <OAuthIcon provider={provider.id} />
                     </span>
                     <span>Войти через {provider.label}</span>
@@ -1044,12 +1043,12 @@ export default function LoginForm() {
               )}
 
               {selectedScenario === 'employee' && (
-                <div className="mt-4 rounded-[1.1rem] border border-crm-border bg-crm-surface-soft/60 px-4 py-3 text-sm leading-relaxed text-crm-muted">
+                <div className="crm-auth-note mt-4 rounded-[1.1rem] border border-crm-border px-4 py-3 text-sm leading-relaxed text-crm-muted">
                   После входа откроется настройка профиля и поиск компании. Если вас пригласили по никнейму, приглашение появится там.
                 </div>
               )}
 
-              <div className="crm-login-safe-note mt-4 flex items-start gap-2.5 rounded-[1.1rem] border border-crm-border/60 bg-crm-surface-soft/60 px-4 py-3">
+              <div className="crm-auth-note crm-login-safe-note mt-4 flex items-start gap-2.5 rounded-[1.1rem] border border-crm-border/60 px-4 py-3">
                 <ShieldIcon />
                 <p className="text-xs leading-relaxed text-crm-muted">
                   OAuth endpoints и callback URL не менялись. Пароли, токены и коды доступа не сохраняются во frontend.
