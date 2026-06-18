@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 const AUTH_INTENT_KEY = 'crm24_auth_intent';
 const AUTH_INTENT_CHOICE = 'choice';
+const MOBILE_SPLIT_REVEAL_DELAY_MS = 640;
 const USERNAME_PATTERN = /^[a-z0-9_]{3,32}$/;
 
 function normalizeLogin(value) {
@@ -342,7 +343,7 @@ export default function LoginForm() {
     window.setTimeout(() => {
       setInlineScenario(intent);
       setPressedScenario(null);
-    }, 280);
+    }, MOBILE_SPLIT_REVEAL_DELAY_MS);
   };
 
   const openExistingLogin = () => {

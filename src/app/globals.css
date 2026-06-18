@@ -1953,7 +1953,7 @@ body {
 
   .crm-mobile-split-login.is-splitting .crm-mobile-split-stage {
     will-change: grid-template-rows;
-    transition: grid-template-rows 280ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition: grid-template-rows 520ms cubic-bezier(0.19, 1, 0.22, 1);
   }
 
   .crm-mobile-split-login.is-inline-auth-open .crm-mobile-split-stage {
@@ -1975,8 +1975,8 @@ body {
     transform: translateX(-50%);
     will-change: opacity, transform;
     transition:
-      opacity 180ms ease,
-      transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+      opacity 260ms ease,
+      transform 460ms cubic-bezier(0.19, 1, 0.22, 1);
   }
 
   .crm-mobile-split-brand h1,
@@ -1999,8 +1999,8 @@ body {
     transform: translate(-50%, -50%);
     will-change: opacity, transform;
     transition:
-      opacity 180ms ease,
-      transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+      opacity 240ms ease,
+      transform 460ms cubic-bezier(0.19, 1, 0.22, 1);
   }
 
   .crm-mobile-split-axis .crm-mobile-login-pill {
@@ -2068,8 +2068,8 @@ body {
     width: min(22rem, 100%);
     will-change: transform, opacity;
     transition:
-      transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 180ms ease;
+      transform 440ms cubic-bezier(0.19, 1, 0.22, 1),
+      opacity 240ms ease;
   }
 
   .crm-mobile-split-login .crm-mobile-choice-card--employee > span {
@@ -2131,11 +2131,12 @@ body {
     border-radius: 1.45rem;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    animation: crm-mobile-auth-panel-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    transform-origin: center top;
+    animation: crm-mobile-auth-panel-in 420ms cubic-bezier(0.19, 1, 0.22, 1) both;
     will-change: opacity, transform;
     transition:
-      opacity 180ms ease,
-      transform 260ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+      opacity 220ms ease,
+      transform 420ms cubic-bezier(0.19, 1, 0.22, 1) !important;
   }
 
   .crm-mobile-split-login .crm-mobile-choice-card .crm-split-inline-auth.is-open {
@@ -2259,7 +2260,7 @@ body {
   @keyframes crm-mobile-auth-panel-in {
     from {
       opacity: 0;
-      transform: translate3d(0, 0.35rem, 0) scale(0.992);
+      transform: translate3d(0, 0.9rem, 0) scale(0.955);
     }
 
     to {
