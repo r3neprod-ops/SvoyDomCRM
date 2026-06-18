@@ -313,6 +313,240 @@ body {
     padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.75rem);
   }
 
+  .crm-install-prompt {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 1rem;
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 1rem);
+    pointer-events: none;
+  }
+
+  .crm-install-prompt__scrim {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 50% 100%, rgba(var(--crm-accent-rgb), 0.2), transparent 18rem),
+      linear-gradient(180deg, transparent 42%, rgba(3, 24, 35, 0.22));
+    opacity: 0.9;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+  }
+
+  .crm-install-prompt__panel {
+    position: relative;
+    width: min(100%, 29rem);
+    overflow: hidden;
+    border: 1px solid var(--crm-border-strong);
+    border-radius: 2rem;
+    background:
+      radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.68), transparent 9rem),
+      radial-gradient(circle at 100% 100%, rgba(var(--crm-accent-rgb), 0.18), transparent 11rem),
+      var(--crm-gradient-card);
+    box-shadow: var(--crm-shadow-card), 0 28px 90px rgba(1, 43, 63, 0.24);
+    color: var(--crm-text);
+    pointer-events: auto;
+    transform-origin: center bottom;
+    animation: crm-install-prompt-enter 420ms cubic-bezier(0.19, 1, 0.22, 1) both;
+    backdrop-filter: blur(24px) saturate(150%);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+  }
+
+  .crm-install-prompt__panel::before {
+    content: '';
+    position: absolute;
+    inset: -28% auto auto 18%;
+    width: 13rem;
+    height: 13rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.34);
+    filter: blur(36px);
+    pointer-events: none;
+  }
+
+  .crm-install-prompt__top {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 1rem;
+    padding: 1.25rem 1.25rem 1rem;
+  }
+
+  .crm-install-prompt__icon {
+    width: 3.625rem;
+    height: 3.625rem;
+    border-radius: 1.25rem;
+    box-shadow: 0 16px 34px rgba(3, 95, 116, 0.22);
+  }
+
+  .crm-install-prompt__copy {
+    min-width: 0;
+    padding-right: 2rem;
+  }
+
+  .crm-install-prompt__eyebrow {
+    margin: 0 0 0.1rem;
+    color: var(--crm-accent);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .crm-install-prompt__copy h2 {
+    margin: 0;
+    color: var(--crm-text);
+    font-size: clamp(1.2rem, 3.6vw, 1.55rem);
+    line-height: 1.08;
+    font-weight: 850;
+    letter-spacing: 0;
+  }
+
+  .crm-install-prompt__copy p:last-child {
+    margin: 0.55rem 0 0;
+    color: var(--crm-text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+
+  .crm-install-prompt__close {
+    position: absolute;
+    right: 0.9rem;
+    top: 0.9rem;
+    z-index: 2;
+    display: grid;
+    width: 2.45rem;
+    height: 2.45rem;
+    place-items: center;
+    border: 1px solid var(--crm-border);
+    border-radius: 999px;
+    background: var(--crm-surface);
+    color: var(--crm-text-muted);
+    font-size: 1.45rem;
+    line-height: 1;
+    transition: color 180ms ease, border-color 180ms ease, background-color 180ms ease, transform 180ms ease;
+  }
+
+  .crm-install-prompt__close:hover {
+    border-color: var(--crm-border-accent);
+    background: var(--crm-accent-soft);
+    color: var(--crm-text);
+    transform: translateY(-1px);
+  }
+
+  .crm-install-prompt__benefits {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    padding: 0 1.25rem 1rem;
+  }
+
+  .crm-install-prompt__benefits span {
+    border: 1px solid rgba(var(--crm-accent-rgb), 0.22);
+    border-radius: 999px;
+    background: rgba(var(--crm-accent-rgb), 0.1);
+    color: var(--crm-text);
+    padding: 0.45rem 0.7rem;
+    font-size: 0.78rem;
+    font-weight: 720;
+    line-height: 1;
+  }
+
+  .crm-install-prompt__actions {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+    border-top: 1px solid var(--crm-border);
+    padding: 1rem 1.25rem 1.25rem;
+  }
+
+  .crm-install-prompt__actions--single {
+    grid-template-columns: 1fr;
+  }
+
+  .crm-install-prompt__primary,
+  .crm-install-prompt__secondary {
+    min-height: 3rem;
+    border-radius: 1.25rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 820;
+    transition: transform 180ms ease, filter 180ms ease, border-color 180ms ease, background-color 180ms ease;
+  }
+
+  .crm-install-prompt__primary {
+    border: 1px solid rgba(255, 255, 255, 0.62);
+    background: var(--crm-gradient-primary);
+    color: #062535;
+    box-shadow: var(--crm-shadow-glow);
+  }
+
+  .crm-install-prompt__primary:hover {
+    filter: brightness(1.04);
+    transform: translateY(-1px);
+  }
+
+  .crm-install-prompt__secondary {
+    border: 1px solid var(--crm-border);
+    background: var(--crm-surface);
+    color: var(--crm-text);
+  }
+
+  .crm-install-prompt__secondary:hover {
+    border-color: var(--crm-border-accent);
+    background: var(--crm-accent-soft);
+    transform: translateY(-1px);
+  }
+
+  html.dark .crm-install-prompt__panel {
+    background:
+      radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.08), transparent 9rem),
+      radial-gradient(circle at 100% 100%, rgba(35, 214, 230, 0.2), transparent 11rem),
+      var(--crm-gradient-card);
+    box-shadow: var(--crm-shadow-card), 0 30px 90px rgba(0, 9, 17, 0.54);
+  }
+
+  html.dark .crm-install-prompt__scrim {
+    background:
+      radial-gradient(circle at 50% 100%, rgba(35, 214, 230, 0.14), transparent 18rem),
+      linear-gradient(180deg, rgba(0, 8, 14, 0.04), rgba(0, 8, 14, 0.48));
+  }
+
+  html.dark .crm-install-prompt__primary {
+    color: #04131d;
+  }
+
+  @media (min-width: 768px) {
+    .crm-install-prompt {
+      align-items: center;
+      padding: 2rem;
+    }
+
+    .crm-install-prompt__panel {
+      transform-origin: center;
+      border-radius: 2.25rem;
+    }
+
+    .crm-install-prompt__actions {
+      grid-template-columns: 1fr 0.82fr;
+    }
+
+    .crm-install-prompt__actions--single {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .crm-install-prompt__panel {
+      animation: none;
+    }
+  }
+
   .crm-has-bottom-nav {
     padding-bottom: calc(5.75rem + max(env(safe-area-inset-bottom, 0px), 0px));
   }
@@ -2346,6 +2580,23 @@ body {
 @keyframes crm-panel-enter {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes crm-install-prompt-enter {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 1.35rem, 0) scale(0.97);
+  }
+
+  62% {
+    opacity: 1;
+    transform: translate3d(0, -0.12rem, 0) scale(1.006);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
