@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 const AUTH_INTENT_KEY = 'crm24_auth_intent';
 const AUTH_INTENT_CHOICE = 'choice';
-const MOBILE_SPLIT_REVEAL_DELAY_MS = 760;
+const MOBILE_SPLIT_REVEAL_DELAY_MS = 220;
 const USERNAME_PATTERN = /^[a-z0-9_]{3,32}$/;
 
 function normalizeLogin(value) {
