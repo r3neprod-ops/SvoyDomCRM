@@ -1111,6 +1111,7 @@ export default function DashboardClient({ user, initialTab }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
   const [reminderSending, setReminderSending] = useState(false);
+  const [chatSidebarOpen, setChatSidebarOpen] = useState(false);
 
   // Chat navigation state (shared with TeamChatPanel)
   const [chatNavUsers,   setChatNavUsers]   = useState([]);
@@ -1125,6 +1126,11 @@ export default function DashboardClient({ user, initialTab }) {
   const [newRoomName,    setNewRoomName]    = useState('');
   const [newRoomMembers, setNewRoomMembers] = useState([]);
   const [creatingRoom,   setCreatingRoom]   = useState(false);
+
+  useEffect(() => {
+    if (!drawerOpen) setChatSidebarOpen(false);
+  }, [drawerOpen]);
+
   const [profile, setProfile] = useState({ ...user, email: '', phone: '', status_text: '', avatar_url: '' });
   const [profileForm, setProfileForm] = useState({
     name: user.name || '',
@@ -1906,7 +1912,14 @@ export default function DashboardClient({ user, initialTab }) {
     setActiveTab(key);
     setDrawerOpen(false);
     if (key === 'chat') setChatUnread(0);
+    if (key !== 'chat') setChatSidebarOpen(false);
     if (key === 'logs') fetchActivityLogs();
+  };
+
+  const toggleChatSidebar = () => {
+    openChatGeneral();
+    setChatUnread(0);
+    setChatSidebarOpen((open) => !open);
   };
 
   const saveProfile = async (event) => {
@@ -2480,7 +2493,8 @@ export default function DashboardClient({ user, initialTab }) {
         {navItems.map((item) => (
           <div key={item.key}>
             <button
-              onClick={() => selectTab(item.key)}
+              onClick={() => (item.key === 'chat' ? toggleChatSidebar() : selectTab(item.key))}
+              aria-expanded={item.key === 'chat' ? chatSidebarOpen : undefined}
               className={`crm-focus-ring flex w-full items-center gap-3 rounded-crmXl px-3 py-2.5 text-left text-sm transition ${shellNavItemClass(activeTab === item.key)}`}
             >
               <NavIcon name={item.icon} />
@@ -2490,10 +2504,24 @@ export default function DashboardClient({ user, initialTab }) {
                   {item.badge > 99 ? '99+' : item.badge}
                 </span>
               )}
+              {item.key === 'chat' && (
+                <svg
+                  viewBox="0 0 24 24"
+                  className={`h-4 w-4 shrink-0 transition-transform duration-300 ${chatSidebarOpen ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  aria-hidden="true"
+                >
+                  <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
             </button>
 
             {item.key === 'chat' && (
-              <div className={`mt-2 space-y-1.5 rounded-crmXl border border-crm-border/70 bg-crm-surface/35 p-1.5 shadow-inner ${chatSidebarScrollClass}`}>
+              <div className={`grid transition-[grid-template-rows,opacity,margin] duration-300 ease-out ${chatSidebarOpen ? 'mt-2 grid-rows-[1fr] opacity-100' : 'mt-0 grid-rows-[0fr] opacity-0'}`}>
+                <div className="min-h-0 overflow-hidden">
+                  <div className={`space-y-1.5 rounded-crmXl border border-crm-border/70 bg-crm-surface/35 p-1.5 shadow-inner ${chatSidebarScrollClass}`}>
                 <button
                   onClick={() => { openChatGeneral(); setDrawerOpen(false); }}
                   className={`crm-focus-ring flex min-h-10 w-full items-center gap-2 rounded-crmLg px-2.5 py-2 text-left text-xs transition ${shellChatSubItemClass(!activeDmId && !activeRoomId)}`}
@@ -2563,6 +2591,8 @@ export default function DashboardClient({ user, initialTab }) {
                     )}
                   </button>
                 ))}
+                  </div>
+                </div>
               </div>
             )}
           </div>
